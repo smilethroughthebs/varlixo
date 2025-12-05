@@ -51,17 +51,15 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check admin authentication
-    const checkAuth = async () => {
-      if (!isAuthenticated || user?.role !== 'admin') {
-        router.push('/admin');
-        return;
-      }
-      setIsLoading(false);
-    };
-
-    checkAuth();
-  }, [isAuthenticated, user, router]);
+    // Check admin authentication - allow both 'admin' and 'super_admin' roles
+    const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
+    
+    if (!isAuthenticated || !isAdmin) {
+      router.push('/admin');
+      return;
+    }
+    setIsLoading(false);
+  }, [isAuthenticated, user?.role]); // Only depend on role, not entire user object
 
   const handleLogout = () => {
     logout();

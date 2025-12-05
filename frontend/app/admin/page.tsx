@@ -44,10 +44,11 @@ export default function AdminLoginPage() {
 
   // Redirect if already authenticated as admin
   useEffect(() => {
-    if (isAuthenticated && user?.role === 'admin') {
+    if (isAuthenticated && (user?.role === 'admin' || user?.role === 'super_admin')) {
       router.push('/admin/dashboard');
     }
-  }, [isAuthenticated, user, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user?.role]);
 
   // Lock timer countdown
   useEffect(() => {
