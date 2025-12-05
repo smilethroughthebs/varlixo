@@ -76,9 +76,9 @@ export default function ReferralsPage() {
       const data = response.data?.data || response.data;
       
       setReferralStats({
-        totalReferrals: data?.totalReferrals || user?.totalReferrals || 0,
+        totalReferrals: data?.totalReferrals || 0,
         activeReferrals: data?.activeReferrals || 0,
-        totalEarnings: data?.totalEarnings || user?.referralEarnings || 0,
+        totalEarnings: data?.totalEarnings || 0,
         pendingEarnings: data?.pendingEarnings || 0,
         thisMonthEarnings: data?.thisMonthEarnings || 0,
         currentTier: data?.currentTier || 'Bronze',
@@ -90,11 +90,11 @@ export default function ReferralsPage() {
       setReferredUsers(referralsData);
     } catch (error) {
       console.error('Failed to fetch referral data:', error);
-      // Use user data as fallback
+      // Use default values as fallback
       setReferralStats({
-        totalReferrals: user?.totalReferrals || 0,
+        totalReferrals: 0,
         activeReferrals: 0,
-        totalEarnings: user?.referralEarnings || 0,
+        totalEarnings: 0,
         pendingEarnings: 0,
         thisMonthEarnings: 0,
         currentTier: 'Bronze',
