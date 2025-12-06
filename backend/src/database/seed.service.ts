@@ -25,6 +25,7 @@ export class SeedService implements OnModuleInit {
 
   async onModuleInit() {
     await this.seedAdmin();
+    await this.ensureWalletsExist();
   }
 
   /**
@@ -51,7 +52,7 @@ export class SeedService implements OnModuleInit {
       }
 
       // Hash password
-      const hashedPassword = await bcrypt.hash(adminPassword, 12);
+      const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
       // Create admin user
       const admin = await this.userModel.create({
@@ -89,6 +90,39 @@ export class SeedService implements OnModuleInit {
 
     } catch (error) {
       this.logger.error('Failed to seed admin account:', error.message);
+    }
+  }
+
+  /**
+   * Ensure all users have wallets (data integrity check)
+   */
+  async ensureWalletsExist() {
+    try {
+      const users = await this.userModel.find({});
+      let createdCount = 0;
+
+      for (const user of users) {
+        const wallet = await this.walletModel.findOne({ userId: user._id });
+        if (!wallet) {
+          await this.walletModel.create({
+            userId: user._id,
+            mainBalance: 0,
+            pendingBalance: 0,
+            lockedBalance: 0,
+            totalDeposits: 0,
+            totalWithdrawals: 0,
+            totalEarnings: 0,
+            referralEarnings: 0,
+          });
+          createdCount++;
+        }
+      }
+
+      if (createdCount > 0) {
+        this.logger.log(`Created ${createdCount} missing wallet(s)`);
+      }
+    } catch (error) {
+      this.logger.error('Failed to ensure wallets exist:', error.message);
     }
   }
 }

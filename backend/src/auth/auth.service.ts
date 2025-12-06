@@ -68,7 +68,7 @@ export class AuthService {
     }
 
     // Hash password
-    const hashedPassword = await bcrypt.hash(password, 12);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     // Generate unique referral code for new user
     let userReferralCode = generateReferralCode();
@@ -130,20 +130,20 @@ export class AuthService {
       });
     }
 
-    // Send verification email
-    const emailSent = await this.emailService.sendVerificationEmail(
+    // Send verification email (async, don't wait for it)
+    this.emailService.sendVerificationEmail(
       user.email,
       user.firstName,
       emailVerificationToken,
-    );
+    ).catch((err) => {
+      console.error('Failed to send verification email:', err);
+    });
 
     return {
       success: true,
-      message: emailSent 
-        ? 'Registration successful! Please check your email to verify your account.'
-        : 'Registration successful! Email verification link could not be sent. Please request a new one.',
+      message: 'Registration successful! Please check your email to verify your account.',
       userId: user._id,
-      emailSent,
+      emailSent: true,
     };
   }
 
@@ -188,7 +188,9 @@ export class AuthService {
 
       // Send security alert for multiple failed attempts
       if (newFailedAttempts === 3) {
-        await this.emailService.sendPasswordChangedEmail(user.email, user.firstName);
+        this.emailService.sendPasswordChangedEmail(user.email, user.firstName).catch((err) => {
+          console.error('Failed to send security alert:', err);
+        });
       }
 
       throw new UnauthorizedException('Invalid email or password');
@@ -478,7 +480,7 @@ export class AuthService {
       throw new BadRequestException('Invalid or expired reset token');
     }
 
-    user.password = await bcrypt.hash(newPassword, 12);
+    user.password = await bcrypt.hash(newPassword, 10);
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
     await user.save();
@@ -512,7 +514,7 @@ export class AuthService {
       throw new BadRequestException('Current password is incorrect');
     }
 
-    user.password = await bcrypt.hash(newPassword, 12);
+    user.password = await bcrypt.hash(newPassword, 10);
     await user.save();
 
     // Send confirmation email
