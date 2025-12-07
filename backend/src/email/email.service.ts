@@ -55,9 +55,9 @@ export class EmailService {
       },
     });
 
-    // Use Resend's default sender for testing (onboarding@resend.dev)
-    // For production, verify your domain at https://resend.com/domains
-    this.fromEmail = 'Varlixo <onboarding@resend.dev>';
+    // Use email from config for production
+    // For development/testing, you can use onboarding@resend.dev
+    this.fromEmail = this.configService.get<string>('email.from') || 'noreply@varlixo.com';
     this.adminEmail = this.configService.get<string>('email.adminEmail') || 'admin@varlixo.com';
     this.frontendUrl = this.configService.get<string>('cors.frontendUrl') || 'http://localhost:3000';
 
