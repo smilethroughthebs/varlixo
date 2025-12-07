@@ -126,6 +126,19 @@ export class InvestmentController {
   // ==========================================
 
   /**
+   * Admin: Get all user investments (for admin dashboard)
+   * GET /investments/admin/all
+   */
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Get('admin/all')
+  async getAllInvestments(
+    @Query() paginationDto: PaginationDto,
+    @Query('status') status?: string,
+  ) {
+    return this.investmentService.getAllUserInvestments(paginationDto, status);
+  }
+
+  /**
    * Admin: Get all plans
    * GET /investments/admin/plans
    */

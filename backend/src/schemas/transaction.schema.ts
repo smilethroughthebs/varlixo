@@ -101,6 +101,29 @@ export class Transaction {
   @Prop()
   netAmount: number;
 
+  // Multi-currency support
+  @Prop({ required: true, min: 0 })
+  amount_usd: number; // Canonical USD amount
+
+  @Prop()
+  amount_local: number; // Local currency converted amount
+
+  @Prop()
+  currency_code: string; // ISO currency code (e.g., BRL, NGN)
+
+  @Prop()
+  conversion_rate: number; // FX rate used (1 USD → X local currency)
+
+  @Prop()
+  country_code: string; // ISO2 country code at time of transaction
+
+  @Prop()
+  tax_estimate_local: number; // Optional calculated tax in local currency
+
+  @Prop({ default: false })
+  is_fallback_rate: boolean; // Whether conversion used fallback rate
+
+
   // Payment method details
   @Prop({ type: String, enum: PaymentMethod })
   paymentMethod: PaymentMethod;

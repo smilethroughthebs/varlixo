@@ -26,6 +26,9 @@ import {
   VerifyEmailDto,
   Enable2FADto,
   ChangePasswordDto,
+  SendOtpDto,
+  VerifyEmailOtpDto,
+  ResetPasswordWithOtpDto,
 } from './dto/login.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -200,5 +203,67 @@ export class AuthController {
       success: true,
       message: 'Logged out successfully' 
     };
+  }
+
+  // ==========================================
+  // OTP-BASED AUTHENTICATION ENDPOINTS
+  // ==========================================
+
+  /**
+   * Send email verification OTP
+   * POST /auth/otp/send-verification
+   */
+  @Public()
+  @Post('otp/send-verification')
+  @HttpCode(HttpStatus.OK)
+  async sendVerificationOtp(@Body() sendOtpDto: SendOtpDto, @Req() req: Request) {
+    const ipAddress = getClientIp(req);
+    return this.authService.sendVerificationOtp(sendOtpDto, ipAddress);
+  }
+
+  /**
+   * Verify email OTP (after registration)
+   * POST /auth/otp/verify-email
+   */
+  @Public()
+  @Post('otp/verify-email')
+  @HttpCode(HttpStatus.OK)
+  async verifyEmailOtp(@Body() verifyOtpDto: VerifyEmailOtpDto) {
+    return this.authService.verifyEmailOtp(verifyOtpDto);
+  }
+
+  /**
+   * Send password reset OTP
+   * POST /auth/otp/send-reset
+   */
+  @Public()
+  @Post('otp/send-reset')
+  @HttpCode(HttpStatus.OK)
+  async sendPasswordResetOtp(@Body() sendOtpDto: SendOtpDto, @Req() req: Request) {
+    const ipAddress = getClientIp(req);
+    return this.authService.sendPasswordResetOtp(sendOtpDto, ipAddress);
+  }
+
+  /**
+   * Reset password with OTP
+   * POST /auth/otp/reset-password
+   */
+  @Public()
+  @Post('otp/reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPasswordWithOtp(@Body() resetOtpDto: ResetPasswordWithOtpDto) {
+    return this.authService.resetPasswordWithOtp(resetOtpDto);
+  }
+
+  /**
+   * Resend OTP
+   * POST /auth/otp/resend
+   */
+  @Public()
+  @Post('otp/resend')
+  @HttpCode(HttpStatus.OK)
+  async resendOtp(@Body() sendOtpDto: SendOtpDto, @Req() req: Request) {
+    const ipAddress = getClientIp(req);
+    return this.authService.resendOtp(sendOtpDto, ipAddress);
   }
 }

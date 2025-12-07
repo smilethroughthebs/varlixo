@@ -24,9 +24,11 @@ import { User, UserDocument, UserRole, UserStatus } from '../schemas/user.schema
 import { Wallet, WalletDocument } from '../schemas/wallet.schema';
 import { Referral, ReferralDocument } from '../schemas/referral.schema';
 import { RegisterDto } from './dto/register.dto';
-import { LoginDto, ResetPasswordDto, ChangePasswordDto } from './dto/login.dto';
+import { LoginDto, ResetPasswordDto, ChangePasswordDto, SendOtpDto, VerifyEmailOtpDto, ResetPasswordWithOtpDto } from './dto/login.dto';
 import { generateReferralCode, generateToken, generateOTP, addDays } from '../common/utils/helpers';
 import { EmailService } from '../email/email.service';
+import { OtpService } from './otp.service';
+import { OtpType } from '../schemas/otp.schema';
 
 // JWT Payload interface
 export interface JwtPayload {
@@ -48,6 +50,7 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private emailService: EmailService,
+    private otpService: OtpService,
   ) {}
 
   /**
@@ -88,63 +91,80 @@ export class AuthService {
     // Generate email verification token
     const emailVerificationToken = generateToken();
 
-    // Create user
-    const user = new this.userModel({
-      firstName,
-      lastName,
-      email: email.toLowerCase(),
-      password: hashedPassword,
-      country,
-      phone,
-      referralCode: userReferralCode,
-      referredBy,
-      emailVerificationToken,
-      emailVerificationExpires: addDays(new Date(), 1), // 24 hours
-      status: UserStatus.PENDING,
-    });
-
-    await user.save();
-
-    // Create wallet for user
-    const wallet = new this.walletModel({
-      userId: user._id,
-      mainBalance: 0,
-      pendingBalance: 0,
-      lockedBalance: 0,
-    });
-    await wallet.save();
-
-    // Create referral record if referred
-    if (referredBy) {
-      const referral = new this.referralModel({
-        referrerId: referredBy,
-        referredId: user._id,
-        referralCode,
-        ipAddress,
+    try {
+      // Create user
+      const user = new this.userModel({
+        firstName,
+        lastName,
+        email: email.toLowerCase(),
+        password: hashedPassword,
+        country,
+        phone,
+        referralCode: userReferralCode,
+        referredBy,
+        emailVerificationToken,
+        emailVerificationExpires: addDays(new Date(), 1), // 24 hours
+        status: UserStatus.PENDING,
       });
-      await referral.save();
 
-      // Update referrer's total referrals count
-      await this.userModel.findByIdAndUpdate(referredBy, {
-        $inc: { totalReferrals: 1 },
+      await user.save();
+
+      // Create wallet for user
+      const wallet = new this.walletModel({
+        userId: user._id,
+        mainBalance: 0,
+        pendingBalance: 0,
+        lockedBalance: 0,
       });
+      await wallet.save();
+
+      // Create referral record if referred
+      if (referredBy) {
+        const referral = new this.referralModel({
+          referrerId: referredBy,
+          referredId: user._id,
+          referralCode,
+          ipAddress,
+        });
+        await referral.save();
+
+        // Update referrer's total referrals count
+        await this.userModel.findByIdAndUpdate(referredBy, {
+          $inc: { totalReferrals: 1 },
+        });
+      }
+
+      // Send verification email (fire and forget, but log errors)
+      // User account is created regardless of email sending success
+      this.emailService.sendVerificationEmail(
+        user.email,
+        user.firstName,
+        emailVerificationToken,
+      ).catch((err) => {
+        console.error('⚠️ Failed to send verification email to', user.email, ':', err);
+      }).then((sent) => {
+        if (sent) {
+          console.log('✅ Verification email sent to', user.email);
+        }
+      });
+
+      return {
+        success: true,
+        message: 'Registration successful! Please check your email to verify your account.',
+        userId: user._id,
+        emailSent: true, // Email sending is asynchronous, so we optimistically return true
+      };
+    } catch (error) {
+      console.error('❌ Registration error:', error);
+      
+      // If it's a duplicate key error, user might exist
+      if (error.code === 11000) {
+        throw new ConflictException('Email or referral code already exists');
+      }
+      
+      // Re-throw other errors
+      throw error;
     }
-
-    // Send verification email (async, don't wait for it)
-    this.emailService.sendVerificationEmail(
-      user.email,
-      user.firstName,
-      emailVerificationToken,
-    ).catch((err) => {
-      console.error('Failed to send verification email:', err);
-    });
-
-    return {
-      success: true,
-      message: 'Registration successful! Please check your email to verify your account.',
-      userId: user._id,
-      emailSent: true,
-    };
   }
 
   /**
@@ -665,5 +685,254 @@ export class AuthService {
           }
         : null,
     };
+  }
+
+  // ==========================================
+  // OTP-BASED AUTHENTICATION METHODS
+  // ==========================================
+
+  /**
+   * Send OTP for email verification
+   */
+  async sendVerificationOtp(sendOtpDto: SendOtpDto, ipAddress?: string) {
+    const { email } = sendOtpDto;
+
+    // Check if user exists
+    const user = await this.userModel.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      // Don't reveal if user exists
+      return {
+        success: true,
+        message: 'If an account exists with that email, you will receive a verification code.',
+      };
+    }
+
+    try {
+      // Generate OTP
+      const otp = await this.otpService.generateOtp(
+        email,
+        OtpType.EMAIL_VERIFICATION,
+        user._id.toString(),
+        ipAddress,
+      );
+
+      // Send email
+      await this.emailService.sendOtpEmail(
+        email,
+        user.firstName,
+        otp.code,
+        'verification',
+      );
+
+      return {
+        success: true,
+        message: 'Verification code sent to your email. Code expires in 10 minutes.',
+        otpId: otp._id, // Frontend can store this if needed
+      };
+    } catch (error) {
+      console.error('Error sending verification OTP:', error);
+      // Still return success to prevent enumeration
+      return {
+        success: true,
+        message: 'If an account exists with that email, you will receive a verification code.',
+      };
+    }
+  }
+
+  /**
+   * Verify email OTP during registration
+   */
+  async verifyEmailOtp(verifyOtpDto: VerifyEmailOtpDto): Promise<any> {
+    const { email, code } = verifyOtpDto;
+
+    try {
+      // Verify OTP
+      const verifiedOtp = await this.otpService.verifyOtp(
+        email,
+        code,
+        OtpType.EMAIL_VERIFICATION,
+      );
+
+      // Find and update user
+      const user = await this.userModel.findOne({ email: email.toLowerCase() });
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      // Mark email as verified
+      user.emailVerified = true;
+      user.status = UserStatus.ACTIVE;
+      await user.save();
+
+      // Generate tokens
+      const payload: JwtPayload = {
+        sub: user._id.toString(),
+        email: user.email,
+        role: user.role,
+        twoFactorAuthenticated: user.twoFactorEnabled,
+      };
+
+      const accessToken = await this.generateAccessToken(payload);
+      const refreshToken = await this.generateRefreshToken(payload);
+
+      return {
+        success: true,
+        message: 'Email verified successfully! You can now log in.',
+        accessToken,
+        refreshToken,
+        user: {
+          id: user._id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+          emailVerified: user.emailVerified,
+        },
+      };
+    } catch (error) {
+      throw new BadRequestException(error.message || 'Failed to verify email');
+    }
+  }
+
+  /**
+   * Send OTP for password reset
+   */
+  async sendPasswordResetOtp(sendOtpDto: SendOtpDto, ipAddress?: string) {
+    const { email } = sendOtpDto;
+
+    // Check if user exists
+    const user = await this.userModel.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      // Don't reveal if user exists
+      return {
+        success: true,
+        message: 'If an account exists with that email, you will receive a password reset code.',
+      };
+    }
+
+    try {
+      // Generate OTP
+      const otp = await this.otpService.generateOtp(
+        email,
+        OtpType.PASSWORD_RESET,
+        user._id.toString(),
+        ipAddress,
+      );
+
+      // Send email
+      await this.emailService.sendOtpEmail(
+        email,
+        user.firstName,
+        otp.code,
+        'reset',
+      );
+
+      return {
+        success: true,
+        message: 'Password reset code sent to your email. Code expires in 10 minutes.',
+        otpId: otp._id,
+      };
+    } catch (error) {
+      console.error('Error sending password reset OTP:', error);
+      return {
+        success: true,
+        message: 'If an account exists with that email, you will receive a password reset code.',
+      };
+    }
+  }
+
+  /**
+   * Reset password using OTP
+   */
+  async resetPasswordWithOtp(resetOtpDto: ResetPasswordWithOtpDto): Promise<any> {
+    const { email, code, newPassword, confirmPassword } = resetOtpDto;
+
+    // Validate passwords match
+    if (newPassword !== confirmPassword) {
+      throw new BadRequestException('Passwords do not match');
+    }
+
+    try {
+      // Verify OTP
+      const verifiedOtp = await this.otpService.verifyOtp(
+        email,
+        code,
+        OtpType.PASSWORD_RESET,
+      );
+
+      // Find user
+      const user = await this.userModel.findOne({ email: email.toLowerCase() });
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      // Update password
+      user.password = hashedPassword;
+      user.failedLoginAttempts = 0;
+      user.lockUntil = null;
+      await user.save();
+
+      // Send confirmation email
+      this.emailService.sendPasswordChangedEmail(user.email, user.firstName).catch(err => {
+        console.error('Error sending password changed confirmation:', err);
+      });
+
+      return {
+        success: true,
+        message: 'Password reset successfully. You can now log in with your new password.',
+      };
+    } catch (error) {
+      throw new BadRequestException(error.message || 'Failed to reset password');
+    }
+  }
+
+  /**
+   * Resend OTP
+   */
+  async resendOtp(sendOtpDto: SendOtpDto, ipAddress?: string) {
+    const { email, type = 'verification' } = sendOtpDto;
+
+    const otpType = type === 'reset' ? OtpType.PASSWORD_RESET : OtpType.EMAIL_VERIFICATION;
+
+    // Check if user exists
+    const user = await this.userModel.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      return {
+        success: true,
+        message: `If an account exists with that email, you will receive a ${type} code.`,
+      };
+    }
+
+    try {
+      // Resend OTP (invalidate old, create new)
+      const otp = await this.otpService.resendOtp(
+        email,
+        otpType,
+        user._id.toString(),
+        ipAddress,
+      );
+
+      // Send email
+      await this.emailService.sendOtpEmail(
+        email,
+        user.firstName,
+        otp.code,
+        type as 'verification' | 'reset' | 'withdrawal',
+      );
+
+      return {
+        success: true,
+        message: `New ${type} code sent to your email.`,
+      };
+    } catch (error) {
+      console.error(`Error resending ${type} OTP:`, error);
+      return {
+        success: true,
+        message: `If an account exists with that email, you will receive a ${type} code.`,
+      };
+    }
   }
 }

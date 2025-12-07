@@ -84,6 +84,43 @@ export class ChangePasswordDto {
   confirmPassword: string;
 }
 
+export class VerifyEmailOtpDto {
+  @IsEmail({}, { message: 'Please provide a valid email address' })
+  @IsNotEmpty({ message: 'Email is required' })
+  email: string;
 
+  @IsString()
+  @IsNotEmpty({ message: 'OTP code is required' })
+  @Length(6, 6, { message: 'OTP code must be 6 digits' })
+  code: string;
+}
 
+export class SendOtpDto {
+  @IsEmail({}, { message: 'Please provide a valid email address' })
+  @IsNotEmpty({ message: 'Email is required' })
+  email: string;
 
+  @IsString()
+  @IsOptional()
+  type?: 'verification' | 'reset' | 'withdrawal';
+}
+
+export class ResetPasswordWithOtpDto {
+  @IsEmail({}, { message: 'Please provide a valid email address' })
+  @IsNotEmpty({ message: 'Email is required' })
+  email: string;
+
+  @IsString()
+  @IsNotEmpty({ message: 'OTP code is required' })
+  @Length(6, 6, { message: 'OTP code must be 6 digits' })
+  code: string;
+
+  @IsString()
+  @IsNotEmpty({ message: 'New password is required' })
+  @Length(8, 100, { message: 'Password must be between 8 and 100 characters' })
+  newPassword: string;
+
+  @IsString()
+  @IsNotEmpty({ message: 'Password confirmation is required' })
+  confirmPassword: string;
+}

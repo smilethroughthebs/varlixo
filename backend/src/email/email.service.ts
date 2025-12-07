@@ -42,18 +42,24 @@ export class EmailService {
 
   constructor(private configService: ConfigService) {
     // Initialize Resend SMTP transporter
-    this.transporter = nodemailer.createTransport({
+    const smtpPort = this.configService.get<number>('email.port') || 587;
+    const smtpConfig: any = {
       host: this.configService.get<string>('email.host') || 'smtp.resend.com',
-      port: this.configService.get<number>('email.port') || 587,
-      secure: this.configService.get<boolean>('email.secure') || false,
+      port: smtpPort,
+      secure: smtpPort === 465, // Use true for port 465, false for port 587
       auth: {
         user: this.configService.get<string>('email.user') || 'resend',
         pass: this.configService.get<string>('email.pass'),
       },
       tls: {
         rejectUnauthorized: false, // Allow self-signed certificates
+        minVersion: 'TLSv1.2',
       },
-    });
+      connectionTimeout: 5000, // 5 second timeout
+      socketTimeout: 10000, // 10 second socket timeout
+    };
+    
+    this.transporter = nodemailer.createTransport(smtpConfig);
 
     // Use email from config for production
     // For development/testing, you can use onboarding@resend.dev
@@ -69,9 +75,16 @@ export class EmailService {
    * Verify SMTP connection
    */
   private async verifyConnection() {
+    const skipVerification = this.configService.get<string>('SKIP_SMTP_VERIFICATION') === 'true';
+    
+    if (skipVerification) {
+      this.logger.warn('⚠️  SMTP verification skipped (development mode) - emails will be sent with timeout handling');
+      return;
+    }
+
     try {
       await this.transporter.verify();
-      this.logger.log('✅ SMTP connection established successfully (Resend)');
+      this.logger.log('✅ SMTP connection established successfully');
     } catch (error) {
       this.logger.error('❌ SMTP connection failed:', error.message);
     }
@@ -192,6 +205,69 @@ export class EmailService {
     });
 
     return this.sendEmail(email, `🔑 Your Security Code: ${code} - Varlixo`, html);
+  }
+
+  /**
+   * Send OTP code email (for email verification, password reset, etc)
+   */
+  async sendOtpEmail(email: string, name: string, code: string, type: 'verification' | 'reset' | 'withdrawal' = 'verification'): Promise<boolean> {
+    const titles = {
+      verification: 'Verify Your Email Address',
+      reset: 'Reset Your Password',
+      withdrawal: 'Confirm Withdrawal Request',
+    };
+
+    const descriptions = {
+      verification: 'Complete your account verification',
+      reset: 'Password reset request for your account',
+      withdrawal: 'Confirm your withdrawal request',
+    };
+
+    const actionTexts = {
+      verification: 'Verify your email and activate your account',
+      reset: 'Change your password securely',
+      withdrawal: 'Approve your withdrawal request',
+    };
+
+    const html = this.getEmailTemplate({
+      title: titles[type],
+      preheader: `Your verification code is: ${code}`,
+      name,
+      content: `
+        <p style="margin: 0 0 16px; color: #e0e0e0; font-size: 16px; line-height: 1.6;">
+          ${actionTexts[type]}
+        </p>
+        <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border: 2px solid #00d4aa; border-radius: 12px; padding: 30px; text-align: center; margin: 24px 0;">
+          <p style="margin: 0 0 12px; color: #888; font-size: 13px;">CODE</p>
+          <p style="margin: 0; font-size: 48px; font-weight: 700; letter-spacing: 8px; color: #00d4aa; font-family: 'Courier New', monospace;">
+            ${code}
+          </p>
+        </div>
+        <p style="margin: 0 0 16px; color: #a0a0a0; font-size: 14px; line-height: 1.6;">
+          This code will expire in <strong>10 minutes</strong>. Do not share this code with anyone.
+        </p>
+        ${type === 'reset' ? `
+        <div style="background: rgba(255, 193, 7, 0.1); border-left: 4px solid #ffc107; padding: 16px; margin: 20px 0; border-radius: 4px;">
+          <p style="margin: 0; color: #ffc107; font-size: 13px;">
+            ⚠️ If you didn't request a password reset, please ignore this email and secure your account.
+          </p>
+        </div>
+        ` : ''}
+      `,
+      footer: `
+        <p style="margin: 0; color: #666; font-size: 13px;">
+          Never share this code with anyone, including Varlixo support staff. We will never ask for this code via email or message.
+        </p>
+      `,
+    });
+
+    const subjects = {
+      verification: `📧 Verify Your Email - ${code}`,
+      reset: `🔐 Reset Password Code - ${code}`,
+      withdrawal: `💳 Withdrawal Confirmation - ${code}`,
+    };
+
+    return this.sendEmail(email, subjects[type], html);
   }
 
   // ==========================================
@@ -940,17 +1016,24 @@ export class EmailService {
    */
   private async sendEmail(to: string, subject: string, html: string): Promise<boolean> {
     try {
-      const info = await this.transporter.sendMail({
+      // Add a timeout to prevent hanging
+      const sendPromise = this.transporter.sendMail({
         from: this.fromEmail,
         to,
         subject,
         html,
       });
 
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Email send timeout (30s)')), 30000)
+      );
+
+      const info = await Promise.race([sendPromise, timeoutPromise]);
+
       this.logger.log(`✅ Email sent successfully to ${to} - MessageId: ${info.messageId}`);
       return true;
     } catch (error) {
-      this.logger.error(`❌ Failed to send email to ${to}:`, error.message);
+      this.logger.error(`⚠️  Email delivery to ${to} attempted - Status: ${error.message}`);
       
       // Log detailed error for debugging
       if (error.response) {
@@ -958,6 +1041,7 @@ export class EmailService {
       }
       
       // Don't throw - return false to allow graceful handling
+      // The email will attempt to send even if verification failed
       return false;
     }
   }

@@ -23,6 +23,8 @@ import { ReferralModule } from './referral/referral.module';
 import { CronModule } from './cron/cron.module';
 import { MarketModule } from './market/market.module';
 import { DatabaseModule } from './database/database.module';
+import { CurrencyModule } from './currency/currency.module';
+import { TestimonialModule } from './testimonial/testimonial.module';
 
 // Middleware
 import { LoggerMiddleware } from './common/middleware/logger.middleware';
@@ -72,6 +74,8 @@ import { SecurityMiddleware } from './common/middleware/security.middleware';
     CronModule,
     MarketModule,
     DatabaseModule,
+    CurrencyModule,
+    TestimonialModule,
   ],
 })
 export class AppModule implements NestModule {

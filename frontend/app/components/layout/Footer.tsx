@@ -56,15 +56,15 @@ export default function Footer() {
                 support@varlixo.com
               </a>
               <a
-                href="tel:+1234567890"
+                href="tel:+14083600362"
                 className="flex items-center gap-3 text-gray-400 hover:text-primary-500 transition-colors"
               >
                 <Phone size={18} />
-                +1 (234) 567-890
+                +1 408 360 0362
               </a>
               <div className="flex items-center gap-3 text-gray-400">
                 <MapPin size={18} />
-                New York, NY 10001
+                45 City Plaza, Berlin 10117, Germany
               </div>
             </div>
           </div>

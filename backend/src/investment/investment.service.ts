@@ -461,6 +461,41 @@ export class InvestmentService {
   }
 
   /**
+   * Get all user investments (admin)
+   */
+  async getAllUserInvestments(paginationDto: PaginationDto, status?: string) {
+    const { page = 1, limit = 20 } = paginationDto;
+    const skip = (page - 1) * limit;
+
+    const filter: any = {};
+    if (status) {
+      filter.status = status;
+    }
+
+    const [investments, total] = await Promise.all([
+      this.investmentModel
+        .find(filter)
+        .populate('userId', 'email firstName lastName')
+        .populate('planId', 'name dailyReturnRate durationDays')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      this.investmentModel.countDocuments(filter),
+    ]);
+
+    return {
+      success: true,
+      investments,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  /**
    * Delete/deactivate a plan
    */
   async deletePlan(planId: string) {

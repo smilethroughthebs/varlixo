@@ -75,4 +75,15 @@ export default () => ({
   session: {
     idleTimeout: parseInt(process.env.SESSION_IDLE_TIMEOUT, 10) || 1800000, // 30 minutes
   },
+
+  // Multi-Currency settings
+  currency: {
+    autoDetectEnabled: process.env.AUTO_CURRENCY === 'true',
+    defaultCurrency: process.env.DEFAULT_CURRENCY || 'USD',
+    fxProviderPrimary: process.env.FX_PROVIDER_PRIMARY || 'https://api.exchangerate.host/latest',
+    fxProviderFallback: process.env.FX_PROVIDER_FALLBACK || 'https://open.er-api.com/v6/latest',
+    fxCacheTtlSeconds: parseInt(process.env.FX_TTL_SECONDS, 10) || 3600,
+    geoipProviderPrimary: process.env.GEOIP_PROVIDER_PRIMARY || 'https://ipapi.co',
+    geoipProviderFallback: process.env.GEOIP_PROVIDER_FALLBACK || 'https://ipwho.is',
+  },
 });
