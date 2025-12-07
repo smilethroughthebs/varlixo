@@ -82,10 +82,15 @@ export default function AdminUsersPage() {
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
+      // Filter out empty string values to avoid validation errors
+      const cleanFilters = Object.fromEntries(
+        Object.entries(filters).filter(([_, value]) => value !== '')
+      );
+      
       const response = await adminAPI.getUsers({
         page: pagination.page,
         limit: pagination.limit,
-        ...filters,
+        ...cleanFilters,
       });
       
       if (response.data.data) {

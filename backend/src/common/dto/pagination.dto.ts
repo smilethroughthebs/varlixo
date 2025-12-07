@@ -34,8 +34,8 @@ export class PaginationDto {
   sortOrder?: 'asc' | 'desc' = 'desc';
 
   @IsOptional()
-  @IsString()
-  search?: string;
+  @IsString({ message: 'Search must be a string' })
+  search?: string = '';
 }
 
 /**

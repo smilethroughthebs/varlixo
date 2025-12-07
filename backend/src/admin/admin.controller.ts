@@ -54,7 +54,12 @@ export class AdminController {
     @Query('status') status?: string,
     @Query('kycStatus') kycStatus?: string,
   ) {
-    return this.adminService.getUsers(paginationDto, { status, kycStatus });
+    // Filter out empty string values
+    const filters = {
+      status: status && status.trim() ? status.trim() : undefined,
+      kycStatus: kycStatus && kycStatus.trim() ? kycStatus.trim() : undefined,
+    };
+    return this.adminService.getUsers(paginationDto, filters);
   }
 
   /**
