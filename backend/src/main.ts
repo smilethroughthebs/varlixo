@@ -28,7 +28,17 @@ async function bootstrap() {
 
   // Enable CORS with configuration
   app.enableCors({
-    origin: [frontendUrl, 'http://localhost:3000'],
+    origin: (origin, callback) => {
+      // Allow requests from frontend and localhost during development
+      const allowedOrigins = [frontendUrl, 'http://localhost:3000', 'http://localhost:3001'];
+      
+      // In production, allow the main domain and www subdomain
+      if (!origin || allowedOrigins.includes(origin) || origin?.includes('varlixo.com')) {
+        callback(null, true);
+      } else {
+        callback(null, true); // Allow all origins for now (can be restricted later)
+      }
+    },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     credentials: true,
