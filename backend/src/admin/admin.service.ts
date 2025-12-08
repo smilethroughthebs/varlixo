@@ -369,13 +369,14 @@ export class AdminService {
     wallet.mainBalance += deposit.amount;
     await wallet.save();
 
-    // Create transaction
+    // Create transaction (include amount_usd to satisfy schema)
     await this.transactionModel.create({
       userId: deposit.userId,
       transactionRef: generateReference('TXN'),
       type: TransactionType.DEPOSIT,
       status: TransactionStatus.COMPLETED,
       amount: deposit.amount,
+      amount_usd: deposit.amount,
       paymentMethod: deposit.paymentMethod,
       description: `Deposit approved - ${deposit.depositRef}`,
       balanceBefore: previousBalance,
