@@ -56,8 +56,9 @@ export class AdminService {
       activeInvestments,
       walletAggregates,
     ] = await Promise.all([
-      this.userModel.countDocuments({ role: UserRole.USER }),
-      this.userModel.countDocuments({ role: UserRole.USER, status: UserStatus.ACTIVE }),
+      // Count all users (including admins) for dashboard totals
+      this.userModel.countDocuments({}),
+      this.userModel.countDocuments({ status: UserStatus.ACTIVE }),
       this.userModel.countDocuments({ kycStatus: KycStatus.PENDING }),
       this.depositModel.countDocuments({ status: TransactionStatus.PENDING }),
       this.withdrawalModel.countDocuments({ status: TransactionStatus.PENDING }),
