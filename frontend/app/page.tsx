@@ -670,9 +670,37 @@ export default function HomePage() {
             >
               Trusted by Thousands
             </motion.h2>
-            <motion.p variants={fadeInUp} className="text-gray-400 max-w-2xl mx-auto text-lg">
+            <motion.p variants={fadeInUp} className="text-gray-400 max-w-2xl mx-auto text-lg mb-4">
               Real stories from real investors who transformed their financial future with Varlixo.
             </motion.p>
+
+            {/* Ratings summary (no app stores) */}
+            <motion.div
+              variants={fadeInUp}
+              className="flex flex-wrap items-center justify-center gap-4 text-xs sm:text-sm text-gray-400"
+            >
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-dark-700/70 border border-dark-600">
+                <div className="flex items-center gap-1 text-yellow-400">
+                  <Star size={14} className="fill-yellow-400" />
+                  <span className="font-semibold">4.9 / 5</span>
+                </div>
+                <span className="text-gray-500">on TradingView</span>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-dark-700/70 border border-dark-600">
+                <div className="flex items-center gap-1 text-yellow-400">
+                  <Star size={14} className="fill-yellow-400" />
+                  <span className="font-semibold">4.8 / 5</span>
+                </div>
+                <span className="text-gray-500">on Trustpilot</span>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-dark-700/70 border border-dark-600">
+                <div className="flex items-center gap-1 text-yellow-400">
+                  <Star size={14} className="fill-yellow-400" />
+                  <span className="font-semibold">4.7 / 5</span>
+                </div>
+                <span className="text-gray-500">on CoinGecko Ratings</span>
+              </div>
+            </motion.div>
           </motion.div>
 
           <motion.div
@@ -702,12 +730,17 @@ export default function HomePage() {
                 </div>
                 <p className="text-gray-400 mb-6 leading-relaxed">"{testimonial.content}"</p>
                 <div className="flex items-center justify-between pt-4 border-t border-dark-700">
-                  <div className="flex gap-1">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} size={16} className="text-yellow-500 fill-yellow-500" />
-                    ))}
+                  <div className="space-y-1">
+                    <div className="flex gap-1">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} size={16} className="text-yellow-500 fill-yellow-500" />
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      {testimonial.rating.toFixed(1)} / 5 · {testimonial.source}
+                    </p>
                   </div>
-                  <span className="text-primary-400 font-bold">{testimonial.profit}</span>
+                  <span className="text-primary-400 font-bold text-sm sm:text-base">{testimonial.profit}</span>
                 </div>
               </motion.div>
             ))}

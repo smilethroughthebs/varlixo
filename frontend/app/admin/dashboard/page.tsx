@@ -81,6 +81,11 @@ export default function AdminDashboardPage() {
     revenueGrowth: 0,
     profitsPaid: 0,
     referralsPaid: 0,
+    // Wallet aggregates
+    walletTotal: 0,
+    walletAvailable: 0,
+    walletPending: 0,
+    walletLocked: 0,
   });
 
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
@@ -114,7 +119,9 @@ export default function AdminDashboardPage() {
     try {
       const response = await adminAPI.getDashboard();
       if (response.data) {
-        const data = response.data.stats || response.data;
+        // Backend returns { success, data: { stats, recentActivity } }
+        const payload = response.data.data || response.data;
+        const data = payload.stats || payload;
         
         // Update stats from API
         setStats({
@@ -137,6 +144,11 @@ export default function AdminDashboardPage() {
           revenueGrowth: data.revenue?.growth || 0,
           profitsPaid: data.profitsPaid || 0,
           referralsPaid: data.referralsPaid || 0,
+          // Wallet aggregates from backend (manual adjustments + deposits)
+          walletTotal: data.wallets?.totalBalance || 0,
+          walletAvailable: data.wallets?.available || 0,
+          walletPending: data.wallets?.pending || 0,
+          walletLocked: data.wallets?.locked || 0,
         });
 
         // Update pending actions
@@ -148,9 +160,10 @@ export default function AdminDashboardPage() {
 
         // Format recent activity from deposits and withdrawals
         const activity: any[] = [];
-        
-        if (response.data.recentActivity?.deposits) {
-          response.data.recentActivity.deposits.forEach((d: any, i: number) => {
+        const recent = payload.recentActivity || response.data.recentActivity || {};
+
+        if (recent.deposits) {
+          recent.deposits.forEach((d: any, i: number) => {
             activity.push({
               id: `dep-${i}`,
               type: 'deposit',
@@ -163,8 +176,8 @@ export default function AdminDashboardPage() {
           });
         }
 
-        if (response.data.recentActivity?.withdrawals) {
-          response.data.recentActivity.withdrawals.forEach((w: any, i: number) => {
+        if (recent.withdrawals) {
+          recent.withdrawals.forEach((w: any, i: number) => {
             activity.push({
               id: `wit-${i}`,
               type: 'withdrawal',
@@ -472,6 +485,35 @@ export default function AdminDashboardPage() {
             <p className="text-sm text-gray-400">Platform Revenue</p>
             <p className="text-2xl font-bold text-white">${(stats.revenue / 1000).toFixed(0)}K</p>
             <p className="text-xs text-gray-500 mt-1">This month</p>
+          </div>
+        </Card>
+
+        {/* Total Wallet Balance */}
+        <Card className="relative overflow-hidden bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 border-emerald-500/20">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-500/10 rounded-full blur-2xl -mr-10 -mt-10" />
+          <div className="relative">
+            <div className="flex items-start justify-between mb-4">
+              <div className="w-11 h-11 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                <Wallet className="text-emerald-500" size={22} />
+              </div>
+            </div>
+            <p className="text-sm text-gray-400">Total Wallet Balance</p>
+            <p className="text-2xl font-bold text-white">${stats.walletTotal.toLocaleString()}</p>
+            <p className="text-xs text-gray-500 mt-1">Includes manual balance adjustments</p>
+            <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
+              <div className="p-2 rounded-lg bg-dark-700/60">
+                <p className="text-gray-500 mb-1">Available</p>
+                <p className="text-emerald-400 font-semibold">${stats.walletAvailable.toLocaleString()}</p>
+              </div>
+              <div className="p-2 rounded-lg bg-dark-700/60">
+                <p className="text-gray-500 mb-1">Pending</p>
+                <p className="text-yellow-400 font-semibold">${stats.walletPending.toLocaleString()}</p>
+              </div>
+              <div className="p-2 rounded-lg bg-dark-700/60">
+                <p className="text-gray-500 mb-1">Locked</p>
+                <p className="text-blue-400 font-semibold">${stats.walletLocked.toLocaleString()}</p>
+              </div>
+            </div>
           </div>
         </Card>
       </motion.div>
