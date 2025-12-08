@@ -14,14 +14,15 @@ import { Card } from '@/app/components/ui/Card';
 import Button from '@/app/components/ui/Button';
 import Input from '@/app/components/ui/Input';
 import toast from 'react-hot-toast';
-import axios from 'axios';
+import api from '@/app/lib/api';
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
 };
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+// Admin investments page uses the shared API client, which already
+// knows the base URL and attaches the auth token from cookies.
 
 interface Investment {
   _id: string;
@@ -64,7 +65,7 @@ export default function AdminInvestmentsPage() {
         params.status = filterStatus;
       }
 
-      const response = await axios.get(`${apiUrl}/investment/all`, { params });
+      const response = await api.get('/investments/admin/all', { params });
       setInvestments(response.data.investments || []);
     } catch (error: any) {
       toast.error('Failed to fetch investments');
