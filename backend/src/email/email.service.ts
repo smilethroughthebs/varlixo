@@ -1005,8 +1005,42 @@ export class EmailService {
 
   /**
    * Send email with error handling
+   * Uses Resend HTTP API as primary, falls back to SMTP
    */
   private async sendEmail(to: string, subject: string, html: string): Promise<boolean> {
+    // Try Resend HTTP API first (more reliable on Railway)
+    const apiKey = this.configService.get<string>('email.pass');
+    
+    if (apiKey && apiKey.startsWith('re_')) {
+      try {
+        const response = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: this.fromEmail,
+            to: [to],
+            subject: subject,
+            html: html,
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          this.logger.log(`✅ Email sent successfully to ${to} via Resend API - ID: ${data.id}`);
+          return true;
+        }
+
+        const error = await response.json();
+        this.logger.error(`❌ Resend API error: ${JSON.stringify(error)}`);
+      } catch (error) {
+        this.logger.error(`❌ Resend API failed: ${error.message}`);
+      }
+    }
+
+    // Fallback to SMTP
     try {
       const info = await this.transporter.sendMail({
         from: this.fromEmail,
@@ -1015,7 +1049,7 @@ export class EmailService {
         html,
       });
 
-      this.logger.log(`✅ Email sent successfully to ${to} - MessageId: ${info.messageId}`);
+      this.logger.log(`✅ Email sent successfully to ${to} via SMTP - MessageId: ${info.messageId}`);
       return true;
     } catch (error) {
       this.logger.error(`❌ Email delivery to ${to} failed - Status: ${error.message}`);
