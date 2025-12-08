@@ -152,6 +152,7 @@ export class WalletService {
       type: TransactionType.DEPOSIT,
       status: TransactionStatus.PENDING,
       amount,
+      amount_usd: amount, // Set USD amount (assuming amount is in USD)
       paymentMethod,
       description: `Deposit via ${paymentMethod.replace('_', ' ')}`,
       ipAddress,
@@ -540,6 +541,7 @@ export class WalletService {
       type: TransactionType.WITHDRAWAL,
       status: TransactionStatus.PENDING,
       amount,
+      amount_usd: amount, // Set USD amount (assuming amount is in USD)
       fee,
       netAmount,
       paymentMethod,
