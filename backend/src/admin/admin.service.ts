@@ -384,17 +384,22 @@ export class AdminService {
       processedBy: new Types.ObjectId(adminId),
     });
 
-    // Send email notification
-    const user = await this.userModel.findById(deposit.userId);
-    if (user) {
-      await this.emailService.sendDepositConfirmedEmail(
-        user.email,
-        user.firstName,
-        deposit.amount,
-        'USD',
-        deposit.depositRef,
-        wallet.mainBalance,
-      );
+    // Send email notification (non-blocking for API success)
+    try {
+      const user = await this.userModel.findById(deposit.userId);
+      if (user) {
+        await this.emailService.sendDepositConfirmedEmail(
+          user.email,
+          user.firstName,
+          deposit.amount,
+          'USD',
+          deposit.depositRef,
+          wallet.mainBalance,
+        );
+      }
+    } catch (error) {
+      // Email failures should not prevent deposit approval
+      // Optional: log error here
     }
 
     // Log admin action
