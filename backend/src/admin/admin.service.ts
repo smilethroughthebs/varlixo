@@ -175,7 +175,29 @@ export class AdminService {
       this.userModel.countDocuments(query),
     ]);
 
-    return createPaginatedResponse(users, total, page, limit);
+    // Attach wallet balances so admin UI can display real balances
+    const userIds = users.map((u) => u._id);
+    const wallets = await this.walletModel.find({ userId: { $in: userIds } });
+    const walletMap = new Map<string, WalletDocument>();
+    wallets.forEach((w) => {
+      walletMap.set(w.userId.toString(), w);
+    });
+
+    const usersWithWallet = users.map((user) => {
+      const wallet = walletMap.get(user._id.toString());
+
+      return {
+        ...user.toObject(),
+        // Flatten wallet balances for admin frontend convenience
+        mainBalance: wallet?.mainBalance ?? 0,
+        pendingBalance: wallet?.pendingBalance ?? 0,
+        lockedBalance: wallet?.lockedBalance ?? 0,
+        totalEarnings: wallet?.totalEarnings ?? 0,
+        referralEarnings: wallet?.referralEarnings ?? 0,
+      };
+    });
+
+    return createPaginatedResponse(usersWithWallet, total, page, limit);
   }
 
   /**
