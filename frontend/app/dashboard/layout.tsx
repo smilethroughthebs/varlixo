@@ -44,7 +44,6 @@ const sidebarLinks = [
   { href: '/dashboard/converter', icon: ArrowLeftRight, label: 'Crypto Converter' },
   { href: '/dashboard/referrals', icon: Users, label: 'Referrals' },
   { href: '/dashboard/kyc', icon: Shield, label: 'KYC Verification' },
-  { href: '/dashboard/notifications', icon: Bell, label: 'Notifications' },
   { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
   { href: '/dashboard/support', icon: HelpCircle, label: 'Support' },
 ];
@@ -210,11 +209,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
             {/* Right - Actions */}
             <div className="flex items-center gap-4">
-              {/* Notifications */}
-              <button className="relative p-2 text-gray-400 hover:text-white">
+              {/* Notifications (bell links to notifications page) */}
+              <Link href="/dashboard/notifications" className="relative p-2 text-gray-400 hover:text-white">
                 <Bell size={20} />
                 <span className="absolute top-1 right-1 w-2 h-2 bg-primary-500 rounded-full" />
-              </button>
+              </Link>
 
               {/* Profile Dropdown */}
               <div className="relative">

@@ -49,7 +49,7 @@ import {
 import { Card, CardHeader, CardTitle } from '@/app/components/ui/Card';
 import Button from '@/app/components/ui/Button';
 import { useAuthStore } from '@/app/lib/store';
-import { walletAPI, investmentAPI, marketAPI, referralAPI } from '@/app/lib/api';
+import { walletAPI, investmentAPI, marketAPI, referralAPI, authAPI } from '@/app/lib/api';
 import toast from 'react-hot-toast';
 
 // Animation variants
@@ -128,6 +128,16 @@ export default function DashboardPage() {
     toast.success('Dashboard refreshed');
   };
 
+  const handleResendVerification = async () => {
+    if (!user?.email) return;
+    try {
+      await authAPI.resendVerification(user.email);
+      toast.success('Verification email sent. Please check your inbox.');
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to resend verification email');
+    }
+  };
+
   const copyReferralCode = () => {
     const code = user?.referralCode || 'VARLIXO';
     navigator.clipboard.writeText(`https://varlixo.vercel.app/auth/register?ref=${code}`);
@@ -192,15 +202,24 @@ export default function DashboardPage() {
           <h1 className="text-2xl lg:text-3xl font-bold text-white mb-1">
             {getGreeting()}, {user?.firstName}! 👋
           </h1>
-          <p className="text-gray-400 flex items-center gap-2">
+          <p className="text-gray-400">
             Here's your portfolio overview
-            {!user?.emailVerified && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-500/10 text-yellow-500 text-xs rounded-full">
-                <AlertTriangle size={12} />
-                Verify Email
-              </span>
-            )}
           </p>
+          {!user?.emailVerified && (
+            <div className="mt-3 inline-flex items-center gap-3 px-3 py-2 rounded-xl bg-yellow-500/10 border border-yellow-500/30 text-xs sm:text-sm text-yellow-100">
+              <AlertTriangle size={16} className="text-yellow-400 flex-shrink-0" />
+              <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+                <span>Your email is not verified. Some features may be limited.</span>
+                <button
+                  type="button"
+                  onClick={handleResendVerification}
+                  className="mt-1 sm:mt-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-yellow-500 text-dark-900 font-medium hover:bg-yellow-400 transition-colors"
+                >
+                  Resend verification email
+                </button>
+              </div>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <button

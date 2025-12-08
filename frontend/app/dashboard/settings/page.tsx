@@ -124,7 +124,6 @@ export default function SettingsPage() {
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'security', label: 'Security', icon: Shield },
     { id: 'preferences', label: 'Preferences', icon: Globe },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
   ];
 
   return (
@@ -212,6 +211,31 @@ export default function SettingsPage() {
                 leftIcon={<Mail size={18} />}
                 hint="Email cannot be changed"
               />
+
+              {!user?.emailVerified && (
+                <div className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 rounded-lg bg-yellow-500/5 border border-yellow-500/30">
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-yellow-100">
+                    <AlertTriangle size={14} className="text-yellow-400" />
+                    <span>Email not verified. Please verify to unlock all features.</span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      if (!user?.email) return;
+                      try {
+                        await authAPI.resendVerification(user.email);
+                        toast.success('Verification email sent. Check your inbox.');
+                      } catch (error: any) {
+                        toast.error(error?.response?.data?.message || 'Failed to resend verification email');
+                      }
+                    }}
+                  >
+                    Resend verification email
+                  </Button>
+                </div>
+              )}
 
               <div className="grid md:grid-cols-2 gap-4">
                 <Input
@@ -482,51 +506,6 @@ export default function SettingsPage() {
           </Card>
         </motion.div>
       )}
-
-      {/* Notifications Tab */}
-      {activeTab === 'notifications' && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <Card>
-            <CardHeader>
-              <CardTitle>Notification Preferences</CardTitle>
-            </CardHeader>
-            <div className="p-6 pt-0 space-y-6">
-              {[
-                { id: 'email', label: 'Email Notifications', description: 'Receive updates via email', enabled: true },
-                { id: 'deposits', label: 'Deposit Alerts', description: 'Get notified when deposits are confirmed', enabled: true },
-                { id: 'withdrawals', label: 'Withdrawal Alerts', description: 'Get notified about withdrawal status', enabled: true },
-                { id: 'investments', label: 'Investment Updates', description: 'Receive profit and maturity notifications', enabled: true },
-                { id: 'security', label: 'Security Alerts', description: 'Important security notifications', enabled: true },
-                { id: 'marketing', label: 'Marketing Updates', description: 'News and promotional content', enabled: false },
-              ].map((item) => (
-                <div key={item.id} className="flex items-center justify-between">
-                  <div>
-                    <p className="text-white font-medium">{item.label}</p>
-                    <p className="text-gray-500 text-sm">{item.description}</p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      defaultChecked={item.enabled}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-dark-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-400 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500 peer-checked:after:bg-white"></div>
-                  </label>
-                </div>
-              ))}
-
-              <div className="flex justify-end pt-4 border-t border-dark-700">
-                <Button>Save Preferences</Button>
-              </div>
-            </div>
-          </Card>
-        </motion.div>
-      )}
     </div>
   );
 }
-
-
