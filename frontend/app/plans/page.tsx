@@ -172,11 +172,35 @@ export default function PlansPage() {
   const fetchPlans = async () => {
     try {
       const response = await investmentAPI.getPlans();
-      const data = response.data.data?.data || response.data.data || [];
-      if (Array.isArray(data) && data.length > 0) {
-        setPlans(data);
+      console.log('API Response:', response.data);
+      const apiPlans = response.data.data?.plans || response.data.plans || [];
+      console.log('Parsed plans:', apiPlans);
+      
+      if (Array.isArray(apiPlans) && apiPlans.length > 0) {
+        // Map API response to frontend format
+        const mappedPlans = apiPlans.map((plan: any) => ({
+          _id: plan._id,
+          name: plan.name,
+          slug: plan.slug,
+          description: plan.description || plan.shortDescription,
+          minAmount: plan.minInvestment,
+          maxAmount: plan.maxInvestment,
+          dailyROI: plan.dailyReturnRate,
+          duration: plan.durationDays,
+          totalROI: plan.totalReturnRate,
+          features: plan.features || [],
+          isPopular: plan.isPopular || plan.isFeatured || false,
+          icon: plan.icon || 'Star',
+          color: plan.color || 'from-primary-500 to-primary-600',
+          bgColor: `bg-${plan.color || 'primary'}-500/10`,
+          borderColor: `border-${plan.color || 'primary'}-500/30`,
+        }));
+        
+        setPlans(mappedPlans);
+        setSelectedPlan(mappedPlans[0]); // Set first plan as default
       }
     } catch (error) {
+      console.error('Failed to fetch plans:', error);
       console.log('Using default plans');
     } finally {
       setIsLoading(false);
