@@ -204,6 +204,7 @@ export class InvestmentService {
       type: TransactionType.INVESTMENT,
       status: TransactionStatus.COMPLETED,
       amount,
+      amount_usd: amount, // Set USD amount
       description: `Investment in ${plan.name}`,
       investmentId: investment._id,
       balanceBefore: wallet.mainBalance + amount,
