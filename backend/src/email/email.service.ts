@@ -65,11 +65,20 @@ export class EmailService {
    * Verify SMTP connection
    */
   private async verifyConnection() {
+    // Skip verification in production to avoid startup delays
+    // Emails will still be sent, just won't verify connection upfront
+    const skipVerification = this.configService.get<string>('app.nodeEnv') === 'production';
+    
+    if (skipVerification) {
+      this.logger.log('⚠️  SMTP verification skipped in production - will attempt to send emails on demand');
+      return;
+    }
+
     try {
       await this.transporter.verify();
       this.logger.log('✅ SMTP connection established successfully');
     } catch (error) {
-      this.logger.error('❌ SMTP connection failed:', error.message);
+      this.logger.warn('⚠️  SMTP verification failed - will still attempt to send emails:', error.message);
     }
   }
 
