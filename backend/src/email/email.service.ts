@@ -2,13 +2,12 @@
  * ==============================================
  * VARLIXO - EMAIL SERVICE
  * ==============================================
- * Complete email system using Resend SMTP.
+ * Complete email system using MailerLite REST API.
  * Handles all email notifications with beautiful HTML templates.
  */
 
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
 
 // Email types for different scenarios
 export enum EmailType {
@@ -34,59 +33,24 @@ export enum EmailType {
 
 @Injectable()
 export class EmailService {
-  private transporter: nodemailer.Transporter;
   private readonly logger = new Logger(EmailService.name);
+  private readonly apiKey: string;
   private readonly fromEmail: string;
   private readonly adminEmail: string;
   private readonly frontendUrl: string;
+  private readonly apiUrl = 'https://connect.mailerlite.com/api';
 
   constructor(private configService: ConfigService) {
-    // Initialize Resend SMTP transporter
-    const smtpPort = this.configService.get<number>('email.port') || 587;
-    const smtpConfig: any = {
-      host: this.configService.get<string>('email.host') || 'smtp.resend.com',
-      port: smtpPort,
-      secure: smtpPort === 465, // Use true for port 465, false for port 587
-      auth: {
-        user: this.configService.get<string>('email.user') || 'resend',
-        pass: this.configService.get<string>('email.pass'),
-      },
-      tls: {
-        rejectUnauthorized: false, // Allow self-signed certificates
-        minVersion: 'TLSv1.2',
-      },
-      connectionTimeout: 5000, // 5 second timeout
-      socketTimeout: 10000, // 10 second socket timeout
-    };
-    
-    this.transporter = nodemailer.createTransport(smtpConfig);
-
-    // Use email from config for production
-    // For development/testing, you can use onboarding@resend.dev
+    // MailerLite API key
+    this.apiKey = this.configService.get<string>('email.pass') || '';
     this.fromEmail = this.configService.get<string>('email.from') || 'noreply@varlixo.com';
     this.adminEmail = this.configService.get<string>('email.adminEmail') || 'admin@varlixo.com';
     this.frontendUrl = this.configService.get<string>('cors.frontendUrl') || 'http://localhost:3000';
 
-    // Verify connection on startup
-    this.verifyConnection();
-  }
-
-  /**
-   * Verify SMTP connection
-   */
-  private async verifyConnection() {
-    const skipVerification = this.configService.get<string>('SKIP_SMTP_VERIFICATION') === 'true';
-    
-    if (skipVerification) {
-      this.logger.warn('⚠️  SMTP verification skipped (development mode) - emails will be sent with timeout handling');
-      return;
-    }
-
-    try {
-      await this.transporter.verify();
-      this.logger.log('✅ SMTP connection established successfully');
-    } catch (error) {
-      this.logger.error('❌ SMTP connection failed:', error.message);
+    if (this.apiKey) {
+      this.logger.log('✅ MailerLite API configured');
+    } else {
+      this.logger.warn('⚠️  MailerLite API key not configured - emails will not be sent');
     }
   }
 
@@ -1012,36 +976,78 @@ export class EmailService {
   // ==========================================
 
   /**
-   * Send email with error handling
+   * Send email using MailerLite Transactional API
    */
   private async sendEmail(to: string, subject: string, html: string): Promise<boolean> {
+    if (!this.apiKey) {
+      this.logger.error('❌ MailerLite API key not configured');
+      return false;
+    }
+
     try {
-      // Add a timeout to prevent hanging
-      const sendPromise = this.transporter.sendMail({
+      // Extract name from fromEmail if in format "Name <email>"
+      const fromMatch = this.fromEmail.match(/^(.+?)\s*<(.+)>$/);
+      const fromName = fromMatch ? fromMatch[1].trim() : 'Varlixo';
+      const fromAddress = fromMatch ? fromMatch[2].trim() : this.fromEmail;
+
+      const response = await fetch(`${this.apiUrl}/subscribers`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          email: to,
+        }),
+      });
+
+      // Now send transactional email using MailerLite's campaign/send endpoint
+      // MailerLite transactional emails require using their transactional API
+      const emailResponse = await fetch('https://api.mailerlite.com/api/v2/emails', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-MailerLite-ApiKey': this.apiKey,
+        },
+        body: JSON.stringify({
+          to: [{ email: to }],
+          from: { email: fromAddress, name: fromName },
+          subject: subject,
+          html: html,
+        }),
+      });
+
+      if (emailResponse.ok) {
+        this.logger.log(`✅ Email sent successfully to ${to}`);
+        return true;
+      }
+
+      // If v2 API fails, try using fetch with direct SMTP relay as fallback
+      // Use nodemailer as fallback with proper timeout
+      const nodemailer = await import('nodemailer');
+      const transporter = nodemailer.createTransport({
+        host: 'smtp.mailerlite.com',
+        port: 587,
+        secure: false,
+        auth: {
+          user: this.configService.get<string>('email.user'),
+          pass: this.apiKey,
+        },
+        connectionTimeout: 10000,
+        socketTimeout: 15000,
+      });
+
+      const info = await transporter.sendMail({
         from: this.fromEmail,
         to,
         subject,
         html,
       });
 
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Email send timeout (30s)')), 30000)
-      );
-
-      const info = await Promise.race([sendPromise, timeoutPromise]);
-
-      this.logger.log(`✅ Email sent successfully to ${to} - MessageId: ${info.messageId}`);
+      this.logger.log(`✅ Email sent successfully to ${to} via SMTP fallback - MessageId: ${info.messageId}`);
       return true;
     } catch (error) {
-      this.logger.error(`⚠️  Email delivery to ${to} attempted - Status: ${error.message}`);
-      
-      // Log detailed error for debugging
-      if (error.response) {
-        this.logger.error(`SMTP Response: ${error.response}`);
-      }
-      
-      // Don't throw - return false to allow graceful handling
-      // The email will attempt to send even if verification failed
+      this.logger.error(`⚠️  Email delivery to ${to} failed - Status: ${error.message}`);
       return false;
     }
   }
@@ -1050,11 +1056,23 @@ export class EmailService {
    * Test email connection
    */
   async testConnection(): Promise<{ success: boolean; message: string }> {
+    if (!this.apiKey) {
+      return { success: false, message: 'MailerLite API key not configured' };
+    }
+    
     try {
-      await this.transporter.verify();
-      return { success: true, message: 'SMTP connection successful' };
+      const response = await fetch(`${this.apiUrl}/subscribers?limit=1`, {
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+        },
+      });
+      
+      if (response.ok) {
+        return { success: true, message: 'MailerLite API connection successful' };
+      }
+      return { success: false, message: `MailerLite API error: ${response.status}` };
     } catch (error) {
-      return { success: false, message: `SMTP connection failed: ${error.message}` };
+      return { success: false, message: `MailerLite connection failed: ${error.message}` };
     }
   }
 }
