@@ -116,9 +116,10 @@ export default function InvestmentsPage() {
       const apiPlans = response.data.data?.plans || response.data.plans || [];
       
       if (Array.isArray(apiPlans) && apiPlans.length > 0) {
-        // Map API plans to dashboard format
+        // Map API plans to dashboard format, using Mongo _id as id
         const mappedPlans = apiPlans.map((plan: any, index: number) => ({
-          id: plan.slug,
+          id: plan._id,
+          slug: plan.slug,
           name: plan.name,
           icon: [Star, Zap, Crown, Diamond][index % 4],
           minAmount: plan.minInvestment,
