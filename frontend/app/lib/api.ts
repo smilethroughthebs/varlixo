@@ -102,6 +102,13 @@ export const walletAPI = {
   getTransactions: (params?: any) => api.get('/wallet/transactions', { params }),
 };
 
+export const cryptoDepositAPI = {
+  create: (data: any) => api.post('/deposits/crypto/create', data),
+  getMyDeposits: (params?: any) => api.get('/deposits/crypto', { params }),
+  adminList: (params?: any) => api.get('/deposits/crypto/admin', { params }),
+  adminUpdateStatus: (id: string, data: any) => api.post(`/deposits/crypto/admin/${id}/status`, data),
+};
+
 export const investmentAPI = {
   getPlans: () => api.get('/investments/plans'),
   getPlanBySlug: (slug: string) => api.get(`/investments/plans/${slug}`),

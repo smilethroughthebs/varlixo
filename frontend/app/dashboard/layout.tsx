@@ -29,6 +29,7 @@ import {
   Bot,
   ArrowLeftRight,
   Calculator,
+  Coins,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuthStore, useUIStore } from '@/app/lib/store';
@@ -40,6 +41,8 @@ const sidebarLinks = [
   { href: '/dashboard/wallet', icon: Wallet, label: 'Wallet' },
   { href: '/dashboard/investments', icon: TrendingUp, label: 'Investments' },
   { href: '/dashboard/transactions', icon: History, label: 'Transactions' },
+  // Deposits section
+  { href: '/crypto-deposit', icon: Coins, label: 'Crypto Deposits' },
   { href: '/dashboard/advisor', icon: Bot, label: 'AI Advisor', badge: 'NEW' },
   { href: '/dashboard/converter', icon: ArrowLeftRight, label: 'Crypto Converter' },
   { href: '/dashboard/referrals', icon: Users, label: 'Referrals' },
@@ -108,7 +111,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="h-full w-72 bg-dark-800 border-r border-dark-700 flex flex-col">
           {/* Logo */}
           <div className="p-6 border-b border-dark-700">
-            <Link href="/" className="flex items-center gap-3">
+            <Link href="/dashboard" className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center">
                 <span className="text-white font-bold text-xl">V</span>
               </div>

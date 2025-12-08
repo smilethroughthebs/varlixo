@@ -328,14 +328,23 @@ export default function WithdrawPage() {
               </div>
             )}
 
-            <Button
-              className="w-full"
-              size="lg"
-              disabled={!amount}
-              onClick={handleContinue}
-            >
-              Continue
-            </Button>
+            <div className="flex gap-3">
+              <Button
+                variant="ghost"
+                className="flex-1"
+                onClick={() => setStep('method')}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1"
+                size="lg"
+                disabled={!amount}
+                onClick={handleContinue}
+              >
+                Continue
+              </Button>
+            </div>
           </div>
         </Card>
       )}
@@ -384,8 +393,19 @@ export default function WithdrawPage() {
             </div>
 
             <div className="flex gap-3">
-              <Button variant="ghost" className="flex-1" onClick={() => setStep('details')}>
+              <Button
+                variant="ghost"
+                className="flex-1"
+                onClick={() => setStep('details')}
+              >
                 Back
+              </Button>
+              <Button
+                variant="ghost"
+                className="flex-1"
+                onClick={() => setStep('method')}
+              >
+                Cancel
               </Button>
               <Button
                 className="flex-1"

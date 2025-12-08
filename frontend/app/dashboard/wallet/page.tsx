@@ -48,6 +48,10 @@ export default function WalletPage() {
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
   const [amount, setAmount] = useState('');
   const [depositInstructions, setDepositInstructions] = useState<any>(null);
+  const [currentDepositId, setCurrentDepositId] = useState<string | null>(null);
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [referenceNumber, setReferenceNumber] = useState('');
+  const [isUploadingProof, setIsUploadingProof] = useState(false);
   const [copiedAddress, setCopiedAddress] = useState(false);
 
   // Withdrawal form
@@ -82,6 +86,40 @@ export default function WalletPage() {
     }
   };
 
+  const handleUploadProof = async () => {
+    if (!currentDepositId) {
+      toast.error('No deposit found to attach proof to');
+      return;
+    }
+    if (!proofFile) {
+      toast.error('Please select a file to upload');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('depositId', currentDepositId);
+    formData.append('file', proofFile);
+    if (referenceNumber) {
+      formData.append('referenceNumber', referenceNumber);
+    }
+
+    setIsUploadingProof(true);
+    try {
+      await walletAPI.uploadDepositProof(formData);
+      toast.success('Proof uploaded successfully. Your deposit is being processed.');
+      setShowModal(false);
+      setDepositInstructions(null);
+      setCurrentDepositId(null);
+      setProofFile(null);
+      setReferenceNumber('');
+      fetchTransactions();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to upload proof');
+    } finally {
+      setIsUploadingProof(false);
+    }
+  };
+
   const handleDeposit = async () => {
     if (!amount || !selectedMethod) {
       toast.error('Please enter amount and select payment method');
@@ -95,7 +133,11 @@ export default function WalletPage() {
         paymentMethod: selectedMethod,
       });
 
-      setDepositInstructions(response.data.data);
+      const payload = response.data.data || response.data;
+      setDepositInstructions(payload);
+      setCurrentDepositId(payload?.deposit?.id || payload?.deposit?._id || null);
+      setProofFile(null);
+      setReferenceNumber('');
       toast.success('Deposit request created!');
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to create deposit');
@@ -407,16 +449,50 @@ export default function WalletPage() {
                       </div>
                     )}
 
-                    <Button
-                      className="w-full"
-                      onClick={() => {
-                        setShowModal(false);
-                        setDepositInstructions(null);
-                        fetchTransactions();
-                      }}
-                    >
-                      I've Made the Payment
-                    </Button>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm text-gray-400 mb-2">Upload Proof of Payment</label>
+                        <input
+                          type="file"
+                          accept="image/*,application/pdf"
+                          className="block w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-500/20 file:text-primary-300 hover:file:bg-primary-500/30"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] || null;
+                            setProofFile(file);
+                          }}
+                        />
+                      </div>
+
+                      <Input
+                        label="Reference Number (optional)"
+                        placeholder="Enter bank or transaction reference"
+                        value={referenceNumber}
+                        onChange={(e) => setReferenceNumber(e.target.value)}
+                      />
+
+                      <Button
+                        className="w-full"
+                        isLoading={isUploadingProof}
+                        onClick={handleUploadProof}
+                      >
+                        Submit Proof
+                      </Button>
+
+                      <Button
+                        variant="secondary"
+                        className="w-full"
+                        onClick={() => {
+                          setShowModal(false);
+                          setDepositInstructions(null);
+                          setCurrentDepositId(null);
+                          setProofFile(null);
+                          setReferenceNumber('');
+                          fetchTransactions();
+                        }}
+                      >
+                        I'll Upload Proof Later
+                      </Button>
+                    </div>
                   </div>
                 ) : (
                   // Deposit Form
