@@ -246,7 +246,7 @@ export default function AdminUsersPage() {
             </div>
             <div>
               <p className="text-sm text-gray-400">Total Users</p>
-              <p className="text-xl font-bold text-white">{pagination.total}</p>
+              <p className="text-xl font-bold text-white">{pagination.total || users.length}</p>
             </div>
           </div>
         </Card>
@@ -331,7 +331,7 @@ export default function AdminUsersPage() {
               <Users size={20} className="text-primary-500" />
               All Users
             </CardTitle>
-            <span className="text-sm text-gray-500">{pagination.total} total users</span>
+            <span className="text-sm text-gray-500">{pagination.total || users.length} total users</span>
           </CardHeader>
 
           {isLoading ? (
