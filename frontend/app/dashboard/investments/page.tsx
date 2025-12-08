@@ -95,6 +95,7 @@ const investmentPlans = [
 
 export default function InvestmentsPage() {
   const { wallet } = useAuthStore();
+  const [plans, setPlans] = useState<any[]>(investmentPlans);
   const [activeInvestments, setActiveInvestments] = useState<any[]>([]);
   const [investmentSummary, setInvestmentSummary] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -105,8 +106,37 @@ export default function InvestmentsPage() {
   const [calcPlan, setCalcPlan] = useState(investmentPlans[2]); // Gold plan default
 
   useEffect(() => {
+    fetchPlans();
     fetchInvestments();
   }, []);
+
+  const fetchPlans = async () => {
+    try {
+      const response = await investmentAPI.getPlans();
+      const apiPlans = response.data.data?.plans || response.data.plans || [];
+      
+      if (Array.isArray(apiPlans) && apiPlans.length > 0) {
+        // Map API plans to dashboard format
+        const mappedPlans = apiPlans.map((plan: any, index: number) => ({
+          id: plan.slug,
+          name: plan.name,
+          icon: [Star, Zap, Crown, Diamond][index % 4],
+          minAmount: plan.minInvestment,
+          maxAmount: plan.maxInvestment,
+          dailyReturn: plan.dailyReturnRate,
+          duration: plan.durationDays,
+          totalReturn: plan.totalReturnRate,
+          color: plan.color || 'from-primary-500 to-primary-600',
+          features: plan.features || [],
+          popular: plan.isPopular || plan.isFeatured || false,
+        }));
+        setPlans(mappedPlans);
+        setCalcPlan(mappedPlans[0]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch plans:', error);
+    }
+  };
 
   const fetchInvestments = async () => {
     setIsLoading(true);
@@ -243,7 +273,7 @@ export default function InvestmentsPage() {
       <motion.div variants={fadeInUp}>
         <h2 className="text-xl font-bold text-white mb-6">Available Plans</h2>
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {investmentPlans.map((plan) => {
+          {plans.map((plan) => {
             const PlanIcon = plan.icon;
             const { dailyProfit, totalProfit, totalReturn } = calculateProfit(plan.minAmount, plan);
 
@@ -512,10 +542,10 @@ export default function InvestmentsPage() {
                   <label className="block text-sm text-gray-400 mb-2">Select Plan</label>
                   <select
                     value={calcPlan.id}
-                    onChange={(e) => setCalcPlan(investmentPlans.find(p => p.id === e.target.value)!)}
+                    onChange={(e) => setCalcPlan(plans.find(p => p.id === e.target.value)!)}
                     className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-xl text-white focus:outline-none focus:border-primary-500"
                   >
-                    {investmentPlans.map((plan) => (
+                    {plans.map((plan) => (
                       <option key={plan.id} value={plan.id}>
                         {plan.name} - {plan.dailyReturn}% daily
                       </option>
