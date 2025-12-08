@@ -44,6 +44,7 @@ const sidebarLinks = [
   { href: '/dashboard/converter', icon: ArrowLeftRight, label: 'Crypto Converter' },
   { href: '/dashboard/referrals', icon: Users, label: 'Referrals' },
   { href: '/dashboard/kyc', icon: Shield, label: 'KYC Verification' },
+  { href: '/dashboard/notifications', icon: Bell, label: 'Notifications' },
   { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
   { href: '/dashboard/support', icon: HelpCircle, label: 'Support' },
 ];

@@ -39,6 +39,7 @@ const adminLinks = [
   { href: '/admin/dashboard/withdrawals', icon: ArrowUpRight, label: 'Withdrawals' },
   { href: '/admin/dashboard/kyc', icon: Shield, label: 'KYC Requests' },
   { href: '/admin/dashboard/investments', icon: TrendingUp, label: 'Investments' },
+  { href: '/admin/dashboard/notifications', icon: Bell, label: 'Notifications' },
   { href: '/admin/dashboard/settings', icon: Settings, label: 'Settings' },
 ];
 
@@ -161,10 +162,10 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
               </div>
 
               {/* Notifications */}
-              <button className="relative p-2 text-gray-400 hover:text-white">
+              <Link href="/admin/dashboard/notifications" className="relative p-2 text-gray-400 hover:text-white">
                 <Bell size={20} />
                 <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-              </button>
+              </Link>
 
               {/* Profile */}
               <div className="relative">

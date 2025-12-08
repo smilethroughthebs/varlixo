@@ -171,6 +171,7 @@ export default function PlansPage() {
 
   const fetchPlans = async () => {
     try {
+      // Add cache-busting parameter
       const response = await investmentAPI.getPlans();
       console.log('API Response:', response.data);
       const apiPlans = response.data.data?.plans || response.data.plans || [];
