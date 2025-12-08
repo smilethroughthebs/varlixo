@@ -54,6 +54,7 @@ export class AdminService {
       totalDeposits,
       totalWithdrawals,
       activeInvestments,
+      walletAggregates,
     ] = await Promise.all([
       this.userModel.countDocuments({ role: UserRole.USER }),
       this.userModel.countDocuments({ role: UserRole.USER, status: UserStatus.ACTIVE }),
@@ -69,7 +70,27 @@ export class AdminService {
         { $group: { _id: null, total: { $sum: '$amount' } } },
       ]),
       this.investmentModel.countDocuments({ status: 'active' }),
+      this.walletModel.aggregate([
+        {
+          $group: {
+            _id: null,
+            totalBalance: { $sum: '$mainBalance' },
+            totalPending: { $sum: '$pendingBalance' },
+            totalLocked: { $sum: '$lockedBalance' },
+            totalEarnings: { $sum: '$totalEarnings' },
+            totalReferralEarnings: { $sum: '$referralEarnings' },
+          },
+        },
+      ]),
     ]);
+
+    const walletStats = walletAggregates?.[0] || {
+      totalBalance: 0,
+      totalPending: 0,
+      totalLocked: 0,
+      totalEarnings: 0,
+      totalReferralEarnings: 0,
+    };
 
     // Recent activity
     const recentDeposits = await this.depositModel
@@ -100,6 +121,14 @@ export class AdminService {
         },
         investments: {
           active: activeInvestments,
+        },
+        wallets: {
+          totalBalance: walletStats.totalBalance || 0,
+          available: walletStats.totalBalance || 0,
+          pending: walletStats.totalPending || 0,
+          locked: walletStats.totalLocked || 0,
+          totalEarnings: walletStats.totalEarnings || 0,
+          referralEarnings: walletStats.totalReferralEarnings || 0,
         },
       },
       recentActivity: {
@@ -239,6 +268,7 @@ export class AdminService {
       type: type === 'add' ? TransactionType.BONUS : TransactionType.FEE,
       status: TransactionStatus.COMPLETED,
       amount,
+      amount_usd: amount,
       description: `Admin adjustment: ${reason}`,
       balanceBefore: previousBalance,
       balanceAfter: wallet.mainBalance,
