@@ -63,11 +63,11 @@ export default function GiftCardDepositPage() {
 
     setIsLoading(true);
     try {
+      // Backend CreateDepositDto currently does not accept arbitrary extra fields,
+      // so only send the allowed properties: amount and paymentMethod.
       const response = await walletAPI.createDeposit({
         amount: parseFloat(amount),
         paymentMethod: selectedMethod,
-        giftCardCode,
-        giftCardPin,
       });
 
       const payload = response.data.data || response.data;
