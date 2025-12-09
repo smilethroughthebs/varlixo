@@ -19,6 +19,7 @@ import { Transaction, TransactionSchema } from '../schemas/transaction.schema';
 import { Investment, InvestmentSchema } from '../schemas/investment.schema';
 import { AdminLog, AdminLogSchema } from '../schemas/admin-log.schema';
 import { EmailModule } from '../email/email.module';
+import { CurrencyModule } from '../currency/currency.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { EmailModule } from '../email/email.module';
       }),
     }),
     forwardRef(() => EmailModule),
+    CurrencyModule,
   ],
   controllers: [AdminController],
   providers: [AdminService],
