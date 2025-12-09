@@ -9,17 +9,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import {
-  Bell,
-  CheckCircle,
-  AlertCircle,
-  Info,
-  TrendingUp,
-  DollarSign,
-  Settings,
-  Trash2,
-  Check,
-} from 'lucide-react';
+import { Bell, Trash2, Check } from 'lucide-react';
 import { Card } from '@/app/components/ui/Card';
 import Button from '@/app/components/ui/Button';
 import toast from 'react-hot-toast';
@@ -29,57 +19,8 @@ const fadeInUp = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
 };
 
-// Mock notifications - replace with API call
-const mockNotifications = [
-  {
-    id: '1',
-    type: 'success',
-    title: 'Investment Activated',
-    message: 'Your investment of $5,000 in Prime Growth plan has been activated successfully.',
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    read: false,
-    icon: TrendingUp,
-  },
-  {
-    id: '2',
-    type: 'info',
-    title: 'Daily Profit Credited',
-    message: 'You received $475 as daily profit from your Elite Advance investment.',
-    timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000),
-    read: false,
-    icon: DollarSign,
-  },
-  {
-    id: '3',
-    type: 'success',
-    title: 'Deposit Approved',
-    message: 'Your deposit of $10,000 has been approved and credited to your wallet.',
-    timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000),
-    read: true,
-    icon: CheckCircle,
-  },
-  {
-    id: '4',
-    type: 'warning',
-    title: 'KYC Verification Required',
-    message: 'Complete your KYC verification to unlock higher investment limits.',
-    timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-    read: true,
-    icon: AlertCircle,
-  },
-  {
-    id: '5',
-    type: 'info',
-    title: 'New Investment Plan Available',
-    message: 'Check out our new Flash Promo plan with 25% returns every 12 hours!',
-    timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-    read: true,
-    icon: Info,
-  },
-];
-
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState(mockNotifications);
+  const [notifications, setNotifications] = useState<any[]>([]);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
 
   const unreadCount = notifications.filter((n) => !n.read).length;

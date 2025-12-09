@@ -28,59 +28,8 @@ const fadeInUp = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
 };
 
-// Mock admin notifications
-const mockNotifications = [
-  {
-    id: '1',
-    type: 'urgent',
-    title: 'New Withdrawal Request',
-    message: 'User John Doe requested withdrawal of $15,000. Requires approval.',
-    timestamp: new Date(Date.now() - 30 * 60 * 1000),
-    read: false,
-    icon: DollarSign,
-    action: '/admin/dashboard/withdrawals',
-  },
-  {
-    id: '2',
-    type: 'warning',
-    title: 'KYC Verification Pending',
-    message: '5 new KYC submissions awaiting review.',
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    read: false,
-    icon: Shield,
-    action: '/admin/dashboard/kyc',
-  },
-  {
-    id: '3',
-    type: 'info',
-    title: 'New User Registration',
-    message: '12 new users registered in the last 24 hours.',
-    timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000),
-    read: true,
-    icon: Users,
-  },
-  {
-    id: '4',
-    type: 'success',
-    title: 'High Value Investment',
-    message: 'User invested $50,000 in Infinity Pro plan.',
-    timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000),
-    read: true,
-    icon: TrendingUp,
-  },
-  {
-    id: '5',
-    type: 'urgent',
-    title: 'System Alert',
-    message: 'Database backup completed successfully.',
-    timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-    read: true,
-    icon: AlertTriangle,
-  },
-];
-
 export default function AdminNotificationsPage() {
-  const [notifications, setNotifications] = useState(mockNotifications);
+  const [notifications, setNotifications] = useState<any[]>([]);
   const [filter, setFilter] = useState<'all' | 'unread' | 'urgent'>('all');
 
   const unreadCount = notifications.filter((n) => !n.read).length;
