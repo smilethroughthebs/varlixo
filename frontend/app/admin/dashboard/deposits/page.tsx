@@ -357,7 +357,7 @@ export default function AdminDepositsPage() {
               <div className="space-y-4">
                 <div className="flex justify-between py-2 border-b border-dark-600">
                   <span className="text-gray-400">Reference</span>
-                  <span className="text-white font-mono">{selectedDeposit.depositRef}</span>
+                  <span className="text-white font-mono">{selectedDeposit?.depositRef || 'N/A'}</span>
                 </div>
                 <div className="flex justify-between py-2 border-b border-dark-600">
                   <span className="text-gray-400">User</span>
@@ -368,17 +368,19 @@ export default function AdminDepositsPage() {
                 </div>
                 <div className="flex justify-between py-2 border-b border-dark-600">
                   <span className="text-gray-400">Amount</span>
-                  <span className="text-white font-bold">${selectedDeposit.amount.toLocaleString()}</span>
+                  <span className="text-white font-bold">
+                    ${typeof selectedDeposit?.amount === 'number' ? selectedDeposit.amount.toLocaleString() : '0'}
+                  </span>
                 </div>
                 <div className="flex justify-between py-2 border-b border-dark-600">
                   <span className="text-gray-400">Method</span>
-                  <span className="text-white">{getMethodLabel(selectedDeposit.method)}</span>
+                  <span className="text-white">{getMethodLabel(selectedDeposit?.method || selectedDeposit?.paymentMethod || '')}</span>
                 </div>
                 <div className="flex justify-between py-2 border-b border-dark-600">
                   <span className="text-gray-400">Status</span>
-                  {getStatusBadge(selectedDeposit.status)}
+                  {getStatusBadge(selectedDeposit?.status || 'pending')}
                 </div>
-                {selectedDeposit.walletAddress && (
+                {selectedDeposit?.walletAddress && (
                   <div className="py-2 border-b border-dark-600">
                     <span className="text-gray-400 block mb-1">Wallet Address</span>
                     <div className="flex items-center gap-2">
@@ -389,7 +391,7 @@ export default function AdminDepositsPage() {
                     </div>
                   </div>
                 )}
-                {selectedDeposit.txHash && (
+                {selectedDeposit?.txHash && (
                   <div className="py-2 border-b border-dark-600">
                     <span className="text-gray-400 block mb-1">Transaction Hash</span>
                     <div className="flex items-center gap-2">
