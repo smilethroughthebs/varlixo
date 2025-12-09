@@ -29,6 +29,10 @@ export default function CryptoDepositPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [depositInstructions, setDepositInstructions] = useState<any>(null);
   const [copied, setCopied] = useState(false);
+  const [currentDepositId, setCurrentDepositId] = useState<string | null>(null);
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [referenceNumber, setReferenceNumber] = useState('');
+  const [isUploadingProof, setIsUploadingProof] = useState(false);
 
   const selectedCrypto = cryptoMethods.find(m => m.id === selectedMethod);
 
@@ -55,7 +59,9 @@ export default function CryptoDepositPage() {
         amount: parseFloat(amount),
         paymentMethod: selectedMethod,
       });
-      setDepositInstructions(response.data.data);
+      const payload = response.data.data || response.data;
+      setDepositInstructions(payload);
+      setCurrentDepositId(payload?.deposit?.id || payload?.deposit?._id || null);
       setStep('payment');
       toast.success('Deposit request created!');
     } catch (error: any) {
@@ -70,6 +76,36 @@ export default function CryptoDepositPage() {
     setCopied(true);
     toast.success('Address copied!');
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleUploadProof = async () => {
+    if (!currentDepositId) {
+      toast.error('No deposit found to attach proof to');
+      return;
+    }
+    if (!proofFile) {
+      toast.error('Please select a file to upload');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('depositId', currentDepositId);
+    formData.append('file', proofFile);
+    if (referenceNumber) {
+      formData.append('referenceNumber', referenceNumber);
+    }
+
+    setIsUploadingProof(true);
+    try {
+      await walletAPI.uploadDepositProof(formData);
+      toast.success('Receipt uploaded. This will help speed up approval.');
+      setProofFile(null);
+      setReferenceNumber('');
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to upload receipt');
+    } finally {
+      setIsUploadingProof(false);
+    }
   };
 
   return (
@@ -279,6 +315,45 @@ export default function CryptoDepositPage() {
                   </p>
                 </div>
               </div>
+            </div>
+          
+            {/* Upload Receipt (Optional) */}
+            <div className="mt-6 space-y-4">
+              <h4 className="text-white font-semibold text-sm">Upload Receipt (Optional)</h4>
+              <p className="text-xs text-gray-400">
+                After you send the crypto, you can upload a screenshot or receipt of your transaction. This helps our
+                team confirm your payment faster.
+              </p>
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">Receipt file</label>
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  className="block w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-500/20 file:text-primary-300 hover:file:bg-primary-500/30"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    setProofFile(file);
+                  }}
+                />
+              </div>
+              <Input
+                label="Reference / Note (optional)"
+                placeholder="Enter transaction hash or any note"
+                value={referenceNumber}
+                onChange={(e) => setReferenceNumber(e.target.value)}
+              />
+              <Button
+                className="w-full"
+                variant="secondary"
+                size="lg"
+                isLoading={isUploadingProof}
+                onClick={handleUploadProof}
+              >
+                Upload Receipt for Faster Approval
+              </Button>
+              <p className="text-xs text-gray-500">
+                You can also upload or update your receipt later from your wallet deposits list.
+              </p>
             </div>
           </Card>
 

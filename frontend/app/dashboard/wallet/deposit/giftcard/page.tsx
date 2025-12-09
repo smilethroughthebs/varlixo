@@ -39,6 +39,8 @@ export default function GiftCardDepositPage() {
   const [giftCardCode, setGiftCardCode] = useState('');
   const [giftCardPin, setGiftCardPin] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [isUploadingProof, setIsUploadingProof] = useState(false);
 
   const selectedCard = giftCardMethods.find(m => m.id === selectedMethod);
 
@@ -61,13 +63,34 @@ export default function GiftCardDepositPage() {
 
     setIsLoading(true);
     try {
-      await walletAPI.createDeposit({
+      const response = await walletAPI.createDeposit({
         amount: parseFloat(amount),
         paymentMethod: selectedMethod,
         giftCardCode,
         giftCardPin,
       });
+
+      const payload = response.data.data || response.data;
+      const depositId = payload?.deposit?.id || payload?.deposit?._id || null;
+
+      // Optional proof upload for faster verification
+      if (depositId && proofFile) {
+        const formData = new FormData();
+        formData.append('depositId', depositId);
+        formData.append('file', proofFile);
+        setIsUploadingProof(true);
+        try {
+          await walletAPI.uploadDepositProof(formData);
+        } catch (error: any) {
+          // Don't block success if proof upload fails
+          console.error('Failed to upload gift card proof:', error?.response?.data || error);
+        } finally {
+          setIsUploadingProof(false);
+        }
+      }
+
       setStep('success');
+      setProofFile(null);
       toast.success('Gift card submitted for verification!');
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to submit gift card');
@@ -241,11 +264,36 @@ export default function GiftCardDepositPage() {
               onChange={(e) => setGiftCardPin(e.target.value)}
             />
 
+            {/* Card Photo Upload (Optional) */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-300">
+                Upload Card Photo (optional)
+              </label>
+              <p className="text-xs text-gray-500 mb-1">
+                Take a clear photo of the card front (and back if needed). This can speed up manual verification.
+              </p>
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="block w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-500/20 file:text-primary-300 hover:file:bg-primary-500/30"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  setProofFile(file);
+                }}
+              />
+              {proofFile && (
+                <p className="text-xs text-gray-400">
+                  Selected: {proofFile.name}
+                </p>
+              )}
+            </div>
+
             {/* Submit Button */}
             <Button
               className="w-full"
               size="lg"
-              isLoading={isLoading}
+              isLoading={isLoading || isUploadingProof}
               disabled={!amount || !giftCardCode || isLoading}
               onClick={handleSubmit}
             >

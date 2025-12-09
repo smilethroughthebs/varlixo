@@ -74,7 +74,7 @@ const stagger = {
 
 // Quick actions data
 const quickActions = [
-  { label: 'Deposit', icon: Plus, href: '/dashboard/wallet?action=deposit', color: 'from-emerald-500 to-emerald-600' },
+  { label: 'Deposit', icon: Plus, href: '/dashboard/wallet/deposit', color: 'from-emerald-500 to-emerald-600' },
   { label: 'Withdraw', icon: ArrowUpRight, href: '/dashboard/wallet?action=withdraw', color: 'from-blue-500 to-blue-600' },
   { label: 'Invest', icon: TrendingUp, href: '/dashboard/investments', color: 'from-purple-500 to-purple-600' },
   { label: 'Referral', icon: Gift, href: '/dashboard/referrals', color: 'from-yellow-500 to-orange-500' },
@@ -237,7 +237,7 @@ export default function DashboardPage() {
           >
             <RefreshCw size={20} className={refreshing ? 'animate-spin' : ''} />
           </button>
-          <Link href="/dashboard/wallet?action=deposit">
+          <Link href="/dashboard/wallet/deposit">
             <Button leftIcon={<Plus size={18} />}>
               Add Funds
             </Button>
@@ -480,7 +480,7 @@ export default function DashboardPage() {
                   </div>
                   <p className="text-gray-400 mb-1">No transactions yet</p>
                   <p className="text-gray-600 text-sm mb-4">Start by making your first deposit</p>
-                  <Link href="/dashboard/wallet?action=deposit">
+                  <Link href="/dashboard/wallet/deposit">
                     <Button variant="secondary" size="sm">
                       <Plus size={16} className="mr-2" />
                       Make Deposit
