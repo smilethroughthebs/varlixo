@@ -497,7 +497,7 @@ export default function SettingsPage() {
                         </Button>
                         <Button
                           type="button"
-                          variant="destructive"
+                          variant="danger"
                           onClick={handleDisable2FA}
                           isLoading={is2faBusy}
                         >
