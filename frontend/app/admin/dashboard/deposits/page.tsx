@@ -144,10 +144,9 @@ export default function AdminDepositsPage() {
     const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
     const base = apiBase.replace(/\/+$/, '');
     const cleanedPath = path.replace(/^\/+/, '');
-    // API is usually mounted under /api/v1, while uploads are typically at the root server
-    // so we remove the trailing "/api/v1" if present.
-    const rootBase = base.replace(/\/api\/$|\/api$|\/api\/v1$|\/v1$/i, '');
-    return `${rootBase}/${cleanedPath}`;
+    // We keep the full API base (including /api/v1) so files are served from
+    // `${API_URL}/uploads/...` which matches the Nest globalPrefix + static prefix.
+    return `${base}/${cleanedPath}`;
   };
 
   return (
