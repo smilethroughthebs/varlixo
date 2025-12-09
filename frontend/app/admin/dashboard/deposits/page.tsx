@@ -398,6 +398,30 @@ export default function AdminDepositsPage() {
                   </div>
                 )}
 
+                {selectedDeposit.proofOfPayment && (
+                  <div className="py-2 border-b border-dark-600">
+                    <span className="text-gray-400 block mb-2">Proof of Payment</span>
+                    <div className="space-y-2">
+                      <a
+                        href={selectedDeposit.proofOfPayment}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-primary-400 hover:text-primary-300 text-sm"
+                      >
+                        <ExternalLink size={14} />
+                        Open full image / file
+                      </a>
+                      <div className="mt-1 max-h-64 overflow-hidden rounded-xl border border-dark-600 bg-dark-900 flex items-center justify-center">
+                        <img
+                          src={selectedDeposit.proofOfPayment}
+                          alt="Deposit proof"
+                          className="max-h-64 w-full object-contain"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {selectedDeposit.status === 'pending' && (
                   <div className="flex gap-3 mt-6">
                     <Button
