@@ -8,6 +8,8 @@
 
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { join } from 'path';
 import { ConfigService } from '@nestjs/config';
 import * as helmet from 'helmet';
 import { AppModule } from './app.module';
@@ -16,7 +18,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // Get configuration service
   const configService = app.get(ConfigService);
@@ -65,6 +67,14 @@ async function bootstrap() {
 
   // API prefix
   app.setGlobalPrefix('api/v1');
+
+  // Serve static files for uploads (e.g. deposit proofs)
+  // This exposes the root-level `uploads` folder at `/uploads`, so
+  // files saved as `uploads/deposits/...` are accessible at
+  // https://api.example.com/uploads/deposits/...
+  app.useStaticAssets(join(__dirname, '..', '..', 'uploads'), {
+    prefix: '/uploads/',
+  });
 
   // Start server
   await app.listen(port);
