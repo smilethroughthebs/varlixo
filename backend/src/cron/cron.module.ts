@@ -13,6 +13,7 @@ import { InvestmentPlan, InvestmentPlanSchema } from '../schemas/investment-plan
 import { Wallet, WalletSchema } from '../schemas/wallet.schema';
 import { Transaction, TransactionSchema } from '../schemas/transaction.schema';
 import { User, UserSchema } from '../schemas/user.schema';
+import { CurrencyModule } from '../currency/currency.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { User, UserSchema } from '../schemas/user.schema';
       { name: Transaction.name, schema: TransactionSchema },
       { name: User.name, schema: UserSchema },
     ]),
+    CurrencyModule,
   ],
   providers: [CronService],
   exports: [CronService],
