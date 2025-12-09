@@ -361,7 +361,10 @@ export default function AdminDepositsPage() {
                 </div>
                 <div className="flex justify-between py-2 border-b border-dark-600">
                   <span className="text-gray-400">User</span>
-                  <span className="text-white">{selectedDeposit.user.firstName} {selectedDeposit.user.lastName}</span>
+                  <span className="text-white">
+                    {(selectedDeposit.userId?.firstName || selectedDeposit.user?.firstName || 'User')}{' '}
+                    {(selectedDeposit.userId?.lastName || selectedDeposit.user?.lastName || '')}
+                  </span>
                 </div>
                 <div className="flex justify-between py-2 border-b border-dark-600">
                   <span className="text-gray-400">Amount</span>
