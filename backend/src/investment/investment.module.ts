@@ -18,6 +18,7 @@ import { User, UserSchema } from '../schemas/user.schema';
 import { Transaction, TransactionSchema } from '../schemas/transaction.schema';
 import { Referral, ReferralSchema } from '../schemas/referral.schema';
 import { EmailModule } from '../email/email.module';
+import { CurrencyModule } from '../currency/currency.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { EmailModule } from '../email/email.module';
       }),
     }),
     forwardRef(() => EmailModule),
+    CurrencyModule,
   ],
   controllers: [InvestmentController],
   providers: [InvestmentService],
