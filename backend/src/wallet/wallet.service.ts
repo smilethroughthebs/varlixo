@@ -31,6 +31,7 @@ import { generateReference, roundTo } from '../common/utils/helpers';
 import { PaginationDto, createPaginatedResponse } from '../common/dto/pagination.dto';
 import { EmailService } from '../email/email.service';
 import { ConfigService } from '@nestjs/config';
+import { CurrencyService } from '../currency/currency.service';
 
 @Injectable()
 export class WalletService {
@@ -42,6 +43,7 @@ export class WalletService {
     @InjectModel(Transaction.name) private transactionModel: Model<TransactionDocument>,
     private emailService: EmailService,
     private configService: ConfigService,
+    private currencyService: CurrencyService,
   ) {}
 
   /**
@@ -146,17 +148,22 @@ export class WalletService {
     await deposit.save();
 
     // Create transaction record
+    const currencyFields = await this.currencyService.buildTransactionCurrencyFields({
+      amountUsd: amount,
+      ipAddress,
+    });
+
     const transaction = new this.transactionModel({
       userId: new Types.ObjectId(userId),
       transactionRef: generateReference('TXN'),
       type: TransactionType.DEPOSIT,
       status: TransactionStatus.PENDING,
       amount,
-      amount_usd: amount, // Set USD amount (assuming amount is in USD)
       paymentMethod,
       description: `Deposit via ${paymentMethod.replace('_', ' ')}`,
       ipAddress,
       userAgent,
+      ...currencyFields,
     });
 
     await transaction.save();
@@ -535,13 +542,17 @@ export class WalletService {
     await wallet.save();
 
     // Create transaction record
+    const currencyFields = await this.currencyService.buildTransactionCurrencyFields({
+      amountUsd: amount,
+      ipAddress,
+    });
+
     const transaction = new this.transactionModel({
       userId: new Types.ObjectId(userId),
       transactionRef: generateReference('TXN'),
       type: TransactionType.WITHDRAWAL,
       status: TransactionStatus.PENDING,
       amount,
-      amount_usd: amount, // Set USD amount (assuming amount is in USD)
       fee,
       netAmount,
       paymentMethod,
@@ -550,6 +561,7 @@ export class WalletService {
       balanceAfter: wallet.mainBalance,
       ipAddress,
       userAgent,
+      ...currencyFields,
     });
 
     await transaction.save();
@@ -659,6 +671,10 @@ export class WalletService {
     await withdrawal.save();
 
     // Create refund transaction
+    const currencyFields = await this.currencyService.buildTransactionCurrencyFields({
+      amountUsd: withdrawal.amount,
+    });
+
     await this.transactionModel.create({
       userId: new Types.ObjectId(userId),
       transactionRef: generateReference('TXN'),
@@ -668,6 +684,7 @@ export class WalletService {
       description: `Withdrawal cancelled - ${withdrawal.withdrawalRef}`,
       balanceBefore: wallet.mainBalance - withdrawal.amount,
       balanceAfter: wallet.mainBalance,
+      ...currencyFields,
     });
 
     return { 

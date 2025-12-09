@@ -16,6 +16,7 @@ import { Transaction, TransactionDocument, TransactionType, TransactionStatus } 
 import { InvestmentPlan, InvestmentPlanDocument } from '../schemas/investment-plan.schema';
 import { User, UserDocument } from '../schemas/user.schema';
 import { generateReference, roundTo, calculatePercentage } from '../common/utils/helpers';
+import { CurrencyService } from '../currency/currency.service';
 
 @Injectable()
 export class CronService {
@@ -27,6 +28,7 @@ export class CronService {
     @InjectModel(Transaction.name) private transactionModel: Model<TransactionDocument>,
     @InjectModel(InvestmentPlan.name) private planModel: Model<InvestmentPlanDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    private currencyService: CurrencyService,
   ) {}
 
   /**
@@ -114,6 +116,10 @@ export class CronService {
           investment.paidOutProfit = roundTo(investment.paidOutProfit + dailyProfit, 2);
 
           // Create profit transaction
+          const currencyFields = await this.currencyService.buildTransactionCurrencyFields({
+            amountUsd: dailyProfit,
+          });
+
           await this.transactionModel.create({
             userId: investment.userId,
             transactionRef: generateReference('TXN'),
@@ -122,6 +128,7 @@ export class CronService {
             amount: dailyProfit,
             description: `Daily profit from ${investment.planName}`,
             investmentId: investment._id,
+            ...currencyFields,
           });
         }
 
@@ -172,6 +179,10 @@ export class CronService {
           wallet.lockedBalance = roundTo(wallet.lockedBalance - (investment.amount + investment.compoundedAmount), 2);
 
           // Create transaction for principal return
+          const currencyFields = await this.currencyService.buildTransactionCurrencyFields({
+            amountUsd: returnAmount,
+          });
+
           await this.transactionModel.create({
             userId: investment.userId,
             transactionRef: generateReference('TXN'),
@@ -180,6 +191,7 @@ export class CronService {
             amount: returnAmount,
             description: `Principal + compound return from ${investment.planName}`,
             investmentId: investment._id,
+            ...currencyFields,
           });
         } else {
           // Just release locked amount

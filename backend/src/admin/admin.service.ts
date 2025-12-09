@@ -23,6 +23,7 @@ import { AdminLog, AdminLogDocument, AdminActionType } from '../schemas/admin-lo
 import { generateReference, roundTo } from '../common/utils/helpers';
 import { PaginationDto, createPaginatedResponse } from '../common/dto/pagination.dto';
 import { EmailService } from '../email/email.service';
+import { CurrencyService } from '../currency/currency.service';
 
 @Injectable()
 export class AdminService {
@@ -35,6 +36,7 @@ export class AdminService {
     @InjectModel(Investment.name) private investmentModel: Model<InvestmentDocument>,
     @InjectModel(AdminLog.name) private adminLogModel: Model<AdminLogDocument>,
     private emailService: EmailService,
+    private currencyService: CurrencyService,
   ) {}
 
   // ==========================================
@@ -285,17 +287,21 @@ export class AdminService {
     await wallet.save();
 
     // Create transaction record
+    const currencyFields = await this.currencyService.buildTransactionCurrencyFields({
+      amountUsd: amount,
+    });
+
     await this.transactionModel.create({
       userId: new Types.ObjectId(userId),
       transactionRef: generateReference('TXN'),
       type: type === 'add' ? TransactionType.BONUS : TransactionType.FEE,
       status: TransactionStatus.COMPLETED,
       amount,
-      amount_usd: amount,
       description: `Admin adjustment: ${reason}`,
       balanceBefore: previousBalance,
       balanceAfter: wallet.mainBalance,
       processedBy: new Types.ObjectId(adminId),
+      ...currencyFields,
     });
 
     // Log admin action
@@ -369,19 +375,23 @@ export class AdminService {
     wallet.mainBalance += deposit.amount;
     await wallet.save();
 
-    // Create transaction (include amount_usd to satisfy schema)
+    // Create transaction (multi-currency ready)
+    const currencyFields = await this.currencyService.buildTransactionCurrencyFields({
+      amountUsd: deposit.amount,
+    });
+
     await this.transactionModel.create({
       userId: deposit.userId,
       transactionRef: generateReference('TXN'),
       type: TransactionType.DEPOSIT,
       status: TransactionStatus.COMPLETED,
       amount: deposit.amount,
-      amount_usd: deposit.amount,
       paymentMethod: deposit.paymentMethod,
       description: `Deposit approved - ${deposit.depositRef}`,
       balanceBefore: previousBalance,
       balanceAfter: wallet.mainBalance,
       processedBy: new Types.ObjectId(adminId),
+      ...currencyFields,
     });
 
     // Send email notification (non-blocking for API success)
@@ -555,6 +565,10 @@ export class AdminService {
     await wallet.save();
 
     // Create refund transaction
+    const currencyFields = await this.currencyService.buildTransactionCurrencyFields({
+      amountUsd: withdrawal.amount,
+    });
+
     await this.transactionModel.create({
       userId: withdrawal.userId,
       transactionRef: generateReference('TXN'),
@@ -562,6 +576,7 @@ export class AdminService {
       status: TransactionStatus.COMPLETED,
       amount: withdrawal.amount,
       description: `Withdrawal rejected - ${reason}`,
+      ...currencyFields,
     });
 
     // Send email notification

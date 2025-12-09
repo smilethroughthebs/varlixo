@@ -7,6 +7,7 @@ import { User, UserDocument } from '../schemas/user.schema';
 import { Transaction, TransactionDocument, TransactionType, TransactionStatus } from '../schemas/transaction.schema';
 import { EmailService } from '../email/email.service';
 import { ConfigService } from '@nestjs/config';
+import { CurrencyService } from '../currency/currency.service';
 import { generateReference } from '../common/utils/helpers';
 import { PaginationDto, createPaginatedResponse } from '../common/dto/pagination.dto';
 
@@ -19,6 +20,7 @@ export class CryptoDepositService {
     @InjectModel(Transaction.name) private transactionModel: Model<TransactionDocument>,
     private emailService: EmailService,
     private configService: ConfigService,
+    private currencyService: CurrencyService,
   ) {}
 
   private getAddressForCurrency(currency: CryptoCurrency): { address: string; network: string; minConfirmations: number } {
@@ -162,17 +164,21 @@ export class CryptoDepositService {
       wallet.mainBalance += creditAmount;
       await wallet.save();
 
+      const currencyFields = await this.currencyService.buildTransactionCurrencyFields({
+        amountUsd: creditAmount,
+      });
+
       await this.transactionModel.create({
         userId: deposit.userId,
         transactionRef: generateReference('TXN'),
         type: TransactionType.DEPOSIT,
         status: TransactionStatus.COMPLETED,
         amount: creditAmount,
-        amount_usd: creditAmount,
         description: `Crypto deposit confirmed - ${deposit.currency}`,
         balanceBefore: previousBalance,
         balanceAfter: wallet.mainBalance,
         processedBy: new Types.ObjectId(adminId),
+        ...currencyFields,
       });
     }
 

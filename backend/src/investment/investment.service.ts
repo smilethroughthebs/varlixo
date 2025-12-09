@@ -24,6 +24,7 @@ import { CreateInvestmentDto, CalculateReturnsDto, CreatePlanDto, UpdatePlanDto 
 import { generateReference, roundTo, addDays, calculatePercentage } from '../common/utils/helpers';
 import { PaginationDto, createPaginatedResponse } from '../common/dto/pagination.dto';
 import { EmailService } from '../email/email.service';
+import { CurrencyService } from '../currency/currency.service';
 
 @Injectable()
 export class InvestmentService {
@@ -35,6 +36,7 @@ export class InvestmentService {
     @InjectModel(Transaction.name) private transactionModel: Model<TransactionDocument>,
     @InjectModel(Referral.name) private referralModel: Model<ReferralDocument>,
     private emailService: EmailService,
+    private currencyService: CurrencyService,
   ) {}
 
   // ==========================================
@@ -198,19 +200,24 @@ export class InvestmentService {
     await wallet.save();
 
     // Create transaction
+    const currencyFields = await this.currencyService.buildTransactionCurrencyFields({
+      amountUsd: amount,
+      ipAddress,
+    });
+
     await this.transactionModel.create({
       userId: new Types.ObjectId(userId),
       transactionRef: generateReference('TXN'),
       type: TransactionType.INVESTMENT,
       status: TransactionStatus.COMPLETED,
       amount,
-      amount_usd: amount, // Set USD amount
       description: `Investment in ${plan.name}`,
       investmentId: investment._id,
       balanceBefore: wallet.mainBalance + amount,
       balanceAfter: wallet.mainBalance,
       ipAddress,
       userAgent,
+      ...currencyFields,
     });
 
     // Update plan statistics
@@ -295,6 +302,10 @@ export class InvestmentService {
     });
 
     // Create transaction for referrer
+    const currencyFields = await this.currencyService.buildTransactionCurrencyFields({
+      amountUsd: bonusAmount,
+    });
+
     await this.transactionModel.create({
       userId: referrerId,
       transactionRef: generateReference('TXN'),
@@ -304,6 +315,7 @@ export class InvestmentService {
       description: `Referral bonus from investment`,
       referredUserId: new Types.ObjectId(referredUserId),
       investmentId,
+      ...currencyFields,
     });
   }
 

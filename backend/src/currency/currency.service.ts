@@ -28,6 +28,7 @@ export class CurrencyService {
   private readonly primaryProvider: string;
   private readonly fallbackProvider: string;
   private readonly autoCurrency: boolean;
+  private readonly defaultCurrency: string;
 
   constructor(
     @InjectModel(CountryRules.name) private countryRulesModel: Model<CountryRulesDocument>,
@@ -41,6 +42,7 @@ export class CurrencyService {
       this.configService.get<string>('FX_PROVIDER_FALLBACK') ||
       'https://open.er-api.com/v6';
     this.autoCurrency = this.configService.get<string>('AUTO_CURRENCY') === 'true';
+    this.defaultCurrency = this.configService.get<string>('DEFAULT_CURRENCY') || 'USD';
   }
 
   /**
@@ -196,6 +198,75 @@ export class CurrencyService {
       tax_enabled: false,
       tax_rate_percent: 0,
     };
+  }
+
+  /**
+   * Build multi-currency transaction fields from a USD amount.
+   * Always sets amount_usd. When AUTO_CURRENCY is enabled, it also
+   * attempts to detect country and apply country rules and FX conversion
+   * to populate local currency fields.
+   */
+  async buildTransactionCurrencyFields(params: {
+    amountUsd: number;
+    ipAddress?: string;
+    countryCodeOverride?: string;
+    currencyCodeOverride?: string;
+  }): Promise<{
+    amount_usd: number;
+    amount_local: number;
+    currency_code: string;
+    conversion_rate: number;
+    country_code: string;
+    tax_estimate_local: number;
+    is_fallback_rate: boolean;
+  }> {
+    const { amountUsd, ipAddress, countryCodeOverride, currencyCodeOverride } = params;
+
+    const baseResult = {
+      amount_usd: amountUsd,
+      amount_local: amountUsd,
+      currency_code: this.defaultCurrency || 'USD',
+      conversion_rate: 1,
+      country_code: 'US',
+      tax_estimate_local: 0,
+      is_fallback_rate: false,
+    } as const;
+
+    // If auto-currency is disabled, keep everything in default currency (USD)
+    if (!this.autoCurrency) {
+      return baseResult;
+    }
+
+    try {
+      const countryCode =
+        countryCodeOverride || (ipAddress ? await this.detectCountryFromIp(ipAddress) : 'US');
+
+      const rules = await this.getCountryRulesOrDefault(countryCode);
+      const currencyCode = (currencyCodeOverride || rules.currency || this.defaultCurrency || 'USD').toUpperCase();
+
+      const { amount_local, conversion_rate, is_fallback } = await this.convertUsdToLocal(
+        amountUsd,
+        currencyCode,
+      );
+
+      let tax_estimate_local = 0;
+      if (rules.tax_enabled && rules.tax_rate_percent) {
+        tax_estimate_local = Math.round(amount_local * (rules.tax_rate_percent / 100) * 100) / 100;
+      }
+
+      return {
+        amount_usd: amountUsd,
+        amount_local,
+        currency_code: currencyCode,
+        conversion_rate,
+        country_code: countryCode,
+        tax_estimate_local,
+        is_fallback_rate: is_fallback,
+      };
+    } catch (error) {
+      this.logger.warn(`Failed to build transaction currency fields, falling back to base currency`, error as any);
+      return baseResult;
+    }
   }
 
   /**
