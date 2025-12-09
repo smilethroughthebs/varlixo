@@ -67,8 +67,8 @@ export default function WalletPage() {
 
   useEffect(() => {
     const action = searchParams.get('action');
-    if (action === 'deposit' || action === 'withdraw') {
-      setActiveTab(action);
+    if (action === 'withdraw') {
+      setActiveTab('withdraw');
       setShowModal(true);
     }
     fetchTransactions();
