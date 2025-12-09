@@ -26,6 +26,7 @@ import { DatabaseModule } from './database/database.module';
 import { CurrencyModule } from './currency/currency.module';
 import { TestimonialModule } from './testimonial/testimonial.module';
 import { CryptoDepositModule } from './crypto-deposit/crypto-deposit.module';
+import { UploadsModule } from './uploads/uploads.module';
 
 // Middleware
 import { LoggerMiddleware } from './common/middleware/logger.middleware';
@@ -78,6 +79,7 @@ import { SecurityMiddleware } from './common/middleware/security.middleware';
     CurrencyModule,
     TestimonialModule,
     CryptoDepositModule,
+    UploadsModule,
   ],
 })
 export class AppModule implements NestModule {
