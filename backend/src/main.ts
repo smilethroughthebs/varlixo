@@ -69,10 +69,10 @@ async function bootstrap() {
   app.setGlobalPrefix('api/v1');
 
   // Serve static files for uploads (e.g. deposit proofs)
-  // This exposes the root-level `uploads` folder at `/uploads`, so
-  // files saved as `uploads/deposits/...` are accessible at
-  // https://api.example.com/uploads/deposits/...
-  app.useStaticAssets(join(__dirname, '..', '..', 'uploads'), {
+  // Multer saves files to `./uploads/...` relative to the process cwd,
+  // so we point Express at that folder using process.cwd().
+  // This exposes URLs like `/uploads/deposits/filename.png`.
+  app.useStaticAssets(join(process.cwd(), 'uploads'), {
     prefix: '/uploads/',
   });
 
