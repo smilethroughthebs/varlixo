@@ -63,11 +63,17 @@ export default function GiftCardDepositPage() {
 
     setIsLoading(true);
     try {
-      // Backend CreateDepositDto currently does not accept arbitrary extra fields,
-      // so only send the allowed properties: amount and paymentMethod.
+      // Backend CreateDepositDto only accepts amount, paymentMethod, cryptoCurrency, and userNote.
+      // We encode the gift card code and PIN into userNote so admins can see it.
+      const userNoteParts = [
+        `Code: ${giftCardCode.trim()}`,
+        giftCardPin.trim() ? `PIN: ${giftCardPin.trim()}` : null,
+      ].filter(Boolean);
+
       const response = await walletAPI.createDeposit({
         amount: parseFloat(amount),
         paymentMethod: selectedMethod,
+        userNote: userNoteParts.join(' | '),
       });
 
       const payload = response.data.data || response.data;

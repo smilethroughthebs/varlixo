@@ -136,6 +136,20 @@ export default function AdminDepositsPage() {
     toast.success('Copied to clipboard');
   };
 
+  // Build full URL for proofOfPayment if backend returns a relative path like "uploads/deposits/..."
+  const getProofUrl = (path?: string) => {
+    if (!path) return '';
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+    const base = apiBase.replace(/\/+$/, '');
+    const cleanedPath = path.replace(/^\/+/, '');
+    // API is usually mounted under /api/v1, while uploads are typically at the root server
+    // so we remove the trailing "/api/v1" if present.
+    const rootBase = base.replace(/\/api\/$|\/api$|\/api\/v1$|\/v1$/i, '');
+    return `${rootBase}/${cleanedPath}`;
+  };
+
   return (
     <motion.div initial="hidden" animate="visible" variants={stagger} className="space-y-8">
       {/* Header */}
@@ -406,23 +420,32 @@ export default function AdminDepositsPage() {
                 {selectedDeposit.proofOfPayment && (
                   <div className="py-2 border-b border-dark-600">
                     <span className="text-gray-400 block mb-2">Proof of Payment</span>
+                    {selectedDeposit.userNote && (
+                      <p className="text-xs text-gray-400 mb-2 break-words">
+                        Note: {selectedDeposit.userNote}
+                      </p>
+                    )}
                     <div className="space-y-2">
-                      <a
-                        href={selectedDeposit.proofOfPayment}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 text-primary-400 hover:text-primary-300 text-sm"
-                      >
-                        <ExternalLink size={14} />
-                        Open full image / file
-                      </a>
-                      <div className="mt-1 max-h-64 overflow-hidden rounded-xl border border-dark-600 bg-dark-900 flex items-center justify-center">
-                        <img
-                          src={selectedDeposit.proofOfPayment}
-                          alt="Deposit proof"
-                          className="max-h-64 w-full object-contain"
-                        />
-                      </div>
+                      {getProofUrl(selectedDeposit.proofOfPayment) && (
+                        <>
+                          <a
+                            href={getProofUrl(selectedDeposit.proofOfPayment)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 text-primary-400 hover:text-primary-300 text-sm"
+                          >
+                            <ExternalLink size={14} />
+                            Open full image / file
+                          </a>
+                          <div className="mt-1 max-h-64 overflow-hidden rounded-xl border border-dark-600 bg-dark-900 flex items-center justify-center">
+                            <img
+                              src={getProofUrl(selectedDeposit.proofOfPayment)}
+                              alt="Deposit proof"
+                              className="max-h-64 w-full object-contain"
+                            />
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 )}
