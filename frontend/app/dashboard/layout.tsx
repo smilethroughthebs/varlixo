@@ -41,8 +41,6 @@ const sidebarLinks = [
   { href: '/dashboard/wallet', icon: Wallet, label: 'Wallet' },
   { href: '/dashboard/investments', icon: TrendingUp, label: 'Investments' },
   { href: '/dashboard/transactions', icon: History, label: 'Transactions' },
-  // Deposits section
-  { href: '/crypto-deposit', icon: Coins, label: 'Crypto Deposits' },
   { href: '/dashboard/advisor', icon: Bot, label: 'AI Advisor', badge: 'NEW' },
   { href: '/dashboard/converter', icon: ArrowLeftRight, label: 'Crypto Converter' },
   { href: '/dashboard/referrals', icon: Users, label: 'Referrals' },

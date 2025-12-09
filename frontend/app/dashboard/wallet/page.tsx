@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Wallet,
@@ -38,6 +38,7 @@ const paymentMethods = [
 ];
 
 export default function WalletPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { wallet } = useAuthStore();
   const [activeTab, setActiveTab] = useState<'deposit' | 'withdraw'>('deposit');
@@ -263,11 +264,7 @@ export default function WalletPage() {
           size="lg"
           leftIcon={<ArrowDownLeft size={20} />}
           onClick={() => {
-            setActiveTab('deposit');
-            setShowModal(true);
-            setDepositInstructions(null);
-            setSelectedMethod(null);
-            setAmount('');
+            router.push('/dashboard/wallet/deposit');
           }}
         >
           Deposit
