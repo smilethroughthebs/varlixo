@@ -8,6 +8,7 @@ import { User, UserSchema } from '../schemas/user.schema';
 import { Transaction, TransactionSchema } from '../schemas/transaction.schema';
 import { EmailModule } from '../email/email.module';
 import { AuthModule } from '../auth/auth.module';
+import { CurrencyModule } from '../currency/currency.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { AuthModule } from '../auth/auth.module';
     ]),
     EmailModule,
     AuthModule,
+    CurrencyModule,
   ],
   controllers: [CryptoDepositController],
   providers: [CryptoDepositService],
