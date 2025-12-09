@@ -67,6 +67,11 @@ export default function SettingsPage() {
   const { language, setLanguage } = useLanguageStore();
   const [activeTab, setActiveTab] = useState('profile');
   const [isLoading, setIsLoading] = useState(false);
+  const [is2faBusy, setIs2faBusy] = useState(false);
+  const [show2faPanel, setShow2faPanel] = useState(false);
+  const [twoFaQr, setTwoFaQr] = useState<string | null>(null);
+  const [twoFaSecret, setTwoFaSecret] = useState<string | null>(null);
+  const [twoFaCode, setTwoFaCode] = useState('');
 
   const {
     register: registerProfile,
@@ -101,6 +106,80 @@ export default function SettingsPage() {
       toast.error(error.response?.data?.message || 'Failed to update profile');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleStart2FA = async () => {
+    if (user?.twoFactorEnabled) {
+      setShow2faPanel((prev) => !prev);
+      return;
+    }
+
+    setIs2faBusy(true);
+    try {
+      const response = await authAPI.setup2FA();
+      const result = response.data.data || response.data;
+      setTwoFaQr(result.qrCode);
+      setTwoFaSecret(result.secret);
+      setShow2faPanel(true);
+      toast.success('Scan the QR code with your authenticator app and enter the 6-digit code.');
+    } catch (error: any) {
+      const message = error?.response?.data?.message || 'Failed to start 2FA setup';
+      toast.error(message);
+    } finally {
+      setIs2faBusy(false);
+    }
+  };
+
+  const handleEnable2FA = async () => {
+    if (!twoFaCode || twoFaCode.length !== 6) {
+      toast.error('Please enter a valid 6-digit code');
+      return;
+    }
+
+    setIs2faBusy(true);
+    try {
+      const response = await authAPI.enable2FA(twoFaCode);
+      const result = response.data.data || response.data;
+
+      updateUser({ twoFactorEnabled: true });
+      toast.success(result?.message || 'Two-factor authentication enabled successfully');
+
+      setShow2faPanel(false);
+      setTwoFaQr(null);
+      setTwoFaSecret(null);
+      setTwoFaCode('');
+    } catch (error: any) {
+      const message = error?.response?.data?.message || 'Failed to enable 2FA';
+      toast.error(message);
+    } finally {
+      setIs2faBusy(false);
+    }
+  };
+
+  const handleDisable2FA = async () => {
+    if (!twoFaCode || twoFaCode.length !== 6) {
+      toast.error('Please enter a valid 6-digit code');
+      return;
+    }
+
+    setIs2faBusy(true);
+    try {
+      const response = await authAPI.disable2FA(twoFaCode);
+      const result = response.data.data || response.data;
+
+      updateUser({ twoFactorEnabled: false });
+      toast.success(result?.message || 'Two-factor authentication disabled successfully');
+
+      setShow2faPanel(false);
+      setTwoFaQr(null);
+      setTwoFaSecret(null);
+      setTwoFaCode('');
+    } catch (error: any) {
+      const message = error?.response?.data?.message || 'Failed to disable 2FA';
+      toast.error(message);
+    } finally {
+      setIs2faBusy(false);
     }
   };
 
@@ -328,10 +407,107 @@ export default function SettingsPage() {
                   {user?.twoFactorEnabled ? 'Enabled' : 'Disabled'}
                 </div>
               </div>
-              <Button variant="outline" className="mt-4">
+              <Button
+                variant="outline"
+                className="mt-4"
+                onClick={handleStart2FA}
+                isLoading={is2faBusy}
+              >
                 <Shield size={18} className="mr-2" />
                 {user?.twoFactorEnabled ? 'Manage 2FA' : 'Enable 2FA'}
               </Button>
+
+              {show2faPanel && (
+                <div className="mt-4 p-4 rounded-xl bg-dark-800 border border-dark-700 space-y-4">
+                  {!user?.twoFactorEnabled && (
+                    <>
+                      {twoFaQr && (
+                        <div className="flex flex-col md:flex-row md:items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <img
+                              src={twoFaQr}
+                              alt="2FA QR Code"
+                              className="w-40 h-40 rounded-lg border border-dark-600 bg-dark-900"
+                            />
+                          </div>
+                          <div className="text-sm text-gray-400 space-y-2">
+                            <p>Scan this QR code with Google Authenticator or any TOTP app.</p>
+                            {twoFaSecret && (
+                              <p className="break-all text-xs text-gray-500">
+                                Secret: <span className="font-mono">{twoFaSecret}</span>
+                              </p>
+                            )}
+                            <p className="text-xs text-gray-500">
+                              After scanning, enter the 6-digit code from your app to confirm.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      <Input
+                        label="2FA Code"
+                        type="text"
+                        placeholder="Enter 6-digit code from your app"
+                        maxLength={6}
+                        value={twoFaCode}
+                        onChange={(e) => setTwoFaCode(e.target.value.replace(/[^0-9]/g, ''))}
+                      />
+                      <div className="flex justify-end gap-3">
+                        <Button
+                          variant="ghost"
+                          type="button"
+                          onClick={() => {
+                            setShow2faPanel(false);
+                            setTwoFaQr(null);
+                            setTwoFaSecret(null);
+                            setTwoFaCode('');
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button type="button" onClick={handleEnable2FA} isLoading={is2faBusy}>
+                          Enable 2FA
+                        </Button>
+                      </div>
+                    </>
+                  )}
+
+                  {user?.twoFactorEnabled && (
+                    <>
+                      <p className="text-sm text-gray-400">
+                        To disable 2FA, enter a current 6-digit code from your authenticator app.
+                      </p>
+                      <Input
+                        label="2FA Code"
+                        type="text"
+                        placeholder="Enter 6-digit code"
+                        maxLength={6}
+                        value={twoFaCode}
+                        onChange={(e) => setTwoFaCode(e.target.value.replace(/[^0-9]/g, ''))}
+                      />
+                      <div className="flex justify-end gap-3">
+                        <Button
+                          variant="ghost"
+                          type="button"
+                          onClick={() => {
+                            setShow2faPanel(false);
+                            setTwoFaCode('');
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          onClick={handleDisable2FA}
+                          isLoading={is2faBusy}
+                        >
+                          Disable 2FA
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </Card>
 
