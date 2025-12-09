@@ -372,7 +372,7 @@ export default function AdminWithdrawalsPage() {
               </div>
 
               {/* KYC Warning */}
-              {selectedWithdrawal.user.kycStatus !== 'verified' && (
+              {(selectedWithdrawal.userId?.kycStatus || selectedWithdrawal.user?.kycStatus) !== 'verified' && (
                 <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl mb-4 flex items-center gap-3">
                   <AlertTriangle className="text-yellow-500" size={24} />
                   <div>
@@ -389,7 +389,10 @@ export default function AdminWithdrawalsPage() {
                 </div>
                 <div className="flex justify-between py-2 border-b border-dark-600">
                   <span className="text-gray-400">User</span>
-                  <span className="text-white">{selectedWithdrawal.user.firstName} {selectedWithdrawal.user.lastName}</span>
+                  <span className="text-white">
+                    {(selectedWithdrawal.userId?.firstName || selectedWithdrawal.user?.firstName || 'User')}{' '}
+                    {(selectedWithdrawal.userId?.lastName || selectedWithdrawal.user?.lastName || '')}
+                  </span>
                 </div>
                 <div className="flex justify-between py-2 border-b border-dark-600">
                   <span className="text-gray-400">Gross Amount</span>
