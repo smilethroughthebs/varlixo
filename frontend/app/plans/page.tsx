@@ -222,6 +222,35 @@ export default function PlansPage() {
     return Icon;
   };
 
+  const handleStartRecurringPlan = async (planType: '6-month' | '12-month') => {
+    const amountStr = planType === '6-month' ? recurringAmount6 : recurringAmount12;
+    const amount = parseFloat(amountStr || '0');
+
+    if (!isAuthenticated) {
+      router.push('/auth/login');
+      return;
+    }
+
+    if (!amount || amount <= 0) {
+      toast.error('Please enter a valid monthly contribution amount');
+      return;
+    }
+
+    try {
+      setStartingPlanType(planType);
+      await investmentAPI.startRecurringPlan({
+        planType,
+        monthlyContribution: amount,
+      });
+      toast.success('Recurring plan started successfully');
+    } catch (error: any) {
+      const message = error?.response?.data?.message || 'Failed to start recurring plan';
+      toast.error(message);
+    } finally {
+      setStartingPlanType(null);
+    }
+  };
+
   // Calculator results
   const calcResults = useMemo(() => {
     const amount = parseFloat(calcAmount) || 0;
