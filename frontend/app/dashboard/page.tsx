@@ -200,6 +200,8 @@ export default function DashboardPage() {
   // Calculate total balance
   const totalBalance = (wallet?.mainBalance || 0) + (wallet?.pendingBalance || 0) + (wallet?.lockedBalance || 0);
 
+  const totalActivePlans = (investmentSummary?.activeInvestments || 0) + (recurringPlans.length || 0);
+
   // Get time-based greeting
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -321,7 +323,7 @@ export default function DashboardPage() {
                 <PiggyBank className="text-purple-500" size={22} />
               </div>
               <span className="text-xs text-purple-400 bg-purple-500/10 px-2 py-1 rounded-full">
-                {investmentSummary?.activeInvestments || 0} active
+                {totalActivePlans} active
               </span>
             </div>
             <p className="text-gray-400 text-sm mb-1">Invested</p>

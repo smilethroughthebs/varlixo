@@ -46,8 +46,29 @@ interface Investment {
   investmentRef: string;
 }
 
+interface AdminRecurringPlan {
+  _id: string;
+  userId: {
+    _id: string;
+    email: string;
+    firstName?: string;
+    lastName?: string;
+  };
+  planType: string;
+  monthlyContribution: number;
+  totalContributed: number;
+  portfolioValue: number;
+  monthsCompleted: number;
+  monthsRequired: number;
+  status: string;
+  startDate?: string;
+  nextPaymentDate?: string;
+  maturityDate?: string;
+}
+
 export default function AdminInvestmentsPage() {
   const [investments, setInvestments] = useState<Investment[]>([]);
+  const [recurringPlans, setRecurringPlans] = useState<AdminRecurringPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -65,8 +86,13 @@ export default function AdminInvestmentsPage() {
         params.status = filterStatus;
       }
 
-      const response = await api.get('/investments/admin/all', { params });
-      setInvestments(response.data.investments || []);
+      const [investmentsRes, recurringRes] = await Promise.all([
+        api.get('/investments/admin/all', { params }),
+        api.get('/investments/admin/recurring', { params }).catch(() => ({ data: { plans: [] } })),
+      ]);
+
+      setInvestments(investmentsRes.data.investments || []);
+      setRecurringPlans(recurringRes.data.plans || recurringRes.data.data?.plans || []);
     } catch (error: any) {
       toast.error('Failed to fetch investments');
       console.error(error);
@@ -272,6 +298,82 @@ export default function AdminInvestmentsPage() {
                       >
                         <Eye size={18} />
                       </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      {/* Recurring Investments Table */}
+      <Card className="overflow-hidden">
+        <div className="px-6 pt-4">
+          <h2 className="text-lg font-semibold text-white mb-2">Recurring Investments</h2>
+          <p className="text-sm text-gray-500 mb-4">All user recurring investment plans</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-dark-800 border-b border-dark-700">
+              <tr>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">User</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Plan Type</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Monthly</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Total Contributed</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Progress</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Status</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Dates</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center">
+                    <Loader className="animate-spin mx-auto text-primary-500" />
+                  </td>
+                </tr>
+              ) : recurringPlans.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-6 text-center text-gray-500">
+                    No recurring investments found
+                  </td>
+                </tr>
+              ) : (
+                recurringPlans.map((plan) => (
+                  <tr key={plan._id} className="border-b border-dark-700 hover:bg-dark-800/50 transition">
+                    <td className="px-6 py-4">
+                      <div>
+                        <p className="text-white font-medium">
+                          {(plan.userId?.firstName || '') + ' ' + (plan.userId?.lastName || '')}
+                        </p>
+                        <p className="text-gray-500 text-sm">{plan.userId?.email}</p>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-white text-sm capitalize">{plan.planType}</td>
+                    <td className="px-6 py-4 text-white font-medium">
+                      ${plan.monthlyContribution?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                    <td className="px-6 py-4">
+                      <p className="text-primary-400 font-semibold">
+                        ${plan.totalContributed?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-gray-500 text-xs">
+                        Portfolio: ${plan.portfolioValue?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </p>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-400">
+                      {plan.monthsCompleted || 0} / {plan.monthsRequired || 0} months
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(plan.status)}`}>
+                        {plan.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-xs text-gray-400">
+                      <div>Start: {plan.startDate ? new Date(plan.startDate).toLocaleDateString() : '—'}</div>
+                      <div>Next: {plan.nextPaymentDate ? new Date(plan.nextPaymentDate).toLocaleDateString() : '—'}</div>
+                      <div>End: {plan.maturityDate ? new Date(plan.maturityDate).toLocaleDateString() : '—'}</div>
                     </td>
                   </tr>
                 ))

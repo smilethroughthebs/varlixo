@@ -179,6 +179,19 @@ export class InvestmentController {
   }
 
   /**
+   * Admin: Get all recurring investment plans
+   * GET /investments/admin/recurring
+   */
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Get('admin/recurring')
+  async getAllRecurringPlans(
+    @Query() paginationDto: PaginationDto,
+    @Query('status') status?: string,
+  ) {
+    return this.investmentService.getAllRecurringPlans(paginationDto, status);
+  }
+
+  /**
    * Admin: Get all plans
    * GET /investments/admin/plans
    */

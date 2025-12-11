@@ -97,6 +97,7 @@ export default function InvestmentsPage() {
   const { wallet } = useAuthStore();
   const [plans, setPlans] = useState<any[]>(investmentPlans);
   const [activeInvestments, setActiveInvestments] = useState<any[]>([]);
+  const [recurringPlans, setRecurringPlans] = useState<any[]>([]);
   const [investmentSummary, setInvestmentSummary] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
@@ -142,13 +143,16 @@ export default function InvestmentsPage() {
   const fetchInvestments = async () => {
     setIsLoading(true);
     try {
-      const [investmentsRes, summaryRes] = await Promise.all([
+      const [investmentsRes, summaryRes, recurringRes] = await Promise.all([
         investmentAPI.getMyInvestments(),
         investmentAPI.getSummary(),
+        investmentAPI.getMyRecurringPlans().catch(() => ({ data: { data: { plans: [] } } })),
       ]);
       
       setActiveInvestments(investmentsRes.data.data || []);
       setInvestmentSummary(summaryRes.data.data?.summary || null);
+      const recurringData = recurringRes.data.data?.plans || recurringRes.data.plans || [];
+      setRecurringPlans(Array.isArray(recurringData) ? recurringData : []);
     } catch (error) {
       console.error('Failed to fetch investments:', error);
       setActiveInvestments([]);
@@ -414,6 +418,82 @@ export default function InvestmentsPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* Recurring Investments */}
+      {recurringPlans.length > 0 && (
+        <motion.div variants={fadeInUp}>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock size={20} className="text-primary-500" />
+                Recurring Investments
+              </CardTitle>
+            </CardHeader>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 px-4 pb-4">
+              {recurringPlans.map((plan: any, index: number) => {
+                const label = plan.planType === '12-month' ? '1-Year Wealth Builder' : '6-Month Growth Plan';
+                return (
+                  <motion.div
+                    key={plan.id || index}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: index * 0.05 }}
+                    className="p-4 rounded-2xl bg-dark-800/60 border border-dark-700"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <p className="text-xs text-gray-500 uppercase tracking-wide">{plan.planType}</p>
+                        <h4 className="font-semibold text-white text-sm mt-0.5">{label}</h4>
+                      </div>
+                      <span className="text-xs px-2 py-1 rounded-full capitalize bg-dark-900/70 text-gray-300">
+                        {plan.status}
+                      </span>
+                    </div>
+                    <p className="text-2xl font-bold text-white mb-2">
+                      ${ (plan.totalContributed || 0).toLocaleString() }
+                    </p>
+                    <div className="text-xs text-gray-400 mb-2 flex items-center justify-between">
+                      <span>Monthly contribution</span>
+                      <span className="text-primary-400 font-medium">
+                        ${ (plan.monthlyContribution || 0).toLocaleString() }
+                      </span>
+                    </div>
+                    <div className="text-xs text-gray-400 mb-3 flex items-center justify-between">
+                      <span>Portfolio value</span>
+                      <span className="text-emerald-400 font-medium">
+                        ${ (plan.portfolioValue || 0).toLocaleString() }
+                      </span>
+                    </div>
+                    <div className="mb-2">
+                      <div className="flex justify-between text-xs text-gray-500 mb-1">
+                        <span>
+                          {plan.monthsCompleted || 0} / {plan.monthsRequired || 0} months
+                        </span>
+                        <span>{plan.progress || 0}%</span>
+                      </div>
+                      <div className="w-full h-2 bg-dark-700 rounded-full overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${plan.progress || 0}%` }}
+                          transition={{ duration: 0.8, ease: 'easeOut' }}
+                          className="h-full bg-gradient-to-r from-primary-500 to-emerald-500"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-gray-500 mt-2">
+                      Next payment: {plan.nextPaymentDate ? new Date(plan.nextPaymentDate).toLocaleDateString() : '—'}
+                    </p>
+                    <p className="text-[11px] text-gray-500">
+                      Maturity: {plan.maturityDate ? new Date(plan.maturityDate).toLocaleDateString() : '—'}
+                    </p>
+                  </motion.div>
+                );
+              })}
             </div>
           </Card>
         </motion.div>
