@@ -727,6 +727,39 @@ export class InvestmentService {
       },
     };
   }
+    /**
+   * Get all recurring plans (admin)
+   */
+  async getAllRecurringPlans(paginationDto: PaginationDto, status?: string) {
+    const { page = 1, limit = 20 } = paginationDto;
+    const skip = (page - 1) * limit;
+
+    const filter: any = {};
+    if (status) {
+      filter.status = status;
+    }
+
+    const [plans, total] = await Promise.all([
+      this.recurringPlanModel
+        .find(filter)
+        .populate('userId', 'email firstName lastName')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      this.recurringPlanModel.countDocuments(filter),
+    ]);
+
+    return {
+      success: true,
+      plans,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    };
+  }
 
   /**
    * Delete/deactivate a plan
