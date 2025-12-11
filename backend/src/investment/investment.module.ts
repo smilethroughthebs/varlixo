@@ -13,6 +13,7 @@ import { InvestmentController } from './investment.controller';
 import { InvestmentService } from './investment.service';
 import { InvestmentPlan, InvestmentPlanSchema } from '../schemas/investment-plan.schema';
 import { Investment, InvestmentSchema } from '../schemas/investment.schema';
+import { RecurringPlan, RecurringPlanSchema } from '../schemas/recurring-plan.schema';
 import { Wallet, WalletSchema } from '../schemas/wallet.schema';
 import { User, UserSchema } from '../schemas/user.schema';
 import { Transaction, TransactionSchema } from '../schemas/transaction.schema';
@@ -25,6 +26,7 @@ import { CurrencyModule } from '../currency/currency.module';
     MongooseModule.forFeature([
       { name: InvestmentPlan.name, schema: InvestmentPlanSchema },
       { name: Investment.name, schema: InvestmentSchema },
+      { name: RecurringPlan.name, schema: RecurringPlanSchema },
       { name: Wallet.name, schema: WalletSchema },
       { name: User.name, schema: UserSchema },
       { name: Transaction.name, schema: TransactionSchema },

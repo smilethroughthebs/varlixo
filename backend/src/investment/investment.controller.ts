@@ -20,6 +20,7 @@ import {
 import { Request } from 'express';
 import { InvestmentService } from './investment.service';
 import { CreateInvestmentDto, CalculateReturnsDto, CreatePlanDto, UpdatePlanDto } from './dto/investment.dto';
+import { StartRecurringPlanDto } from './dto/recurring-plan.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { AdminGuard } from '../common/guards/admin.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -86,6 +87,19 @@ export class InvestmentController {
   }
 
   /**
+   * Start a recurring investment plan
+   * POST /investments/recurring/start
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('recurring/start')
+  async startRecurringPlan(
+    @CurrentUser('sub') userId: string,
+    @Body() startDto: StartRecurringPlanDto,
+  ) {
+    return this.investmentService.startRecurringPlan(userId, startDto);
+  }
+
+  /**
    * Get user's investments
    * GET /investments/my
    */
@@ -96,6 +110,32 @@ export class InvestmentController {
     @Query() paginationDto: PaginationDto,
   ) {
     return this.investmentService.getUserInvestments(userId, paginationDto);
+  }
+
+  /**
+   * Get user's recurring investment plans
+   * GET /investments/recurring/my
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get('recurring/my')
+  async getUserRecurringPlans(@CurrentUser('sub') userId: string) {
+    return this.investmentService.getUserRecurringPlans(userId);
+  }
+
+  /**
+   * Pay a monthly installment for a recurring plan
+   * POST /investments/recurring/:id/pay
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('recurring/:id/pay')
+  async payRecurringInstallment(
+    @CurrentUser('sub') userId: string,
+    @Param('id') planId: string,
+    @Req() req: Request,
+  ) {
+    const ipAddress = getClientIp(req);
+    const userAgent = req.headers['user-agent'];
+    return this.investmentService.payRecurringInstallment(userId, planId, ipAddress, userAgent);
   }
 
   /**

@@ -10,6 +10,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   TrendingUp,
@@ -33,12 +34,15 @@ import {
   X,
   ArrowUpRight,
   HelpCircle,
+  Calendar,
 } from 'lucide-react';
 import Button from '@/app/components/ui/Button';
 import { Card } from '@/app/components/ui/Card';
 import Navbar from '@/app/components/layout/Navbar';
 import Footer from '@/app/components/layout/Footer';
 import { investmentAPI } from '@/app/lib/api';
+import { useAuthStore } from '@/app/lib/store';
+import toast from 'react-hot-toast';
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 30 },
@@ -158,12 +162,17 @@ const faqs = [
 ];
 
 export default function PlansPage() {
+  const router = useRouter();
+  const { isAuthenticated } = useAuthStore();
   const [plans, setPlans] = useState<any[]>(defaultPlans);
   const [isLoading, setIsLoading] = useState(true);
   const [showCalculator, setShowCalculator] = useState(false);
   const [calcAmount, setCalcAmount] = useState('5000');
   const [selectedPlan, setSelectedPlan] = useState(defaultPlans[1]);
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
+  const [recurringAmount6, setRecurringAmount6] = useState('500');
+  const [recurringAmount12, setRecurringAmount12] = useState('1000');
+  const [startingPlanType, setStartingPlanType] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPlans();
@@ -404,6 +413,147 @@ export default function PlansPage() {
                 </motion.div>
               );
             })}
+          </motion.div>
+
+          {/* Recurring Plans Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-16 grid md:grid-cols-2 gap-6"
+          >
+            {/* 6-Month Growth Plan */}
+            <Card className="bg-dark-800/60 border-dark-700 hover:border-primary-500/40 transition-colors">
+              <div className="p-6 md:p-8 space-y-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-bold text-white">6-Month Growth Plan</h3>
+                    <p className="text-gray-400 text-sm mt-1">
+                      Build momentum with a fixed 6-month recurring contribution.
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary-500 to-emerald-500 flex items-center justify-center">
+                    <Calendar size={22} className="text-white" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="p-3 rounded-xl bg-dark-900/50">
+                    <p className="text-gray-500">Duration</p>
+                    <p className="text-white font-semibold">6 months</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-dark-900/50">
+                    <p className="text-gray-500">Lock</p>
+                    <p className="text-white font-semibold">Withdrawal at maturity</p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Monthly contribution
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
+                    <input
+                      type="number"
+                      min={1}
+                      value={recurringAmount6}
+                      onChange={(e) => setRecurringAmount6(e.target.value)}
+                      className="w-full pl-8 pr-4 py-3 bg-dark-900 border border-dark-700 rounded-xl text-white text-sm focus:outline-none focus:border-primary-500 transition-colors"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Choose how much you want to set aside every month.
+                  </p>
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-xs text-gray-500 mb-1">
+                    <span>Progress</span>
+                    <span>0 / 6 months</span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-dark-700 overflow-hidden">
+                    <div className="h-full w-0 bg-gradient-to-r from-primary-500 to-emerald-500" />
+                  </div>
+                </div>
+
+                <Button
+                  className="w-full"
+                  size="lg"
+                  onClick={() => handleStartRecurringPlan('6-month')}
+                  isLoading={startingPlanType === '6-month'}
+                >
+                  Start 6-Month Plan
+                  <ArrowRight size={18} className="ml-2" />
+                </Button>
+              </div>
+            </Card>
+
+            {/* 1-Year Wealth Builder */}
+            <Card className="bg-dark-800/60 border-dark-700 hover:border-primary-500/40 transition-colors">
+              <div className="p-6 md:p-8 space-y-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-bold text-white">1-Year Wealth Builder</h3>
+                    <p className="text-gray-400 text-sm mt-1">
+                      Commit for 12 months and grow a long-term portfolio position.
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-primary-500 flex items-center justify-center">
+                    <Target size={22} className="text-white" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="p-3 rounded-xl bg-dark-900/50">
+                    <p className="text-gray-500">Duration</p>
+                    <p className="text-white font-semibold">12 months</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-dark-900/50">
+                    <p className="text-gray-500">Lock</p>
+                    <p className="text-white font-semibold">Withdrawal at maturity</p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Monthly contribution
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
+                    <input
+                      type="number"
+                      min={1}
+                      value={recurringAmount12}
+                      onChange={(e) => setRecurringAmount12(e.target.value)}
+                      className="w-full pl-8 pr-4 py-3 bg-dark-900 border border-dark-700 rounded-xl text-white text-sm focus:outline-none focus:border-primary-500 transition-colors"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Set a recurring monthly amount you are comfortable with.
+                  </p>
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-xs text-gray-500 mb-1">
+                    <span>Progress</span>
+                    <span>0 / 12 months</span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-dark-700 overflow-hidden">
+                    <div className="h-full w-0 bg-gradient-to-r from-purple-500 to-primary-500" />
+                  </div>
+                </div>
+
+                <Button
+                  className="w-full"
+                  size="lg"
+                  onClick={() => handleStartRecurringPlan('12-month')}
+                  isLoading={startingPlanType === '12-month'}
+                >
+                  Start 1-Year Plan
+                  <ArrowRight size={18} className="ml-2" />
+                </Button>
+              </div>
+            </Card>
           </motion.div>
         </div>
       </section>

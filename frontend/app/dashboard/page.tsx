@@ -89,6 +89,8 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showBalance, setShowBalance] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [recurringPlans, setRecurringPlans] = useState<any[]>([]);
+  const [payingPlanId, setPayingPlanId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchDashboardData();
@@ -96,10 +98,11 @@ export default function DashboardPage() {
 
   const fetchDashboardData = async () => {
     try {
-      const [summaryRes, transactionsRes, cryptoRes] = await Promise.all([
+      const [summaryRes, transactionsRes, cryptoRes, recurringRes] = await Promise.all([
         investmentAPI.getSummary().catch(() => ({ data: { data: null } })),
         walletAPI.getTransactions({ limit: 5 }).catch(() => ({ data: { data: [] } })),
         marketAPI.getCryptos(5).catch(() => ({ data: { data: [] } })),
+        investmentAPI.getMyRecurringPlans().catch(() => ({ data: { data: { plans: [] } } })),
       ]);
 
       // Try to get referral stats
@@ -114,6 +117,8 @@ export default function DashboardPage() {
       setRecentTransactions(transactionsRes.data.data?.data || transactionsRes.data.data || []);
       const cryptoData = cryptoRes.data.data?.data || cryptoRes.data.data || [];
       setCryptoPrices(Array.isArray(cryptoData) ? cryptoData : []);
+      const recurringData = recurringRes.data.data?.plans || recurringRes.data.plans || [];
+      setRecurringPlans(Array.isArray(recurringData) ? recurringData : []);
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
     } finally {
@@ -126,6 +131,20 @@ export default function DashboardPage() {
     await fetchDashboardData();
     setRefreshing(false);
     toast.success('Dashboard refreshed');
+  };
+
+  const handlePayRecurringInstallment = async (planId: string) => {
+    try {
+      setPayingPlanId(planId);
+      await investmentAPI.payRecurringInstallment(planId);
+      toast.success('Monthly installment paid successfully');
+      await fetchDashboardData();
+    } catch (error: any) {
+      const message = error?.response?.data?.message || 'Failed to pay monthly installment';
+      toast.error(message);
+    } finally {
+      setPayingPlanId(null);
+    }
   };
 
   const handleResendVerification = async () => {
@@ -656,100 +675,6 @@ export default function DashboardPage() {
           </motion.div>
         </div>
       </div>
-
-      {/* Active Investments Section */}
-      {(investmentSummary?.activeInvestments > 0 || investmentSummary?.activeInvestmentsList?.length > 0) && (
-        <motion.div variants={fadeInUp}>
-          <Card>
-            <CardHeader>
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp size={18} className="text-primary-500" />
-                  Active Investments
-                </CardTitle>
-                <p className="text-gray-500 text-sm">Your running investment plans</p>
-              </div>
-              <Link
-                href="/dashboard/investments"
-                className="text-primary-500 hover:text-primary-400 text-sm flex items-center gap-1 font-medium"
-              >
-                Manage <ArrowRight size={16} />
-              </Link>
-            </CardHeader>
-
-            {investmentSummary?.activeInvestmentsList?.length > 0 ? (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {investmentSummary.activeInvestmentsList.map((inv: any, index: number) => (
-                  <motion.div
-                    key={inv.id || index}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="p-5 rounded-2xl bg-dark-800/50 border border-dark-700 hover:border-primary-500/30 transition-all"
-                  >
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center">
-                          <Star size={20} className="text-white" />
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-white">{inv.planName}</h4>
-                          <span className="text-xs text-primary-400">{inv.dailyReturn || '2.5'}% daily</span>
-                        </div>
-                      </div>
-                      <span className="text-xs text-green-400 bg-green-500/10 px-2 py-1 rounded-full flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                        Active
-                      </span>
-                    </div>
-                    <p className="text-3xl font-bold text-white mb-4">
-                      ${inv.amount?.toLocaleString() || '0'}
-                    </p>
-                    <div className="space-y-3">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">Earned</span>
-                        <span className="text-green-400 font-medium">+${inv.totalEarned || '0'}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">Days Left</span>
-                        <span className="text-white">{inv.daysRemaining || '0'} days</span>
-                      </div>
-                      <div>
-                        <div className="flex justify-between text-xs text-gray-500 mb-1.5">
-                          <span>Progress</span>
-                          <span>{inv.progress || 0}%</span>
-                        </div>
-                        <div className="w-full h-2 bg-dark-600 rounded-full overflow-hidden">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${inv.progress || 0}%` }}
-                            transition={{ duration: 1, ease: 'easeOut' }}
-                            className="h-full bg-gradient-to-r from-primary-500 to-primary-400 rounded-full"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <div className="w-16 h-16 rounded-2xl bg-dark-700 flex items-center justify-center mx-auto mb-4">
-                  <PiggyBank size={32} className="text-gray-600" />
-                </div>
-                <p className="text-gray-400 mb-1">No active investments</p>
-                <p className="text-gray-600 text-sm mb-4">Start investing to earn daily profits</p>
-                <Link href="/dashboard/investments">
-                  <Button>
-                    <Zap size={16} className="mr-2" />
-                    Start Investing
-                  </Button>
-                </Link>
-              </div>
-            )}
-          </Card>
-        </motion.div>
-      )}
 
       {/* Bottom CTA */}
       <motion.div variants={fadeInUp}>

@@ -16,11 +16,13 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { InvestmentPlan, InvestmentPlanDocument, PlanStatus } from '../schemas/investment-plan.schema';
 import { Investment, InvestmentDocument, InvestmentStatus } from '../schemas/investment.schema';
+import { RecurringPlan, RecurringPlanDocument, RecurringPlanStatus } from '../schemas/recurring-plan.schema';
 import { Wallet, WalletDocument } from '../schemas/wallet.schema';
 import { User, UserDocument, KycStatus } from '../schemas/user.schema';
 import { Transaction, TransactionDocument, TransactionType, TransactionStatus } from '../schemas/transaction.schema';
 import { Referral, ReferralDocument, ReferralStatus } from '../schemas/referral.schema';
 import { CreateInvestmentDto, CalculateReturnsDto, CreatePlanDto, UpdatePlanDto } from './dto/investment.dto';
+import { StartRecurringPlanDto } from './dto/recurring-plan.dto';
 import { generateReference, roundTo, addDays, calculatePercentage } from '../common/utils/helpers';
 import { PaginationDto, createPaginatedResponse } from '../common/dto/pagination.dto';
 import { EmailService } from '../email/email.service';
@@ -31,6 +33,7 @@ export class InvestmentService {
   constructor(
     @InjectModel(InvestmentPlan.name) private planModel: Model<InvestmentPlanDocument>,
     @InjectModel(Investment.name) private investmentModel: Model<InvestmentDocument>,
+    @InjectModel(RecurringPlan.name) private recurringPlanModel: Model<RecurringPlanDocument>,
     @InjectModel(Wallet.name) private walletModel: Model<WalletDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Transaction.name) private transactionModel: Model<TransactionDocument>,
@@ -54,6 +57,223 @@ export class InvestmentService {
     return {
       success: true,
       plans,
+    };
+  }
+
+  // ==========================================
+  // RECURRING PLANS
+  // ==========================================
+
+  /**
+   * Start a new recurring investment plan (6-month or 12-month)
+   */
+  async startRecurringPlan(userId: string, dto: StartRecurringPlanDto) {
+    const { planType, monthlyContribution } = dto;
+
+    // Map planType to monthsRequired
+    let monthsRequired: number;
+    if (planType === '6-month') {
+      monthsRequired = 6;
+    } else if (planType === '12-month') {
+      monthsRequired = 12;
+    } else {
+      throw new BadRequestException('Invalid recurring plan type');
+    }
+
+    if (monthlyContribution <= 0) {
+      throw new BadRequestException('Monthly contribution must be greater than 0');
+    }
+
+    const now = new Date();
+    const startDate = now;
+
+    const nextPaymentDate = new Date(startDate);
+    nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
+
+    const maturityDate = new Date(startDate);
+    maturityDate.setMonth(maturityDate.getMonth() + monthsRequired);
+
+    const recurringPlan = new this.recurringPlanModel({
+      userId: new Types.ObjectId(userId),
+      planType,
+      monthlyContribution,
+      startDate,
+      nextPaymentDate,
+      maturityDate,
+      monthsCompleted: 0,
+      monthsRequired,
+      totalContributed: 0,
+      portfolioValue: 0,
+      status: RecurringPlanStatus.ACTIVE,
+      withdrawalRequested: false,
+      withdrawalApproved: false,
+    });
+
+    await recurringPlan.save();
+
+    return {
+      success: true,
+      message: 'Recurring plan started successfully',
+      plan: {
+        id: recurringPlan._id,
+        planType: recurringPlan.planType,
+        monthlyContribution: recurringPlan.monthlyContribution,
+        startDate: recurringPlan.startDate,
+        nextPaymentDate: recurringPlan.nextPaymentDate,
+        maturityDate: recurringPlan.maturityDate,
+        monthsCompleted: recurringPlan.monthsCompleted,
+        monthsRequired: recurringPlan.monthsRequired,
+        totalContributed: recurringPlan.totalContributed,
+        portfolioValue: recurringPlan.portfolioValue,
+        status: recurringPlan.status,
+      },
+    };
+  }
+
+  /**
+   * Get all recurring plans for a user
+   */
+  async getUserRecurringPlans(userId: string) {
+    const plans = await this.recurringPlanModel
+      .find({ userId: new Types.ObjectId(userId) })
+      .sort({ createdAt: -1 });
+
+    const mapped = plans.map((plan) => {
+      const progress = plan.monthsRequired > 0
+        ? Math.round((plan.monthsCompleted / plan.monthsRequired) * 100)
+        : 0;
+
+      const monthsRemaining = Math.max(plan.monthsRequired - plan.monthsCompleted, 0);
+
+      return {
+        id: plan._id,
+        planType: plan.planType,
+        monthlyContribution: plan.monthlyContribution,
+        startDate: plan.startDate,
+        nextPaymentDate: plan.nextPaymentDate,
+        maturityDate: plan.maturityDate,
+        monthsCompleted: plan.monthsCompleted,
+        monthsRequired: plan.monthsRequired,
+        monthsRemaining,
+        totalContributed: plan.totalContributed,
+        portfolioValue: plan.portfolioValue,
+        status: plan.status,
+        progress,
+      };
+    });
+
+    return {
+      success: true,
+      plans: mapped,
+    };
+  }
+
+  /**
+   * Pay a monthly installment for a recurring plan
+   */
+  async payRecurringInstallment(userId: string, planId: string, ipAddress?: string, userAgent?: string) {
+    const plan = await this.recurringPlanModel.findOne({
+      _id: new Types.ObjectId(planId),
+      userId: new Types.ObjectId(userId),
+    });
+
+    if (!plan) {
+      throw new NotFoundException('Recurring plan not found');
+    }
+
+    if (plan.status !== RecurringPlanStatus.ACTIVE) {
+      throw new BadRequestException('Only active recurring plans can receive payments');
+    }
+
+    if (plan.monthsCompleted >= plan.monthsRequired) {
+      throw new BadRequestException('This recurring plan is already fully funded');
+    }
+
+    const amount = plan.monthlyContribution;
+    if (amount <= 0) {
+      throw new BadRequestException('Invalid monthly contribution amount');
+    }
+
+    // Get wallet and ensure sufficient balance
+    const wallet = await this.walletModel.findOne({ userId: new Types.ObjectId(userId) });
+    if (!wallet || wallet.mainBalance < amount) {
+      throw new BadRequestException('Insufficient balance to pay monthly installment');
+    }
+
+    // Deduct from wallet and move to locked balance
+    const balanceBefore = wallet.mainBalance;
+    wallet.mainBalance -= amount;
+    wallet.lockedBalance += amount;
+    await wallet.save();
+
+    // Update recurring plan progress
+    plan.monthsCompleted += 1;
+    plan.totalContributed += amount;
+    plan.portfolioValue += amount; // Simple placeholder until a profit engine is added
+
+    // Update next payment date
+    const nextPayment = plan.nextPaymentDate ? new Date(plan.nextPaymentDate) : new Date();
+    nextPayment.setMonth(nextPayment.getMonth() + 1);
+    plan.nextPaymentDate = nextPayment;
+
+    // Push payment history record
+    plan.paymentHistory = plan.paymentHistory || [];
+    plan.paymentHistory.push({
+      monthNumber: plan.monthsCompleted,
+      amount,
+      datePaid: new Date(),
+      status: 'paid',
+    } as any);
+
+    // If user has completed all months, mark as matured
+    if (plan.monthsCompleted >= plan.monthsRequired) {
+      plan.status = RecurringPlanStatus.MATURED;
+    }
+
+    await plan.save();
+
+    // Create transaction record
+    const currencyFields = await this.currencyService.buildTransactionCurrencyFields({
+      amountUsd: amount,
+      ipAddress,
+    });
+
+    const transaction = await this.transactionModel.create({
+      userId: new Types.ObjectId(userId),
+      transactionRef: generateReference('TXN'),
+      type: TransactionType.INVESTMENT,
+      status: TransactionStatus.COMPLETED,
+      amount,
+      description: `Monthly contribution to recurring plan (${plan.planType})`,
+      balanceBefore,
+      balanceAfter: wallet.mainBalance,
+      ipAddress,
+      userAgent,
+      ...currencyFields,
+    });
+
+    const progress = plan.monthsRequired > 0
+      ? Math.round((plan.monthsCompleted / plan.monthsRequired) * 100)
+      : 0;
+
+    return {
+      success: true,
+      message: 'Monthly installment paid successfully',
+      plan: {
+        id: plan._id,
+        planType: plan.planType,
+        monthlyContribution: plan.monthlyContribution,
+        startDate: plan.startDate,
+        nextPaymentDate: plan.nextPaymentDate,
+        maturityDate: plan.maturityDate,
+        monthsCompleted: plan.monthsCompleted,
+        monthsRequired: plan.monthsRequired,
+        totalContributed: plan.totalContributed,
+        portfolioValue: plan.portfolioValue,
+        status: plan.status,
+        progress,
+      },
+      transactionId: transaction._id,
     };
   }
 

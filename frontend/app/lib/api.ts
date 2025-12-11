@@ -117,6 +117,9 @@ export const investmentAPI = {
   getMyInvestments: (params?: any) => api.get('/investments/my', { params }),
   getSummary: () => api.get('/investments/summary'),
   getInvestment: (id: string) => api.get(`/investments/${id}`),
+  startRecurringPlan: (data: any) => api.post('/investments/recurring/start', data),
+  getMyRecurringPlans: () => api.get('/investments/recurring/my'),
+  payRecurringInstallment: (id: string) => api.post(`/investments/recurring/${id}/pay`),
 };
 
 export const kycAPI = {
