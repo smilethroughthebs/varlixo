@@ -242,7 +242,11 @@ export default function PlansPage() {
         planType,
         monthlyContribution: amount,
       });
-      toast.success('Recurring plan started successfully');
+      toast.success('Recurring plan started successfully! Redirecting to dashboard...');
+      // Redirect to dashboard after a short delay to see the new plan
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 1500);
     } catch (error: any) {
       const message = error?.response?.data?.message || 'Failed to start recurring plan';
       toast.error(message);
