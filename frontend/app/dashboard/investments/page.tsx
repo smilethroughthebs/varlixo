@@ -22,6 +22,7 @@ import {
   Info,
   Calculator,
   X,
+  Calendar,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle } from '@/app/components/ui/Card';
 import Button from '@/app/components/ui/Button';
@@ -424,16 +425,16 @@ export default function InvestmentsPage() {
       )}
 
       {/* Recurring Investments */}
-      {recurringPlans.length > 0 && (
-        <motion.div variants={fadeInUp}>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock size={20} className="text-primary-500" />
-                Recurring Investments
-              </CardTitle>
-            </CardHeader>
+      <motion.div variants={fadeInUp}>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar size={20} className="text-blue-500" />
+              Recurring Investments
+            </CardTitle>
+          </CardHeader>
 
+          {recurringPlans.length > 0 ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 px-4 pb-4">
               {recurringPlans.map((plan: any, index: number) => {
                 const label = plan.planType === '12-month' ? '1-Year Wealth Builder' : '6-Month Growth Plan';
@@ -495,9 +496,19 @@ export default function InvestmentsPage() {
                 );
               })}
             </div>
-          </Card>
-        </motion.div>
-      )}
+          ) : (
+            <div className="text-center py-8 px-4">
+              <Calendar size={48} className="text-gray-600 mx-auto mb-3" />
+              <p className="text-gray-400 mb-2">No recurring plans yet</p>
+              <p className="text-gray-600 text-sm mb-4">Start a 6-month or 12-month recurring investment to build wealth steadily</p>
+              <Button onClick={() => window.open('/plans', '_blank')} variant="secondary">
+                Start Recurring Plan
+                <ArrowRight size={16} className="ml-2" />
+              </Button>
+            </div>
+          )}
+        </Card>
+      </motion.div>
 
       {/* Investment Modal */}
       <AnimatePresence>
