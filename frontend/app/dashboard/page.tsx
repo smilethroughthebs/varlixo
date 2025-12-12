@@ -333,6 +333,25 @@ export default function DashboardPage() {
           </div>
         </Card>
 
+        {/* Recurring Plans */}
+        <Card className="relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl -mr-12 -mt-12" />
+          <div className="relative">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-11 h-11 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                <Calendar className="text-blue-500" size={22} />
+              </div>
+              <span className="text-xs text-blue-400 bg-blue-500/10 px-2 py-1 rounded-full">
+                {recurringPlans.length} active
+              </span>
+            </div>
+            <p className="text-gray-400 text-sm mb-1">Recurring Plans</p>
+            <p className="text-2xl font-bold text-white">
+              {recurringPlans.length}
+            </p>
+          </div>
+        </Card>
+
         {/* Referral Earnings */}
         <Card className="relative overflow-hidden">
           <div className="absolute top-0 right-0 w-24 h-24 bg-yellow-500/10 rounded-full blur-2xl -mr-12 -mt-12" />
@@ -433,6 +452,94 @@ export default function DashboardPage() {
             </Card>
           </motion.div>
 
+          {/* Recurring Investments */}
+          <motion.div variants={fadeInUp}>
+            <Card>
+              <CardHeader>
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar size={18} className="text-blue-500" />
+                    Recurring Investments
+                  </CardTitle>
+                  <p className="text-gray-500 text-sm">Your monthly contribution plans</p>
+                </div>
+                <Link
+                  href="/dashboard/investments"
+                  className="text-primary-500 hover:text-primary-400 text-sm flex items-center gap-1 font-medium"
+                >
+                  Manage <ArrowRight size={16} />
+                </Link>
+              </CardHeader>
+
+              {recurringPlans.length > 0 ? (
+                <div className="space-y-3">
+                  {recurringPlans.map((plan: any) => (
+                    <motion.div
+                      key={plan.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.1 }}
+                      className="p-4 bg-dark-800/50 rounded-xl hover:bg-dark-800 transition-colors"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <p className="text-white font-medium capitalize">{plan.planType}</p>
+                          <p className="text-gray-500 text-sm">
+                            ${plan.monthlyContribution?.toLocaleString()} / month
+                          </p>
+                        </div>
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            plan.status === 'active'
+                              ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                              : plan.status === 'matured'
+                              ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                              : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
+                          }`}
+                        >
+                          {plan.status}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-sm text-gray-400">
+                          <div>Contributed: ${plan.totalContributed?.toLocaleString()}</div>
+                          <div>Portfolio: ${plan.portfolioValue?.toLocaleString()}</div>
+                        </div>
+                        <div className="text-right text-sm text-gray-400">
+                          <div>{plan.monthsCompleted || 0} / {plan.monthsRequired || 0} months</div>
+                          <div>{plan.progress || 0}% complete</div>
+                        </div>
+                      </div>
+                      {plan.status === 'active' && (
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          onClick={() => handlePayRecurringInstallment(plan.id)}
+                          isLoading={payingPlanId === plan.id}
+                          className="w-full"
+                        >
+                          Make Monthly Payment
+                        </Button>
+                      )}
+                    </motion.div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6">
+                  <Calendar size={32} className="text-gray-600 mx-auto mb-2" />
+                  <p className="text-gray-400 mb-1">No recurring plans yet</p>
+                  <p className="text-gray-600 text-sm mb-4">Start a recurring investment to build wealth steadily</p>
+                  <Link href="/plans">
+                    <Button variant="secondary" size="sm">
+                      <Plus size={16} className="mr-2" />
+                      Start Recurring Plan
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </Card>
+          </motion.div>
+
           {/* Recent Transactions */}
           <motion.div variants={fadeInUp}>
             <Card>
@@ -459,46 +566,38 @@ export default function DashboardPage() {
                       transition={{ delay: index * 0.1 }}
                       className="flex items-center justify-between p-4 bg-dark-800/50 rounded-xl hover:bg-dark-800 transition-colors"
                     >
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-dark-700 flex items-center justify-center">
                           {getTransactionIcon(tx.type)}
                         </div>
                         <div>
-                          <p className="text-white font-medium capitalize">
-                            {tx.type?.replace('_', ' ') || 'Transaction'}
-                          </p>
-                          <p className="text-xs text-gray-500 flex items-center gap-2">
-                            {new Date(tx.createdAt).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                            <span className="flex items-center gap-1">
-                              {getStatusIcon(tx.status)}
-                              <span className="capitalize">{tx.status}</span>
-                            </span>
-                          </p>
+                          <p className="text-white font-medium">{tx.description || tx.type}</p>
+                          <p className="text-gray-500 text-sm">{new Date(tx.createdAt).toLocaleDateString()}</p>
                         </div>
                       </div>
-                      <p
-                        className={`font-semibold ${
-                          tx.type === 'deposit' || tx.type === 'profit' || tx.type === 'referral'
-                            ? 'text-green-400'
-                            : 'text-white'
-                        }`}
-                      >
-                        {tx.type === 'deposit' || tx.type === 'profit' || tx.type === 'referral' ? '+' : '-'}
-                        ${tx.amount?.toLocaleString() || '0'}
-                      </p>
+                      <div className="text-right">
+                        <p
+                          className={`font-medium ${
+                            tx.type === 'deposit' || tx.type === 'profit' || tx.type === 'referral'
+                              ? 'text-green-400'
+                              : tx.type === 'withdrawal'
+                              ? 'text-red-400'
+                              : 'text-gray-400'
+                          }`}
+                        >
+                          {(tx.type === 'deposit' || tx.type === 'profit' || tx.type === 'referral') ? '+' : tx.type === 'withdrawal' ? '-' : ''}
+                          {formatBalance(tx.amount || 0)}
+                        </p>
+                        <span className={`text-xs ${getStatusIcon(tx.status).props.className?.includes('green') ? 'text-green-400' : getStatusIcon(tx.status).props.className?.includes('yellow') ? 'text-yellow-400' : getStatusIcon(tx.status).props.className?.includes('red') ? 'text-red-400' : 'text-gray-400'}`}>
+                          {tx.status}
+                        </span>
+                      </div>
                     </motion.div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-12">
-                  <div className="w-16 h-16 rounded-2xl bg-dark-700 flex items-center justify-center mx-auto mb-4">
-                    <Wallet size={32} className="text-gray-600" />
-                  </div>
+                <div className="text-center py-6">
+                  <Wallet size={32} className="text-gray-600 mx-auto mb-2" />
                   <p className="text-gray-400 mb-1">No transactions yet</p>
                   <p className="text-gray-600 text-sm mb-4">Start by making your first deposit</p>
                   <Link href="/dashboard/wallet/deposit">
