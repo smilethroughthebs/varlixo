@@ -165,7 +165,7 @@ const faqs = [
 
 export default function PlansPage() {
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
   const { country: detectedCountry } = useCurrencyStore();
   const [plans, setPlans] = useState<any[]>(defaultPlans);
   const [isLoading, setIsLoading] = useState(true);
