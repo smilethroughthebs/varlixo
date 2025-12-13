@@ -514,7 +514,7 @@ export default function AdminPlansPage() {
                 </div>
 
                 {countryLimits.length === 0 ? (
-                  <div className所得p-4 bg-dark-700 rounded-lg text-center">
+                  <div className="p-4 bg-dark-700 rounded-lg text-center">
                     <p className="text-gray-400 text-sm">No country-specific limits added. This plan will use default limits for all countries.</p>
                   </div>
                 ) : (
