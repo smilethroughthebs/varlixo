@@ -47,16 +47,35 @@ export class InvestmentService {
   // ==========================================
 
   /**
-   * Get all active investment plans
+   * Get all active investment plans with country-specific limits
    */
-  async getActivePlans() {
+  async getActivePlans(country?: string) {
     const plans = await this.planModel
       .find({ status: PlanStatus.ACTIVE })
       .sort({ sortOrder: 1, minInvestment: 1 });
 
+    // Apply country-specific limits if country is provided
+    const plansWithCountryLimits = plans.map(plan => {
+      const planObj = plan.toObject();
+      
+      if (country && planObj.countryLimits && planObj.countryLimits.length > 0) {
+        const countryLimit = planObj.countryLimits.find(
+          (limit: any) => limit.country === country
+        );
+        
+        if (countryLimit) {
+          planObj.minInvestment = countryLimit.minInvestment;
+          planObj.maxInvestment = countryLimit.maxInvestment;
+          planObj.hasCountrySpecificLimits = true;
+        }
+      }
+      
+      return planObj;
+    });
+
     return {
       success: true,
-      plans,
+      plans: plansWithCountryLimits,
     };
   }
 
@@ -760,7 +779,7 @@ export class InvestmentService {
       },
     };
   }
-
+\hould I provide the exact old_string and new_string to update the languages array and add all missing translations in one go?
   /**
    * Delete/deactivate a plan
    */

@@ -110,7 +110,7 @@ export const cryptoDepositAPI = {
 };
 
 export const investmentAPI = {
-  getPlans: () => api.get('/investments/plans'),
+  getPlans: (country?: string) => api.get('/investments/plans', country ? { params: { country } } : {}),
   getPlanBySlug: (slug: string) => api.get(`/investments/plans/${slug}`),
   calculateReturns: (data: any) => api.post('/investments/calculate', data),
   createInvestment: (data: any) => api.post('/investments', data),

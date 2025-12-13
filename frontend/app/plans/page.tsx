@@ -180,8 +180,11 @@ export default function PlansPage() {
 
   const fetchPlans = async () => {
     try {
-      // Add cache-busting parameter
-      const response = await investmentAPI.getPlans();
+      // Get user's country from auth store
+      const userCountry = user?.country;
+      
+      // Add cache-busting parameter and pass country if available
+      const response = await investmentAPI.getPlans(userCountry);
       console.log('API Response:', response.data);
       const apiPlans = response.data.data?.plans || response.data.plans || [];
       console.log('Parsed plans:', apiPlans);

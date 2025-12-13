@@ -13,13 +13,65 @@ import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Mail, Lock, User, Phone, ArrowRight, Check, Gift } from 'lucide-react';
+import { Mail, Lock, User, Phone, ArrowRight, Check, Gift, Calendar, Globe, Briefcase, DollarSign, TrendingUp } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Button from '@/app/components/ui/Button';
 import Input from '@/app/components/ui/Input';
 import { Card } from '@/app/components/ui/Card';
 import PasswordStrength from '@/app/components/ui/PasswordStrength';
 import { authAPI, referralAPI } from '@/app/lib/api';
+
+// Country data with dial codes
+const countries = [
+  { code: 'US', name: 'United States', dialCode: '+1' },
+  { code: 'CA', name: 'Canada', dialCode: '+1' },
+  { code: 'GB', name: 'United Kingdom', dialCode: '+44' },
+  { code: 'DE', name: 'Germany', dialCode: '+49' },
+  { code: 'FR', name: 'France', dialCode: '+33' },
+  { code: 'IT', name: 'Italy', dialCode: '+39' },
+  { code: 'ES', name: 'Spain', dialCode: '+34' },
+  { code: 'BR', name: 'Brazil', dialCode: '+55' },
+  { code: 'MX', name: 'Mexico', dialCode: '+52' },
+  { code: 'ZA', name: 'South Africa', dialCode: '+27' },
+  { code: 'IN', name: 'India', dialCode: '+91' },
+  { code: 'SA', name: 'Saudi Arabia', dialCode: '+966' },
+  { code: 'AE', name: 'UAE', dialCode: '+971' },
+  { code: 'TR', name: 'Turkey', dialCode: '+90' },
+  { code: 'EG', name: 'Egypt', dialCode: '+20' },
+  { code: 'KE', name: 'Kenya', dialCode: '+254' },
+  { code: 'GH', name: 'Ghana', dialCode: '+233' },
+  { code: 'ID', name: 'Indonesia', dialCode: '+62' },
+  { code: 'PH', name: 'Philippines', dialCode: '+63' },
+  { code: 'VN', name: 'Vietnam', dialCode: '+84' },
+  { code: 'MY', name: 'Malaysia', dialCode: '+60' },
+  { code: 'SG', name: 'Singapore', dialCode: '+65' },
+  { code: 'AU', name: 'Australia', dialCode: '+61' },
+  { code: 'NZ', name: 'New Zealand', dialCode: '+64' },
+  { code: 'CH', name: 'Switzerland', dialCode: '+41' },
+  { code: 'NL', name: 'Netherlands', dialCode: '+31' },
+  { code: 'SE', name: 'Sweden', dialCode: '+46' },
+  { code: 'NO', name: 'Norway', dialCode: '+47' },
+  { code: 'JP', name: 'Japan', dialCode: '+81' },
+  { code: 'KR', name: 'South Korea', dialCode: '+82' },
+];
+
+// Options for dropdowns
+const occupationOptions = [
+  'Employed', 'Self-employed', 'Business Owner', 'Student', 'Retired', 'Unemployed', 'Other'
+];
+
+const incomeRanges = [
+  'Under $25,000', '$25,000 - $50,000', '$50,000 - $100,000', '$100,000 - $250,000', 
+  '$250,000 - $500,000', '$500,000 - $1,000,000', 'Over $1,000,000'
+];
+
+const sourceOfFundsOptions = [
+  'Salary', 'Business', 'Savings', 'Investment Returns', 'Inheritance', 'Gift', 'Other'
+];
+
+const investmentExperienceOptions = [
+  'None', 'Beginner', 'Intermediate', 'Pro'
+];
 
 // Validation schema
 const registerSchema = z
@@ -28,6 +80,12 @@ const registerSchema = z
     lastName: z.string().min(2, 'Last name must be at least 2 characters'),
     email: z.string().email('Please enter a valid email'),
     phone: z.string().optional(),
+    dateOfBirth: z.string().min(1, 'Date of birth is required'),
+    country: z.string().min(1, 'Country is required'),
+    occupation: z.string().optional(),
+    annualIncomeRange: z.string().optional(),
+    sourceOfFunds: z.string().optional(),
+    investmentExperience: z.string().optional(),
     password: z
       .string()
       .min(8, 'Password must be at least 8 characters')
@@ -40,6 +98,7 @@ const registerSchema = z
     agreeTerms: z.boolean().refine((val) => val === true, {
       message: 'You must agree to the terms and conditions',
     }),
+    marketingOptIn: z.boolean().optional(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: 'Passwords do not match',
@@ -55,11 +114,22 @@ export default function RegisterPage() {
   const [referrer, setReferrer] = useState<string | null>(null);
   const [passwordValue, setPasswordValue] = useState('');
   const [mounted, setMounted] = useState(false);
+  const [selectedCountry, setSelectedCountry] = useState(countries[0]); // Default to US
+  const [phoneDialCode, setPhoneDialCode] = useState(countries[0].dialCode);
 
   // Quick mount for faster perceived loading
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Handle country change
+  const handleCountryChange = (countryCode: string) => {
+    const country = countries.find(c => c.code === countryCode);
+    if (country) {
+      setSelectedCountry(country);
+      setPhoneDialCode(country.dialCode);
+    }
+  };
 
   const {
     register,
@@ -232,11 +302,140 @@ export default function RegisterPage() {
             <Input
               label="Phone (Optional)"
               type="tel"
-              placeholder="+1 234 567 8900"
+              placeholder={`${phoneDialCode} 234 567 8900`}
               leftIcon={<Phone size={20} />}
               error={errors.phone?.message}
               {...register('phone')}
             />
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Date of Birth <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={20} />
+                  <input
+                    type="date"
+                    {...register('dateOfBirth')}
+                    className="w-full pl-10 pr-3 py-2.5 bg-dark-800 border border-dark-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                </div>
+                {errors.dateOfBirth && (
+                  <p className="text-sm text-error mt-1">{errors.dateOfBirth.message}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Country <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={20} />
+                  <select
+                    {...register('country')}
+                    onChange={(e) => {
+                      register('country').onChange(e);
+                      handleCountryChange(e.target.value);
+                    }}
+                    className="w-full pl-10 pr-3 py-2.5 bg-dark-800 border border-dark-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent appearance-none cursor-pointer"
+                  >
+                    {countries.map((country) => (
+                      <option key={country.code} value={country.code}>
+                        {country.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {errors.country && (
+                  <p className="text-sm text-error mt-1">{errors.country.message}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Occupation (Optional)
+                </label>
+                <div className="relative">
+                  <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={20} />
+                  <select
+                    {...register('occupation')}
+                    className="w-full pl-10 pr-3 py-2.5 bg-dark-800 border border-dark-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent appearance-none cursor-pointer"
+                  >
+                    <option value="">Select occupation</option>
+                    {occupationOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Annual Income Range (Optional)
+                </label>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={20} />
+                  <select
+                    {...register('annualIncomeRange')}
+                    className="w-full pl-10 pr-3 py-2.5 bg-dark-800 border border-dark-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent appearance-none cursor-pointer"
+                  >
+                    <option value="">Select income range</option>
+                    {incomeRanges.map((range) => (
+                      <option key={range} value={range}>
+                        {range}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Source of Funds (Optional)
+                </label>
+                <div className="relative">
+                  <TrendingUp className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={20} />
+                  <select
+                    {...register('sourceOfFunds')}
+                    className="w-full pl-10 pr-3 py-2.5 bg-dark-800 border border-dark-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent appearance-none cursor-pointer"
+                  >
+                    <option value="">Select source</option>
+                    {sourceOfFundsOptions.map((source) => (
+                      <option key={source} value={source}>
+                        {source}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Investment Experience (Optional)
+                </label>
+                <div className="relative">
+                  <TrendingUp className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={20} />
+                  <select
+                    {...register('investmentExperience')}
+                    className="w-full pl-10 pr-3 py-2.5 bg-dark-800 border border-dark-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent appearance-none cursor-pointer"
+                  >
+                    <option value="">Select experience</option>
+                    {investmentExperienceOptions.map((level) => (
+                      <option key={level} value={level}>
+                        {level}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
 
             <div className="space-y-3">
               <Input
@@ -289,6 +488,17 @@ export default function RegisterPage() {
             {errors.agreeTerms && (
               <p className="text-sm text-error">{errors.agreeTerms.message}</p>
             )}
+
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-1 w-4 h-4 rounded border-dark-600 bg-dark-800 text-primary-500 focus:ring-primary-500"
+                {...register('marketingOptIn')}
+              />
+              <span className="text-sm text-gray-400">
+                I would like to receive marketing emails and updates
+              </span>
+            </label>
 
             <Button
               type="submit"

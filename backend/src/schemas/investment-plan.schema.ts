@@ -56,6 +56,18 @@ export class InvestmentPlan {
   @Prop({ default: 'USD' })
   currency: string;
 
+  // Country-specific limits (optional)
+  @Prop({ type: [{
+    country: { type: String, required: true },
+    minInvestment: { type: Number, required: true, min: 0 },
+    maxInvestment: { type: Number, required: true, min: 0 },
+  }], default: [] })
+  countryLimits: Array<{
+    country: string;
+    minInvestment: number;
+    maxInvestment: number;
+  }>;
+
   // Returns configuration
   @Prop({ required: true, min: 0 })
   dailyReturnRate: number; // Percentage

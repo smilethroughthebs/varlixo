@@ -283,12 +283,23 @@ export default function DashboardPage() {
                 </span>
               </div>
               <p className="text-gray-400 text-sm mb-1">Total Balance</p>
-              <p className="text-3xl font-bold text-white mb-2">
+              <p className="text-3xl font-bold text-white mb-3">
                 {formatBalance(totalBalance)}
               </p>
-              <div className="flex items-center gap-2 text-xs">
-                <span className="text-gray-500">Available:</span>
-                <span className="text-primary-400 font-medium">{formatBalance(wallet?.mainBalance || 0)}</span>
+              {/* Double Balance Display */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-gray-500">Available Balance</span>
+                  <span className="text-primary-400 font-medium">{formatBalance(wallet?.mainBalance || 0)}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-gray-500">Locked Balance</span>
+                  <span className="text-orange-400 font-medium">{formatBalance(wallet?.lockedBalance || 0)}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-gray-500">Accrued Profit</span>
+                  <span className="text-green-400 font-medium">{formatBalance(wallet?.pendingBalance || 0)}</span>
+                </div>
               </div>
             </div>
           </Card>

@@ -214,8 +214,24 @@ export default function WalletPage() {
       </div>
 
       {/* Balance Cards */}
-      <div className="grid md:grid-cols-3 gap-6">
+      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Total Balance */}
         <Card className="bg-gradient-to-br from-primary-500/20 to-primary-600/10 border-primary-500/20">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-primary-500/20 flex items-center justify-center">
+              <Wallet className="text-primary-500" size={28} />
+            </div>
+            <div>
+              <p className="text-gray-400 text-sm">Total Balance</p>
+              <p className="text-3xl font-bold text-white">
+                ${((wallet?.mainBalance || 0) + (wallet?.pendingBalance || 0) + (wallet?.lockedBalance || 0)).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+          </div>
+        </Card>
+
+        {/* Available Balance */}
+        <Card>
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-2xl bg-primary-500/20 flex items-center justify-center">
               <Wallet className="text-primary-500" size={28} />
@@ -229,29 +245,31 @@ export default function WalletPage() {
           </div>
         </Card>
 
+        {/* Locked Balance */}
         <Card>
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-yellow-500/20 flex items-center justify-center">
-              <Clock className="text-yellow-500" size={28} />
+            <div className="w-14 h-14 rounded-2xl bg-orange-500/20 flex items-center justify-center">
+              <Clock className="text-orange-500" size={28} />
             </div>
             <div>
-              <p className="text-gray-400 text-sm">Pending</p>
+              <p className="text-gray-400 text-sm">Locked Balance</p>
               <p className="text-3xl font-bold text-white">
-                ${(wallet?.pendingBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                ${(wallet?.lockedBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </p>
             </div>
           </div>
         </Card>
 
+        {/* Accrued Profit */}
         <Card>
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-2xl bg-green-500/20 flex items-center justify-center">
               <CheckCircle className="text-green-500" size={28} />
             </div>
             <div>
-              <p className="text-gray-400 text-sm">Total Earnings</p>
+              <p className="text-gray-400 text-sm">Accrued Profit</p>
               <p className="text-3xl font-bold text-white">
-                ${(wallet?.totalEarnings || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                ${(wallet?.pendingBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </p>
             </div>
           </div>

@@ -38,12 +38,12 @@ export class InvestmentController {
 
   /**
    * Get all active investment plans
-   * GET /investments/plans
+   * GET /investments/plans?country=US
    */
   @Public()
   @Get('plans')
-  async getActivePlans() {
-    return this.investmentService.getActivePlans();
+  async getActivePlans(@Query('country') country?: string) {
+    return this.investmentService.getActivePlans(country);
   }
 
   /**

@@ -26,6 +26,10 @@ import {
   CheckCircle,
   AlertTriangle,
   XCircle,
+  Calendar,
+  Briefcase,
+  DollarSign,
+  TrendingUp,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Card, CardHeader, CardTitle } from '@/app/components/ui/Card';
@@ -35,11 +39,68 @@ import { useAuthStore, useLanguageStore } from '@/app/lib/store';
 import { languages } from '@/app/lib/i18n';
 import { authAPI } from '@/app/lib/api';
 
+// Country data with dial codes
+const countries = [
+  { code: 'US', name: 'United States', dialCode: '+1' },
+  { code: 'CA', name: 'Canada', dialCode: '+1' },
+  { code: 'GB', name: 'United Kingdom', dialCode: '+44' },
+  { code: 'DE', name: 'Germany', dialCode: '+49' },
+  { code: 'FR', name: 'France', dialCode: '+33' },
+  { code: 'IT', name: 'Italy', dialCode: '+39' },
+  { code: 'ES', name: 'Spain', dialCode: '+34' },
+  { code: 'BR', name: 'Brazil', dialCode: '+55' },
+  { code: 'MX', name: 'Mexico', dialCode: '+52' },
+  { code: 'ZA', name: 'South Africa', dialCode: '+27' },
+  { code: 'IN', name: 'India', dialCode: '+91' },
+  { code: 'SA', name: 'Saudi Arabia', dialCode: '+966' },
+  { code: 'AE', name: 'UAE', dialCode: '+971' },
+  { code: 'TR', name: 'Turkey', dialCode: '+90' },
+  { code: 'EG', name: 'Egypt', dialCode: '+20' },
+  { code: 'KE', name: 'Kenya', dialCode: '+254' },
+  { code: 'GH', name: 'Ghana', dialCode: '+233' },
+  { code: 'ID', name: 'Indonesia', dialCode: '+62' },
+  { code: 'PH', name: 'Philippines', dialCode: '+63' },
+  { code: 'VN', name: 'Vietnam', dialCode: '+84' },
+  { code: 'MY', name: 'Malaysia', dialCode: '+60' },
+  { code: 'SG', name: 'Singapore', dialCode: '+65' },
+  { code: 'AU', name: 'Australia', dialCode: '+61' },
+  { code: 'NZ', name: 'New Zealand', dialCode: '+64' },
+  { code: 'CH', name: 'Switzerland', dialCode: '+41' },
+  { code: 'NL', name: 'Netherlands', dialCode: '+31' },
+  { code: 'SE', name: 'Sweden', dialCode: '+46' },
+  { code: 'NO', name: 'Norway', dialCode: '+47' },
+  { code: 'JP', name: 'Japan', dialCode: '+81' },
+  { code: 'KR', name: 'South Korea', dialCode: '+82' },
+];
+
+// Options for dropdowns
+const occupationOptions = [
+  'Employed', 'Self-employed', 'Business Owner', 'Student', 'Retired', 'Unemployed', 'Other'
+];
+
+const incomeRanges = [
+  'Under $25,000', '$25,000 - $50,000', '$50,000 - $100,000', '$100,000 - $250,000', 
+  '$250,000 - $500,000', '$500,000 - $1,000,000', 'Over $1,000,000'
+];
+
+const sourceOfFundsOptions = [
+  'Salary', 'Business', 'Savings', 'Investment Returns', 'Inheritance', 'Gift', 'Other'
+];
+
+const investmentExperienceOptions = [
+  'None', 'Beginner', 'Intermediate', 'Pro'
+];
+
 const profileSchema = z.object({
   firstName: z.string().min(2, 'First name must be at least 2 characters'),
   lastName: z.string().min(2, 'Last name must be at least 2 characters'),
   phone: z.string().optional(),
+  dateOfBirth: z.string().optional(),
   country: z.string().optional(),
+  occupation: z.string().optional(),
+  annualIncomeRange: z.string().optional(),
+  sourceOfFunds: z.string().optional(),
+  investmentExperience: z.string().optional(),
 });
 
 const passwordSchema = z
@@ -72,6 +133,8 @@ export default function SettingsPage() {
   const [twoFaQr, setTwoFaQr] = useState<string | null>(null);
   const [twoFaSecret, setTwoFaSecret] = useState<string | null>(null);
   const [twoFaCode, setTwoFaCode] = useState('');
+  const [selectedCountry, setSelectedCountry] = useState(countries[0]); // Default to US
+  const [phoneDialCode, setPhoneDialCode] = useState(countries[0].dialCode);
 
   const {
     register: registerProfile,
@@ -82,8 +145,13 @@ export default function SettingsPage() {
     defaultValues: {
       firstName: user?.firstName || '',
       lastName: user?.lastName || '',
-      phone: '',
-      country: '',
+      phone: user?.phone || '',
+      dateOfBirth: user?.dateOfBirth || '',
+      country: user?.country || '',
+      occupation: user?.occupation || '',
+      annualIncomeRange: user?.annualIncomeRange || '',
+      sourceOfFunds: user?.sourceOfFunds || '',
+      investmentExperience: user?.investmentExperience || '',
     },
   });
 
@@ -320,18 +388,141 @@ export default function SettingsPage() {
                 <Input
                   label="Phone Number"
                   type="tel"
-                  placeholder="+1 234 567 8900"
+                  placeholder={`${phoneDialCode} 234 567 8900`}
                   leftIcon={<Phone size={18} />}
                   error={profileErrors.phone?.message}
                   {...registerProfile('phone')}
                 />
-                <Input
-                  label="Country"
-                  placeholder="United States"
-                  leftIcon={<Globe size={18} />}
-                  error={profileErrors.country?.message}
-                  {...registerProfile('country')}
-                />
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Date of Birth
+                  </label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+                    <input
+                      type="date"
+                      {...registerProfile('dateOfBirth')}
+                      className="w-full pl-10 pr-3 py-2.5 bg-dark-800 border border-dark-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    />
+                  </div>
+                  {profileErrors.dateOfBirth && (
+                    <p className="text-sm text-error mt-1">{profileErrors.dateOfBirth.message}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Country
+                  </label>
+                  <div className="relative">
+                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+                    <select
+                      {...registerProfile('country')}
+                      onChange={(e) => {
+                        registerProfile('country').onChange(e);
+                        const country = countries.find(c => c.code === e.target.value);
+                        if (country) {
+                          setSelectedCountry(country);
+                          setPhoneDialCode(country.dialCode);
+                        }
+                      }}
+                      className="w-full pl-10 pr-3 py-2.5 bg-dark-800 border border-dark-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent appearance-none cursor-pointer"
+                    >
+                      {countries.map((country) => (
+                        <option key={country.code} value={country.code}>
+                          {country.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {profileErrors.country && (
+                    <p className="text-sm text-error mt-1">{profileErrors.country.message}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Occupation
+                  </label>
+                  <div className="relative">
+                    <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+                    <select
+                      {...registerProfile('occupation')}
+                      className="w-full pl-10 pr-3 py-2.5 bg-dark-800 border border-dark-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent appearance-none cursor-pointer"
+                    >
+                      <option value="">Select occupation</option>
+                      {occupationOptions.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Annual Income Range
+                  </label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+                    <select
+                      {...registerProfile('annualIncomeRange')}
+                      className="w-full pl-10 pr-3 py-2.5 bg-dark-800 border border-dark-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent appearance-none cursor-pointer"
+                    >
+                      <option value="">Select income range</option>
+                      {incomeRanges.map((range) => (
+                        <option key={range} value={range}>
+                          {range}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Source of Funds
+                  </label>
+                  <div className="relative">
+                    <TrendingUp className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+                    <select
+                      {...registerProfile('sourceOfFunds')}
+                      className="w-full pl-10 pr-3 py-2.5 bg-dark-800 border border-dark-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent appearance-none cursor-pointer"
+                    >
+                      <option value="">Select source</option>
+                      {sourceOfFundsOptions.map((source) => (
+                        <option key={source} value={source}>
+                          {source}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Investment Experience
+                </label>
+                <div className="relative">
+                  <TrendingUp className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+                  <select
+                    {...registerProfile('investmentExperience')}
+                    className="w-full pl-10 pr-3 py-2.5 bg-dark-800 border border-dark-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent appearance-none cursor-pointer"
+                  >
+                    <option value="">Select experience</option>
+                    {investmentExperienceOptions.map((level) => (
+                      <option key={level} value={level}>
+                        {level}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="flex justify-end pt-4">
