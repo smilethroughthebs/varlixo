@@ -49,8 +49,9 @@ export class InvestmentController {
    */
   @Public()
   @Get('plans')
-  async getActivePlans(@Query('country') country?: string) {
-    return this.investmentService.getActivePlans(country);
+  async getActivePlans(@Query('country') country: string | undefined, @Req() req: Request) {
+    const ipAddress = getClientIp(req);
+    return this.investmentService.getActivePlans(country, ipAddress);
   }
 
   /**

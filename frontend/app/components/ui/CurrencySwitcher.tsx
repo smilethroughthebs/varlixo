@@ -22,7 +22,9 @@ export default function CurrencySwitcher({ variant = 'default', className = '' }
     const loadSupported = async () => {
       try {
         const res = await api.get('/currency/supported');
-        const list: string[] = res.data?.data?.currencies || ['USD'];
+        const payload = res.data?.data || res.data;
+        const inner = payload?.data || payload;
+        const list: string[] = inner?.currencies || ['USD'];
         if (Array.isArray(list) && list.length > 0) {
           setSupported(list);
         }

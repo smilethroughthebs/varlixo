@@ -93,8 +93,17 @@ export class InvestmentService {
   /**
    * Get all active investment plans with country-specific limits
    */
-  async getActivePlans(country?: string) {
-    const countryCode = country ? country.toUpperCase() : undefined;
+  async getActivePlans(country?: string, ipAddress?: string) {
+    let countryCode = country ? country.toUpperCase() : undefined;
+
+    if (!countryCode && ipAddress) {
+      try {
+        countryCode = await this.currencyService.detectCountryFromIp(ipAddress);
+      } catch {
+        // ignore detection failure
+      }
+    }
+
     if (countryCode === 'NG') {
       return {
         success: true,
@@ -106,7 +115,7 @@ export class InvestmentService {
       .find({ status: PlanStatus.ACTIVE })
       .sort({ sortOrder: 1, minInvestment: 1 });
 
-    // Apply country-specific limits if country is provided
+    // Apply country-specific limits if country is provided/detected
     const plansWithCountryLimits = plans.map(plan => {
       const planObj = plan.toObject();
       

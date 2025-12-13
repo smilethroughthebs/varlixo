@@ -29,6 +29,7 @@ import Button from '@/app/components/ui/Button';
 import Money from '@/app/components/ui/Money';
 import { useAuthStore } from '@/app/lib/store';
 import { investmentAPI } from '@/app/lib/api';
+import { useCurrencyStore } from '@/app/lib/currency-store';
 import toast from 'react-hot-toast';
 
 // Animation variants
@@ -97,6 +98,7 @@ const investmentPlans = [
 
 export default function InvestmentsPage() {
   const { wallet } = useAuthStore();
+  const { country } = useCurrencyStore();
   const [plans, setPlans] = useState<any[]>(investmentPlans);
   const [activeInvestments, setActiveInvestments] = useState<any[]>([]);
   const [recurringPlans, setRecurringPlans] = useState<any[]>([]);
@@ -112,11 +114,12 @@ export default function InvestmentsPage() {
   useEffect(() => {
     fetchPlans();
     fetchInvestments();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [country]);
 
   const fetchPlans = async () => {
     try {
-      const response = await investmentAPI.getPlans();
+      const response = await investmentAPI.getPlans(country);
       const apiPlans = response.data.data?.plans || response.data.plans || [];
       
       if (Array.isArray(apiPlans) && apiPlans.length > 0) {

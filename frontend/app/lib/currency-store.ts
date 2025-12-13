@@ -66,6 +66,14 @@ export const useCurrencyStore = create<CurrencyState>()(
         const applyCurrency = async (currencyCode: string, persistToProfile: boolean) => {
           const state = get();
           const locale = state.locale || 'en-US';
+          const currencySymbol = getCurrencySymbol(currencyCode, locale);
+
+          set({
+            currencyCode,
+            currencySymbol,
+            locale,
+            isAutoDetected: false,
+          });
 
           if (persistToProfile) {
             try {
@@ -82,8 +90,10 @@ export const useCurrencyStore = create<CurrencyState>()(
             },
           });
 
-          const rate = ratesResponse.data?.data?.rates?.[currencyCode] || 1;
-          const currencySymbol = getCurrencySymbol(currencyCode, locale);
+          const payload = ratesResponse.data?.data || ratesResponse.data;
+          const inner = payload?.data || payload;
+          const rates = inner?.rates;
+          const rate = rates?.[currencyCode] || 1;
 
           set({
             currencyCode,
@@ -131,6 +141,14 @@ export const useCurrencyStore = create<CurrencyState>()(
             const normalized = String(currencyCode).trim().toUpperCase();
             const state = get();
             const locale = state.locale || 'en-US';
+            const currencySymbol = getCurrencySymbol(normalized, locale);
+
+            set({
+              currencyCode: normalized,
+              currencySymbol,
+              locale,
+              isAutoDetected: false,
+            });
 
             const ratesResponse = await api.get('/currency/rates', {
               params: {
@@ -139,8 +157,10 @@ export const useCurrencyStore = create<CurrencyState>()(
               },
             });
 
-            const rate = ratesResponse.data?.data?.rates?.[normalized] || 1;
-            const currencySymbol = getCurrencySymbol(normalized, locale);
+            const payload = ratesResponse.data?.data || ratesResponse.data;
+            const inner = payload?.data || payload;
+            const rates = inner?.rates;
+            const rate = rates?.[normalized] || 1;
 
             set({
               currencyCode: normalized,

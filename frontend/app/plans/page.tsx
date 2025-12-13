@@ -43,6 +43,7 @@ import Navbar from '@/app/components/layout/Navbar';
 import Footer from '@/app/components/layout/Footer';
 import { investmentAPI } from '@/app/lib/api';
 import { useAuthStore } from '@/app/lib/store';
+import { useCurrencyStore } from '@/app/lib/currency-store';
 import toast from 'react-hot-toast';
 
 const fadeInUp = {
@@ -164,7 +165,8 @@ const faqs = [
 
 export default function PlansPage() {
   const router = useRouter();
-  const { isAuthenticated, user } = useAuthStore();
+  const { user } = useAuthStore();
+  const { country: detectedCountry } = useCurrencyStore();
   const [plans, setPlans] = useState<any[]>(defaultPlans);
   const [isLoading, setIsLoading] = useState(true);
   const [showCalculator, setShowCalculator] = useState(false);
@@ -181,11 +183,11 @@ export default function PlansPage() {
 
   const fetchPlans = async () => {
     try {
-      // Get user's country from auth store
+      // Get user country for country-specific plans
       const userCountry = user?.country;
       
       // Add cache-busting parameter and pass country if available
-      const response = await investmentAPI.getPlans(userCountry);
+      const response = await investmentAPI.getPlans(userCountry || detectedCountry);
       console.log('API Response:', response.data);
       const apiPlans = response.data.data?.plans || response.data.plans || [];
       console.log('Parsed plans:', apiPlans);
