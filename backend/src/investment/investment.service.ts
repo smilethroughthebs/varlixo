@@ -66,7 +66,6 @@ export class InvestmentService {
         if (countryLimit) {
           planObj.minInvestment = countryLimit.minInvestment;
           planObj.maxInvestment = countryLimit.maxInvestment;
-          planObj.hasCountrySpecificLimits = true;
         }
       }
       
@@ -779,7 +778,6 @@ export class InvestmentService {
       },
     };
   }
-\hould I provide the exact old_string and new_string to update the languages array and add all missing translations in one go?
   /**
    * Delete/deactivate a plan
    */
