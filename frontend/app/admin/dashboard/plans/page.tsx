@@ -28,7 +28,7 @@ import { Card } from '@/app/components/ui/Card';
 import Button from '@/app/components/ui/Button';
 import Input from '@/app/components/ui/Input';
 import toast from 'react-hot-toast';
-import api from '@/app/lib/api';
+import api, { adminAPI } from '@/app/lib/api';
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 20 },
@@ -124,7 +124,7 @@ export default function AdminPlansPage() {
 
   const fetchPlans = async () => {
     try {
-      const response = await api.adminAPI.getPlans();
+      const response = await adminAPI.getPlans();
       setPlans(response.data.data?.plans || []);
     } catch (error) {
       toast.error('Failed to fetch plans');
@@ -170,10 +170,10 @@ export default function AdminPlansPage() {
       };
 
       if (editingPlan) {
-        await api.adminAPI.updatePlan(editingPlan._id, planData);
+        await adminAPI.updatePlan(editingPlan._id, planData);
         toast.success('Plan updated successfully');
       } else {
-        await api.adminAPI.createPlan(planData);
+        await adminAPI.createPlan(planData);
         toast.success('Plan created successfully');
       }
 
@@ -216,7 +216,7 @@ export default function AdminPlansPage() {
     if (!confirm('Are you sure you want to delete this plan?')) return;
     
     try {
-      await api.adminAPI.deletePlan(planId);
+      await adminAPI.deletePlan(planId);
       toast.success('Plan deleted successfully');
       fetchPlans();
     } catch (error) {
