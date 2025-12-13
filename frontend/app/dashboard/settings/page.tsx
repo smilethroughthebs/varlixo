@@ -206,7 +206,20 @@ export default function SettingsPage() {
   const connectEvmWallet = async () => {
     const anyWindow = window as any;
     if (!anyWindow?.ethereum) {
-      toast.error('MetaMask not found. Please install MetaMask.');
+      const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(ua);
+
+      if (isMobile) {
+        const dappUrl = window.location.href.replace(/^https?:\/\//, '');
+        const deepLink = `https://metamask.app.link/dapp/${dappUrl}`;
+        toast.error('MetaMask not detected in this browser. Opening in MetaMask...');
+        window.location.href = deepLink;
+        return;
+      }
+
+      toast.error(
+        'MetaMask not found. Install the MetaMask browser extension, or open this site inside the MetaMask app browser.',
+      );
       return;
     }
 
