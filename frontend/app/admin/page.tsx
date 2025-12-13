@@ -75,11 +75,16 @@ export default function AdminLoginPage() {
     setIsLoading(true);
 
     try {
-      const response = await authAPI.login({
+      const loginData: any = {
         email: formData.email,
         password: formData.password,
-        twoFactorCode: formData.twoFactorCode,
-      });
+      };
+      
+      if (formData.twoFactorCode) {
+        loginData.twoFactorCode = formData.twoFactorCode;
+      }
+      
+      const response = await authAPI.login(loginData);
 
       const data = response.data.data || response.data;
 
