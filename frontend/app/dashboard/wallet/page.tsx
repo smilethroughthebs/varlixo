@@ -27,6 +27,7 @@ import toast from 'react-hot-toast';
 import { Card, CardHeader, CardTitle } from '@/app/components/ui/Card';
 import Button from '@/app/components/ui/Button';
 import Input from '@/app/components/ui/Input';
+import Money from '@/app/components/ui/Money';
 import { useAuthStore } from '@/app/lib/store';
 import { walletAPI } from '@/app/lib/api';
 
@@ -224,7 +225,10 @@ export default function WalletPage() {
             <div>
               <p className="text-gray-400 text-sm">Total Balance</p>
               <p className="text-3xl font-bold text-white">
-                ${((wallet?.mainBalance || 0) + (wallet?.pendingBalance || 0) + (wallet?.lockedBalance || 0)).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                <Money
+                  valueUsd={(wallet?.mainBalance || 0) + (wallet?.pendingBalance || 0) + (wallet?.lockedBalance || 0)}
+                  className="text-3xl font-bold text-white"
+                />
               </p>
             </div>
           </div>
@@ -239,7 +243,7 @@ export default function WalletPage() {
             <div>
               <p className="text-gray-400 text-sm">Available Balance</p>
               <p className="text-3xl font-bold text-white">
-                ${(wallet?.mainBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                <Money valueUsd={wallet?.mainBalance || 0} className="text-3xl font-bold text-white" />
               </p>
             </div>
           </div>
@@ -254,7 +258,7 @@ export default function WalletPage() {
             <div>
               <p className="text-gray-400 text-sm">Locked Balance</p>
               <p className="text-3xl font-bold text-white">
-                ${(wallet?.lockedBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                <Money valueUsd={wallet?.lockedBalance || 0} className="text-3xl font-bold text-white" />
               </p>
             </div>
           </div>
@@ -269,7 +273,7 @@ export default function WalletPage() {
             <div>
               <p className="text-gray-400 text-sm">Accrued Profit</p>
               <p className="text-3xl font-bold text-white">
-                ${(wallet?.pendingBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                <Money valueUsd={wallet?.pendingBalance || 0} className="text-3xl font-bold text-white" />
               </p>
             </div>
           </div>
@@ -320,7 +324,9 @@ export default function WalletPage() {
                       <ArrowDownLeft className="text-green-500" size={20} />
                     </div>
                     <div>
-                      <p className="text-white font-medium">${deposit.amount.toLocaleString()}</p>
+                      <p className="text-white font-medium">
+                        <Money valueUsd={deposit.amount} className="text-white font-medium" />
+                      </p>
                       <p className="text-sm text-gray-500">
                         {new Date(deposit.createdAt).toLocaleDateString()}
                       </p>
@@ -355,7 +361,9 @@ export default function WalletPage() {
                       <ArrowUpRight className="text-red-500" size={20} />
                     </div>
                     <div>
-                      <p className="text-white font-medium">${withdrawal.amount.toLocaleString()}</p>
+                      <p className="text-white font-medium">
+                        <Money valueUsd={withdrawal.amount} className="text-white font-medium" />
+                      </p>
                       <p className="text-sm text-gray-500">
                         {new Date(withdrawal.createdAt).toLocaleDateString()}
                       </p>
@@ -410,7 +418,10 @@ export default function WalletPage() {
                     <div className="p-4 bg-primary-500/10 border border-primary-500/30 rounded-xl">
                       <p className="text-primary-400 text-sm mb-2">Deposit Amount</p>
                       <p className="text-2xl font-bold text-white">
-                        ${depositInstructions.deposit.amount.toLocaleString()}
+                        <Money
+                          valueUsd={depositInstructions.deposit.amount}
+                          className="text-2xl font-bold text-white"
+                        />
                       </p>
                     </div>
 
@@ -558,7 +569,7 @@ export default function WalletPage() {
                   <div className="p-4 bg-dark-700 rounded-xl">
                     <p className="text-gray-400 text-sm">Available Balance</p>
                     <p className="text-2xl font-bold text-white">
-                      ${(wallet?.mainBalance || 0).toLocaleString()}
+                      <Money valueUsd={wallet?.mainBalance || 0} className="text-2xl font-bold text-white" />
                     </p>
                   </div>
 

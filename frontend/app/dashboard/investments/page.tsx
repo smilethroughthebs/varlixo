@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle } from '@/app/components/ui/Card';
 import Button from '@/app/components/ui/Button';
+import Money from '@/app/components/ui/Money';
 import { useAuthStore } from '@/app/lib/store';
 import { investmentAPI } from '@/app/lib/api';
 import toast from 'react-hot-toast';
@@ -249,7 +250,7 @@ export default function InvestmentsPage() {
           </div>
           <p className="text-sm text-gray-400">Total Invested</p>
           <p className="text-xl font-bold text-white">
-            ${(investmentSummary?.totalInvested || 0).toLocaleString()}
+            <Money valueUsd={investmentSummary?.totalInvested || 0} className="text-xl font-bold text-white" />
           </p>
         </Card>
 
@@ -261,7 +262,7 @@ export default function InvestmentsPage() {
           </div>
           <p className="text-sm text-gray-400">Total Profit</p>
           <p className="text-xl font-bold text-green-400">
-            +${(investmentSummary?.totalProfit || 0).toLocaleString()}
+            +<Money valueUsd={investmentSummary?.totalProfit || 0} className="text-xl font-bold text-green-400" />
           </p>
         </Card>
 
@@ -285,7 +286,7 @@ export default function InvestmentsPage() {
           </div>
           <p className="text-sm text-gray-400">Expected Return</p>
           <p className="text-xl font-bold text-white">
-            ${(investmentSummary?.expectedReturn || 0).toLocaleString()}
+            <Money valueUsd={investmentSummary?.expectedReturn || 0} className="text-xl font-bold text-white" />
           </p>
         </Card>
       </motion.div>
@@ -332,7 +333,10 @@ export default function InvestmentsPage() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-400">Investment Range</span>
-                    <span className="text-white">${plan.minAmount.toLocaleString()} - ${plan.maxAmount.toLocaleString()}</span>
+                    <span className="text-white">
+                      <Money valueUsd={plan.minAmount} className="text-white" showUsdEquivalent={false} /> -{' '}
+                      <Money valueUsd={plan.maxAmount} className="text-white" showUsdEquivalent={false} />
+                    </span>
                   </div>
                 </div>
 
@@ -389,7 +393,7 @@ export default function InvestmentsPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-2xl font-bold text-white">
-                        ${investment.amount.toLocaleString()}
+                        <Money valueUsd={investment.amount} className="text-2xl font-bold text-white" />
                       </p>
                       <p className="text-sm text-green-400">
                         +{investment.dailyReturn}% daily
@@ -401,7 +405,7 @@ export default function InvestmentsPage() {
                     <div className="p-3 bg-dark-800 rounded-lg">
                       <p className="text-xs text-gray-500 mb-1">Earned So Far</p>
                       <p className="text-lg font-semibold text-green-400">
-                        +${investment.totalReturn.toLocaleString()}
+                        +<Money valueUsd={investment.totalReturn} className="text-lg font-semibold text-green-400" />
                       </p>
                     </div>
                     <div className="p-3 bg-dark-800 rounded-lg">
@@ -471,18 +475,18 @@ export default function InvestmentsPage() {
                       </span>
                     </div>
                     <p className="text-2xl font-bold text-white mb-2">
-                      ${ (plan.totalContributed || 0).toLocaleString() }
+                      <Money valueUsd={plan.totalContributed || 0} className="text-2xl font-bold text-white" />
                     </p>
                     <div className="text-xs text-gray-400 mb-2 flex items-center justify-between">
                       <span>Monthly contribution</span>
                       <span className="text-primary-400 font-medium">
-                        ${ (plan.monthlyContribution || 0).toLocaleString() }
+                        <Money valueUsd={plan.monthlyContribution || 0} className="text-primary-400 font-medium" />
                       </span>
                     </div>
                     <div className="text-xs text-gray-400 mb-3 flex items-center justify-between">
                       <span>Portfolio value</span>
                       <span className="text-emerald-400 font-medium">
-                        ${ (plan.portfolioValue || 0).toLocaleString() }
+                        <Money valueUsd={plan.portfolioValue || 0} className="text-emerald-400 font-medium" />
                       </span>
                     </div>
                     <div className="mb-2">
@@ -574,13 +578,14 @@ export default function InvestmentsPage() {
                   <div className="flex justify-between mb-2">
                     <span className="text-gray-400">Available Balance</span>
                     <span className="text-white font-semibold">
-                      ${(wallet?.mainBalance || 0).toLocaleString()}
+                      <Money valueUsd={wallet?.mainBalance || 0} className="text-white font-semibold" />
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">Min - Max Investment</span>
                     <span className="text-white">
-                      ${selectedPlan.minAmount.toLocaleString()} - ${selectedPlan.maxAmount.toLocaleString()}
+                      <Money valueUsd={selectedPlan.minAmount} className="text-white" showUsdEquivalent={false} /> -{' '}
+                      <Money valueUsd={selectedPlan.maxAmount} className="text-white" showUsdEquivalent={false} />
                     </span>
                   </div>
                 </div>

@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle } from '@/app/components/ui/Card';
 import Button from '@/app/components/ui/Button';
+import Money from '@/app/components/ui/Money';
 import { useAuthStore } from '@/app/lib/store';
 import { walletAPI } from '@/app/lib/api';
 import toast from 'react-hot-toast';
@@ -197,7 +198,7 @@ export default function TransactionsPage() {
             <div>
               <p className="text-sm text-gray-400">Total Deposits</p>
               <p className="text-lg font-bold text-white">
-                ${(wallet?.totalDeposits || 0).toLocaleString()}
+                <Money valueUsd={wallet?.totalDeposits || 0} className="text-lg font-bold text-white" />
               </p>
             </div>
           </div>
@@ -211,7 +212,7 @@ export default function TransactionsPage() {
             <div>
               <p className="text-sm text-gray-400">Total Withdrawals</p>
               <p className="text-lg font-bold text-white">
-                ${(wallet?.totalWithdrawals || 0).toLocaleString()}
+                <Money valueUsd={wallet?.totalWithdrawals || 0} className="text-lg font-bold text-white" />
               </p>
             </div>
           </div>
@@ -225,7 +226,7 @@ export default function TransactionsPage() {
             <div>
               <p className="text-sm text-gray-400">Total Profits</p>
               <p className="text-lg font-bold text-green-400">
-                +${(wallet?.totalEarnings || 0).toLocaleString()}
+                +<Money valueUsd={wallet?.totalEarnings || 0} className="text-lg font-bold text-green-400" />
               </p>
             </div>
           </div>
@@ -239,7 +240,7 @@ export default function TransactionsPage() {
             <div>
               <p className="text-sm text-gray-400">Referral Earnings</p>
               <p className="text-lg font-bold text-white">
-                ${(wallet?.referralEarnings || 0).toLocaleString()}
+                <Money valueUsd={wallet?.referralEarnings || 0} className="text-lg font-bold text-white" />
               </p>
             </div>
           </div>
@@ -382,7 +383,7 @@ export default function TransactionsPage() {
                               }`}
                             >
                               {tx.type === 'deposit' || tx.type === 'profit' || tx.type === 'referral' ? '+' : '-'}
-                              ${tx.amount.toLocaleString()}
+                              <Money valueUsd={tx.amount} className="" />
                             </span>
                           </td>
                           <td className="py-4 pr-4">
@@ -442,7 +443,7 @@ export default function TransactionsPage() {
                             }`}
                           >
                             {tx.type === 'deposit' || tx.type === 'profit' || tx.type === 'referral' ? '+' : '-'}
-                            ${tx.amount.toLocaleString()}
+                            <Money valueUsd={tx.amount} className="" />
                           </p>
                           <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${statusCfg.bgColor} ${statusCfg.color}`}>
                             <StatusIcon size={10} />

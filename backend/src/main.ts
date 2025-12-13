@@ -15,6 +15,7 @@ import * as helmet from 'helmet';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import { CurrencyService } from './currency/currency.service';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -42,7 +43,7 @@ async function bootstrap() {
       }
     },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Currency', 'X-Currency-Code'],
     credentials: true,
     maxAge: 86400, // 24 hours
   });
@@ -63,7 +64,8 @@ async function bootstrap() {
   app.useGlobalFilters(new HttpExceptionFilter());
 
   // Global response transformer
-  app.useGlobalInterceptors(new TransformInterceptor());
+  const currencyService = app.get(CurrencyService);
+  app.useGlobalInterceptors(new TransformInterceptor(currencyService));
 
   // API prefix
   app.setGlobalPrefix('api/v1');

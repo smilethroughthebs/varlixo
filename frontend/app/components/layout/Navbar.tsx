@@ -16,6 +16,7 @@ import { useAuthStore, useLanguageStore } from '@/app/lib/store';
 import { getTranslation } from '@/app/lib/i18n';
 import Button from '../ui/Button';
 import LanguageSwitcher from '../ui/LanguageSwitcher';
+import CurrencySwitcher from '../ui/CurrencySwitcher';
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -90,6 +91,7 @@ export default function Navbar() {
           {/* Auth Buttons */}
           <div className="hidden lg:flex items-center gap-4">
             <LanguageSwitcher variant="compact" />
+            <CurrencySwitcher variant="compact" />
             {isAuthenticated ? (
               <div className="relative">
                 <button
@@ -204,10 +206,11 @@ export default function Navbar() {
                   {t(link.labelKey)}
                 </Link>
               ))}
-              <div className="flex justify-center pb-4">
-                  <LanguageSwitcher />
-                </div>
-                <div className="pt-4 border-t border-dark-700 space-y-3">
+              <div className="flex items-center justify-center gap-3 pb-4">
+                <LanguageSwitcher />
+                <CurrencySwitcher />
+              </div>
+              <div className="pt-4 border-t border-dark-700 space-y-3">
                 {isAuthenticated ? (
                   <>
                     <Link

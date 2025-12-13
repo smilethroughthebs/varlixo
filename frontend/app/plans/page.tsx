@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import Button from '@/app/components/ui/Button';
 import { Card } from '@/app/components/ui/Card';
+import Money from '@/app/components/ui/Money';
 import Navbar from '@/app/components/layout/Navbar';
 import Footer from '@/app/components/layout/Footer';
 import { investmentAPI } from '@/app/lib/api';
@@ -394,14 +395,18 @@ export default function PlansPage() {
                             <DollarSign size={14} />
                             Min Investment
                           </span>
-                          <span className="text-white font-semibold">${plan.minAmount.toLocaleString()}</span>
+                          <span className="text-white font-semibold">
+                            <Money valueUsd={plan.minAmount} className="text-white font-semibold" showUsdEquivalent={false} />
+                          </span>
                         </div>
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-gray-500 flex items-center gap-2">
                             <Target size={14} />
                             Max Investment
                           </span>
-                          <span className="text-white font-semibold">${plan.maxAmount.toLocaleString()}</span>
+                          <span className="text-white font-semibold">
+                            <Money valueUsd={plan.maxAmount} className="text-white font-semibold" showUsdEquivalent={false} />
+                          </span>
                         </div>
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-gray-500 flex items-center gap-2">
@@ -657,7 +662,9 @@ export default function PlansPage() {
                     />
                   </div>
                   <p className="text-xs text-gray-500 mt-2">
-                    Range: ${selectedPlan.minAmount.toLocaleString()} - ${selectedPlan.maxAmount.toLocaleString()}
+                    Range:{' '}
+                    <Money valueUsd={selectedPlan.minAmount} className="text-xs text-gray-500" showUsdEquivalent={false} /> -{' '}
+                    <Money valueUsd={selectedPlan.maxAmount} className="text-xs text-gray-500" showUsdEquivalent={false} />
                   </p>
                 </div>
 
@@ -669,7 +676,7 @@ export default function PlansPage() {
                       onClick={() => setCalcAmount(amount.toString())}
                       className="px-4 py-2 rounded-lg bg-dark-700 text-gray-400 hover:bg-dark-600 hover:text-white text-sm transition-colors"
                     >
-                      ${amount.toLocaleString()}
+                      <Money valueUsd={amount} className="" showUsdEquivalent={false} />
                     </button>
                   ))}
                 </div>
@@ -685,25 +692,37 @@ export default function PlansPage() {
                   <div className="flex justify-between items-center p-4 rounded-xl bg-dark-800/50">
                     <span className="text-gray-400">Daily Profit</span>
                     <span className="text-xl font-bold text-green-400">
-                      +${calcResults.dailyProfit.toFixed(2)}
+                      +<Money
+                        valueUsd={calcResults.dailyProfit}
+                        className="text-xl font-bold text-green-400"
+                      />
                     </span>
                   </div>
                   <div className="flex justify-between items-center p-4 rounded-xl bg-dark-800/50">
                     <span className="text-gray-400">Weekly Profit</span>
                     <span className="text-xl font-bold text-green-400">
-                      +${calcResults.weeklyProfit.toFixed(2)}
+                      +<Money
+                        valueUsd={calcResults.weeklyProfit}
+                        className="text-xl font-bold text-green-400"
+                      />
                     </span>
                   </div>
                   <div className="flex justify-between items-center p-4 rounded-xl bg-dark-800/50">
                     <span className="text-gray-400">Total Profit ({selectedPlan.duration} days)</span>
                     <span className="text-xl font-bold text-green-400">
-                      +${calcResults.totalProfit.toFixed(2)}
+                      +<Money
+                        valueUsd={calcResults.totalProfit}
+                        className="text-xl font-bold text-green-400"
+                      />
                     </span>
                   </div>
                   <div className="flex justify-between items-center p-4 rounded-xl bg-primary-500/20 border border-primary-500/30">
                     <span className="text-white font-medium">Total Return</span>
                     <span className="text-2xl font-bold text-white">
-                      ${calcResults.totalReturn.toFixed(2)}
+                      <Money
+                        valueUsd={calcResults.totalReturn}
+                        className="text-2xl font-bold text-white"
+                      />
                     </span>
                   </div>
                 </div>
@@ -790,7 +809,7 @@ export default function PlansPage() {
                   <td className="py-4 px-6 text-gray-400">Min Investment</td>
                   {plans.map((plan) => (
                     <td key={plan._id} className="py-4 px-6 text-center text-white">
-                      ${plan.minAmount.toLocaleString()}
+                      <Money valueUsd={plan.minAmount} className="text-white" showUsdEquivalent={false} />
                     </td>
                   ))}
                 </tr>
@@ -798,7 +817,7 @@ export default function PlansPage() {
                   <td className="py-4 px-6 text-gray-400">Max Investment</td>
                   {plans.map((plan) => (
                     <td key={plan._id} className="py-4 px-6 text-center text-white">
-                      ${plan.maxAmount.toLocaleString()}
+                      <Money valueUsd={plan.maxAmount} className="text-white" showUsdEquivalent={false} />
                     </td>
                   ))}
                 </tr>

@@ -25,6 +25,7 @@ import { Wallet, WalletDocument } from '../schemas/wallet.schema';
 import { Referral, ReferralDocument } from '../schemas/referral.schema';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto, ResetPasswordDto, ChangePasswordDto, SendOtpDto, VerifyEmailOtpDto, ResetPasswordWithOtpDto } from './dto/login.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { generateReferralCode, generateToken, generateOTP, addDays } from '../common/utils/helpers';
 import { EmailService } from '../email/email.service';
 import { OtpService } from './otp.service';
@@ -751,6 +752,25 @@ export class AuthService {
           }
         : null,
     };
+  }
+
+  async updateProfile(userId: string, dto: UpdateProfileDto) {
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (dto.preferredLanguage) {
+      user.preferredLanguage = String(dto.preferredLanguage).trim().toLowerCase();
+    }
+
+    if (dto.preferredCurrency) {
+      user.preferredCurrency = String(dto.preferredCurrency).trim().toUpperCase();
+    }
+
+    await user.save();
+
+    return this.getProfile(userId);
   }
 
   // ==========================================

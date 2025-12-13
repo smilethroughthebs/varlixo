@@ -29,6 +29,7 @@ import { TestimonialModule } from './testimonial/testimonial.module';
 import { CryptoDepositModule } from './crypto-deposit/crypto-deposit.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { OnchainModule } from './onchain/onchain.module';
+import { RedisModule } from './redis/redis.module';
 
 // Middleware
 import { LoggerMiddleware } from './common/middleware/logger.middleware';
@@ -66,6 +67,8 @@ import { SecurityMiddleware } from './common/middleware/security.middleware';
 
     // Scheduled Tasks (Cron Jobs)
     ScheduleModule.forRoot(),
+
+    RedisModule,
 
     // Feature Modules
     AuthModule,

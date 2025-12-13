@@ -48,6 +48,7 @@ import {
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle } from '@/app/components/ui/Card';
 import Button from '@/app/components/ui/Button';
+import Money from '@/app/components/ui/Money';
 import { useAuthStore } from '@/app/lib/store';
 import { walletAPI, investmentAPI, marketAPI, referralAPI, authAPI } from '@/app/lib/api';
 import toast from 'react-hot-toast';
@@ -284,21 +285,43 @@ export default function DashboardPage() {
               </div>
               <p className="text-gray-400 text-sm mb-1">Total Balance</p>
               <p className="text-3xl font-bold text-white mb-3">
-                {formatBalance(totalBalance)}
+                {showBalance ? (
+                  <Money valueUsd={totalBalance} className="text-3xl font-bold text-white" />
+                ) : (
+                  '••••••'
+                )}
               </p>
               {/* Double Balance Display */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-gray-500">Available Balance</span>
-                  <span className="text-primary-400 font-medium">{formatBalance(wallet?.mainBalance || 0)}</span>
+                  <span className="text-primary-400 font-medium">
+                    {showBalance ? (
+                      <Money valueUsd={wallet?.mainBalance || 0} className="text-primary-400 font-medium" />
+                    ) : (
+                      '••••••'
+                    )}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-gray-500">Locked Balance</span>
-                  <span className="text-orange-400 font-medium">{formatBalance(wallet?.lockedBalance || 0)}</span>
+                  <span className="text-orange-400 font-medium">
+                    {showBalance ? (
+                      <Money valueUsd={wallet?.lockedBalance || 0} className="text-orange-400 font-medium" />
+                    ) : (
+                      '••••••'
+                    )}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-gray-500">Accrued Profit</span>
-                  <span className="text-green-400 font-medium">{formatBalance(wallet?.pendingBalance || 0)}</span>
+                  <span className="text-green-400 font-medium">
+                    {showBalance ? (
+                      <Money valueUsd={wallet?.pendingBalance || 0} className="text-green-400 font-medium" />
+                    ) : (
+                      '••••••'
+                    )}
+                  </span>
                 </div>
               </div>
             </div>
@@ -320,7 +343,11 @@ export default function DashboardPage() {
             </div>
             <p className="text-gray-400 text-sm mb-1">Total Profit</p>
             <p className="text-2xl font-bold text-white">
-              {formatBalance(wallet?.totalEarnings || 0)}
+              {showBalance ? (
+                <Money valueUsd={wallet?.totalEarnings || 0} className="text-2xl font-bold text-white" />
+              ) : (
+                '••••••'
+              )}
             </p>
           </div>
         </Card>
@@ -339,7 +366,11 @@ export default function DashboardPage() {
             </div>
             <p className="text-gray-400 text-sm mb-1">Invested</p>
             <p className="text-2xl font-bold text-white">
-              {formatBalance(investmentSummary?.totalInvested || 0)}
+              {showBalance ? (
+                <Money valueUsd={investmentSummary?.totalInvested || 0} className="text-2xl font-bold text-white" />
+              ) : (
+                '••••••'
+              )}
             </p>
           </div>
         </Card>
@@ -377,7 +408,11 @@ export default function DashboardPage() {
             </div>
             <p className="text-gray-400 text-sm mb-1">Referral Earnings</p>
             <p className="text-2xl font-bold text-white">
-              {formatBalance(wallet?.referralEarnings || 0)}
+              {showBalance ? (
+                <Money valueUsd={wallet?.referralEarnings || 0} className="text-2xl font-bold text-white" />
+              ) : (
+                '••••••'
+              )}
             </p>
           </div>
         </Card>
@@ -449,7 +484,13 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between mt-4 pt-4 border-t border-dark-700">
                   <div>
                     <p className="text-gray-500 text-sm">Total Returns</p>
-                    <p className="text-2xl font-bold text-white">{formatBalance(wallet?.totalEarnings || 0)}</p>
+                    <p className="text-2xl font-bold text-white">
+                      {showBalance ? (
+                        <Money valueUsd={wallet?.totalEarnings || 0} className="text-2xl font-bold text-white" />
+                      ) : (
+                        '••••••'
+                      )}
+                    </p>
                   </div>
                   <div className="text-right">
                     <p className="text-gray-500 text-sm">Growth Rate</p>
@@ -597,7 +638,11 @@ export default function DashboardPage() {
                           }`}
                         >
                           {(tx.type === 'deposit' || tx.type === 'profit' || tx.type === 'referral') ? '+' : tx.type === 'withdrawal' ? '-' : ''}
-                          {formatBalance(tx.amount || 0)}
+                          {showBalance ? (
+                            <Money valueUsd={tx.amount || 0} className="" />
+                          ) : (
+                            '••••••'
+                          )}
                         </p>
                         <span className={`text-xs ${getStatusIcon(tx.status).props.className?.includes('green') ? 'text-green-400' : getStatusIcon(tx.status).props.className?.includes('yellow') ? 'text-yellow-400' : getStatusIcon(tx.status).props.className?.includes('red') ? 'text-red-400' : 'text-gray-400'}`}>
                           {tx.status}
@@ -708,7 +753,13 @@ export default function DashboardPage() {
                   <p className="text-xs text-gray-500">Total Referrals</p>
                 </div>
                 <div className="p-3 rounded-xl bg-dark-800/50">
-                  <p className="text-2xl font-bold text-yellow-400">{formatBalance(wallet?.referralEarnings || 0)}</p>
+                  <p className="text-2xl font-bold text-yellow-400">
+                    {showBalance ? (
+                      <Money valueUsd={wallet?.referralEarnings || 0} className="text-2xl font-bold text-yellow-400" />
+                    ) : (
+                      '••••••'
+                    )}
+                  </p>
                   <p className="text-xs text-gray-500">Earned</p>
                 </div>
               </div>

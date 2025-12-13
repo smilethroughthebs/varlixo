@@ -7,7 +7,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import axios from 'axios';
+import { api, authAPI } from './api';
 
 export interface CurrencyState {
   // Currency info
@@ -40,45 +40,63 @@ const defaultCurrency = {
   countryRules: null,
 };
 
+const getCurrencySymbol = (currencyCode: string, locale: string) => {
+  try {
+    const parts = new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: currencyCode,
+      currencyDisplay: 'narrowSymbol',
+    }).formatToParts(0);
+
+    const symbol = parts.find((p) => p.type === 'currency')?.value;
+    return symbol || currencyCode;
+  } catch {
+    return currencyCode;
+  }
+};
+
 export const useCurrencyStore = create<CurrencyState>()(
   persist(
     (set, get) => ({
       ...defaultCurrency,
 
       setPreferredCurrency: async (code: string) => {
-        try {
-          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
-          
-          // Save to user profile if logged in
-          try {
-            await axios.put(`${apiUrl}/users/me`, { preferredCurrency: code });
-          } catch (error) {
-            console.warn('Could not save currency preference to profile');
+        const normalized = String(code).trim().toUpperCase();
+
+        const applyCurrency = async (currencyCode: string, persistToProfile: boolean) => {
+          const state = get();
+          const locale = state.locale || 'en-US';
+
+          if (persistToProfile) {
+            try {
+              await api.put('/auth/profile', { preferredCurrency: currencyCode });
+            } catch {
+              // ignore (not logged in)
+            }
           }
 
-          // Update local store
-          const state = get();
-          
-          // Fetch conversion rate
-          const ratesResponse = await axios.get(`${apiUrl}/currency/rates`, {
+          const ratesResponse = await api.get('/currency/rates', {
             params: {
               base: 'USD',
-              symbols: code,
+              symbols: currencyCode,
             },
           });
 
-          const rate = ratesResponse.data.rates?.[code] || 1;
-          const countryRules = await axios.get(`${apiUrl}/currency/country/${code}`);
+          const rate = ratesResponse.data?.data?.rates?.[currencyCode] || 1;
+          const currencySymbol = getCurrencySymbol(currencyCode, locale);
 
           set({
-            currencyCode: code,
-            currencySymbol: countryRules.data.rules.currency_symbol || '$',
-            locale: countryRules.data.rules.currency_locale || 'en-US',
+            currencyCode,
+            currencySymbol,
+            locale,
             conversionRate: rate,
             isAutoDetected: false,
             isFallbackRate: false,
-            countryRules: countryRules.data.rules,
           });
+        };
+
+        try {
+          await applyCurrency(normalized, true);
         } catch (error) {
           console.error('Failed to set preferred currency:', error);
         }
@@ -86,10 +104,9 @@ export const useCurrencyStore = create<CurrencyState>()(
 
       detectCurrency: async () => {
         try {
-          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
-          
-          const response = await axios.get(`${apiUrl}/currency/detect`);
-          const { country, currency_code, currency_symbol, locale, conversion_rate, is_fallback } = response.data;
+          const response = await api.get('/currency/detect');
+          const payload = response.data?.data;
+          const { country, currency_code, currency_symbol, locale, conversion_rate, is_fallback } = payload;
 
           set({
             country,
@@ -99,7 +116,7 @@ export const useCurrencyStore = create<CurrencyState>()(
             conversionRate: conversion_rate,
             isAutoDetected: true,
             isFallbackRate: is_fallback,
-            countryRules: response.data.country_rules,
+            countryRules: payload.country_rules,
           });
         } catch (error) {
           console.error('Failed to detect currency:', error);
@@ -110,20 +127,52 @@ export const useCurrencyStore = create<CurrencyState>()(
 
       updateCurrencyFromServer: async () => {
         try {
-          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
-          
-          // Try to get user's preferred currency from profile
+          const applyCurrencyNoPersist = async (currencyCode: string) => {
+            const normalized = String(currencyCode).trim().toUpperCase();
+            const state = get();
+            const locale = state.locale || 'en-US';
+
+            const ratesResponse = await api.get('/currency/rates', {
+              params: {
+                base: 'USD',
+                symbols: normalized,
+              },
+            });
+
+            const rate = ratesResponse.data?.data?.rates?.[normalized] || 1;
+            const currencySymbol = getCurrencySymbol(normalized, locale);
+
+            set({
+              currencyCode: normalized,
+              currencySymbol,
+              locale,
+              conversionRate: rate,
+              isAutoDetected: false,
+              isFallbackRate: false,
+            });
+          };
+
+          // Try profile preference first
           try {
-            const userResponse = await axios.get(`${apiUrl}/auth/profile`);
-            if (userResponse.data.user?.preferredCurrency) {
-              await get().setPreferredCurrency(userResponse.data.user.preferredCurrency);
+            const userResponse = await authAPI.getProfile();
+            const profile = userResponse.data?.data;
+            const preferred = profile?.user?.preferredCurrency;
+            if (preferred) {
+              await applyCurrencyNoPersist(preferred);
               return;
             }
-          } catch (error) {
-            console.warn('Could not fetch user profile');
+          } catch {
+            // ignore
           }
 
-          // Fall back to detection
+          // If we already have a persisted currencyCode (store persistence), just refresh its rate.
+          const existing = get().currencyCode;
+          if (existing && existing !== 'USD') {
+            await applyCurrencyNoPersist(existing);
+            return;
+          }
+
+          // Fall back to IP detection
           await get().detectCurrency();
         } catch (error) {
           console.error('Failed to update currency from server:', error);

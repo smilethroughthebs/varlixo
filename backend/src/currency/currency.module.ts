@@ -12,6 +12,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { CurrencyController } from './currency.controller';
 import { CurrencyService } from './currency.service';
 import { CountryRules, CountryRulesSchema } from '../schemas/country-rules.schema';
+import { RedisModule } from '../redis/redis.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { CountryRules, CountryRulesSchema } from '../schemas/country-rules.schem
     ]),
     ConfigModule,
     JwtModule.register({}),
+    RedisModule,
   ],
   controllers: [CurrencyController],
   providers: [CurrencyService],

@@ -12,6 +12,7 @@ import { Model } from 'mongoose';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { CountryRules, CountryRulesDocument } from '../schemas/country-rules.schema';
+import { RedisService } from '../redis/redis.service';
 
 interface FxRate {
   rate: number;
@@ -25,6 +26,7 @@ export class CurrencyService {
   private readonly logger = new Logger(CurrencyService.name);
   private fxCache = new Map<string, FxRate>();
   private readonly fxTtl: number;
+  private readonly fxRedisTtlSeconds: number;
   private readonly primaryProvider: string;
   private readonly fallbackProvider: string;
   private readonly autoCurrency: boolean;
@@ -33,8 +35,10 @@ export class CurrencyService {
   constructor(
     @InjectModel(CountryRules.name) private countryRulesModel: Model<CountryRulesDocument>,
     private configService: ConfigService,
+    private readonly redisService: RedisService,
   ) {
     this.fxTtl = parseInt(this.configService.get<string>('FX_TTL_SECONDS') || '3600', 10);
+    this.fxRedisTtlSeconds = parseInt(this.configService.get<string>('FX_REDIS_TTL_SECONDS') || '21600', 10);
     this.primaryProvider =
       this.configService.get<string>('FX_PROVIDER_PRIMARY') ||
       'https://api.exchangerate.host';
@@ -45,6 +49,92 @@ export class CurrencyService {
     this.defaultCurrency = this.configService.get<string>('DEFAULT_CURRENCY') || 'USD';
   }
 
+  private getUsdRatesCacheKey(): string {
+    return 'fx:rates:USD';
+  }
+
+  private getUsdRatesLastKnownKey(): string {
+    return 'fx:rates:last:USD';
+  }
+
+  private async getUsdRatesTable(): Promise<{ rates: Record<string, number>; timestamp: number; provider: string; isFallback: boolean } | null> {
+    const cached = await this.redisService.getJson<{ rates: Record<string, number>; timestamp: number; provider: string; isFallback: boolean }>(
+      this.getUsdRatesCacheKey(),
+    );
+    if (cached?.rates && typeof cached.timestamp === 'number') return cached;
+
+    // in-memory fallback (short TTL)
+    const mem = this.fxCache.get('USD:RATES');
+    if (mem && Date.now() - mem.timestamp < this.fxTtl * 1000) {
+      return { rates: { USD: 1 }, timestamp: mem.timestamp, provider: mem.provider, isFallback: mem.isFallback };
+    }
+
+    // Fetch full table from providers
+    try {
+      const response = await axios.get(`${this.primaryProvider}/latest`, {
+        params: { base: 'USD' },
+        timeout: 5000,
+      });
+      const rates: Record<string, number> = response.data?.rates || {};
+      const result = {
+        rates: { ...rates, USD: 1 },
+        timestamp: Date.now(),
+        provider: 'primary',
+        isFallback: false,
+      };
+      await this.redisService.setJson(this.getUsdRatesCacheKey(), result, this.fxRedisTtlSeconds);
+      await this.redisService.setJson(this.getUsdRatesLastKnownKey(), result);
+      this.fxCache.set('USD:RATES', { rate: 1, timestamp: result.timestamp, provider: 'primary', isFallback: false });
+      return result;
+    } catch {
+      this.logger.warn(`Primary FX provider failed for USD rates table, trying fallback...`);
+    }
+
+    try {
+      // open.er-api.com/v6/latest/USD
+      const response = await axios.get(`${this.fallbackProvider}/latest/USD`, { timeout: 5000 });
+      const rates: Record<string, number> = response.data?.rates || {};
+      const result = {
+        rates: { ...rates, USD: 1 },
+        timestamp: Date.now(),
+        provider: 'fallback',
+        isFallback: false,
+      };
+      await this.redisService.setJson(this.getUsdRatesCacheKey(), result, this.fxRedisTtlSeconds);
+      await this.redisService.setJson(this.getUsdRatesLastKnownKey(), result);
+      this.fxCache.set('USD:RATES', { rate: 1, timestamp: result.timestamp, provider: 'fallback', isFallback: false });
+      return result;
+    } catch {
+      this.logger.warn(`Fallback FX provider failed for USD rates table`);
+    }
+
+    const lastKnown = await this.redisService.getJson<{ rates: Record<string, number>; timestamp: number; provider: string; isFallback: boolean }>(
+      this.getUsdRatesLastKnownKey(),
+    );
+    if (lastKnown?.rates) {
+      return { ...lastKnown, isFallback: true };
+    }
+
+    return null;
+  }
+
+  async getSupportedCurrencies(): Promise<{ success: true; base: string; currencies: string[]; timestamp: number; isFallback: boolean }> {
+    const table = await this.getUsdRatesTable();
+    const rates = table?.rates || { USD: 1 };
+    const currencies = Object.keys(rates)
+      .map((c) => String(c).trim().toUpperCase())
+      .filter((c) => /^[A-Z]{3}$/.test(c));
+    currencies.sort();
+
+    return {
+      success: true,
+      base: 'USD',
+      currencies,
+      timestamp: table?.timestamp || Date.now(),
+      isFallback: !!table?.isFallback,
+    };
+  }
+
   /**
    * Get exchange rate with caching
    */
@@ -53,7 +143,36 @@ export class CurrencyService {
       return { rate: 1, timestamp: Date.now(), provider: 'local', isFallback: false };
     }
 
-    const cacheKey = `${from}:${to}`;
+    const fromUpper = String(from).trim().toUpperCase();
+    const toUpper = String(to).trim().toUpperCase();
+
+    // Prefer a cached USD rates table to support many currencies efficiently
+    const usdTable = await this.getUsdRatesTable();
+    if (usdTable?.rates) {
+      const usdToFrom = usdTable.rates[fromUpper];
+      const usdToTo = usdTable.rates[toUpper];
+
+      if (typeof usdToTo === 'number' && fromUpper === 'USD') {
+        return {
+          rate: usdToTo,
+          timestamp: usdTable.timestamp,
+          provider: usdTable.provider,
+          isFallback: usdTable.isFallback,
+        };
+      }
+
+      // Cross-rate via USD: from->to = (USD->to) / (USD->from)
+      if (typeof usdToFrom === 'number' && typeof usdToTo === 'number' && usdToFrom !== 0) {
+        return {
+          rate: usdToTo / usdToFrom,
+          timestamp: usdTable.timestamp,
+          provider: usdTable.provider,
+          isFallback: usdTable.isFallback,
+        };
+      }
+    }
+
+    const cacheKey = `${fromUpper}:${toUpper}`;
     const cached = this.fxCache.get(cacheKey);
 
     // Return cached if not expired
@@ -63,7 +182,7 @@ export class CurrencyService {
 
     // Try to fetch from primary provider
     try {
-      const rate = await this.fetchFromPrimary(from, to);
+      const rate = await this.fetchFromPrimary(fromUpper, toUpper);
       const fxData: FxRate = {
         rate,
         timestamp: Date.now(),
@@ -78,7 +197,7 @@ export class CurrencyService {
 
     // Try fallback provider
     try {
-      const rate = await this.fetchFromFallback(from, to);
+      const rate = await this.fetchFromFallback(fromUpper, toUpper);
       const fxData: FxRate = {
         rate,
         timestamp: Date.now(),

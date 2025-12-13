@@ -17,6 +17,7 @@ interface MoneyProps {
   decimals?: number;
   className?: string;
   title?: string;
+  showUsdEquivalent?: boolean;
 }
 
 export const Money: React.FC<MoneyProps> = ({
@@ -25,6 +26,7 @@ export const Money: React.FC<MoneyProps> = ({
   decimals = 2,
   className = '',
   title,
+  showUsdEquivalent = true,
 }) => {
   const { currencyCode, currencySymbol, locale, conversionRate, isFallbackRate } =
     useCurrencyStore();
@@ -48,20 +50,31 @@ export const Money: React.FC<MoneyProps> = ({
 
   const formatted = formatter.format(localValue);
 
+  const showUsd = showUsdEquivalent && currencyCode !== 'USD';
+  const usdFormatter = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+  const formattedUsd = usdFormatter.format(numValue);
+
   // Show badge if using fallback rate
   if (isFallbackRate) {
     return (
-      <span
-        className={`inline-flex items-center gap-1 ${className}`}
-        title={title || 'Using fallback exchange rate'}
-      >
-        {formatted}
-        <span
-          className="text-xs text-yellow-400 cursor-help"
-          title="This conversion rate is approximate"
-        >
-          *
+      <span className={className} title={title || 'Using fallback exchange rate'}>
+        <span className="inline-flex items-center gap-1">
+          {formatted}
+          <span
+            className="text-xs text-yellow-400 cursor-help"
+            title="This conversion rate is approximate"
+          >
+            *
+          </span>
         </span>
+        {showUsd && (
+          <span className="block text-xs text-gray-500 mt-0.5">{formattedUsd}</span>
+        )}
       </span>
     );
   }
@@ -69,6 +82,9 @@ export const Money: React.FC<MoneyProps> = ({
   return (
     <span className={className} title={title}>
       {formatted}
+      {showUsd && (
+        <span className="block text-xs text-gray-500 mt-0.5">{formattedUsd}</span>
+      )}
     </span>
   );
 };

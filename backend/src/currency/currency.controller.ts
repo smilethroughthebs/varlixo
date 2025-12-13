@@ -20,6 +20,16 @@ export class CurrencyController {
   constructor(private readonly currencyService: CurrencyService) {}
 
   /**
+   * List supported currencies from the FX provider response
+   * GET /currency/supported
+   */
+  @Public()
+  @Get('supported')
+  async supportedCurrencies() {
+    return this.currencyService.getSupportedCurrencies();
+  }
+
+  /**
    * Detect currency based on visitor location
    * GET /currency/detect
    */

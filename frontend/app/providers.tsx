@@ -11,6 +11,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from 'next-themes';
 import { useState } from 'react';
 import LanguageProvider from './components/providers/LanguageProvider';
+import CurrencyProvider from './components/providers/CurrencyProvider';
 import LiveChat from './components/ui/LiveChat';
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -31,8 +32,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
         <LanguageProvider>
-          {children}
-          <LiveChat />
+          <CurrencyProvider>
+            {children}
+            <LiveChat />
+          </CurrencyProvider>
         </LanguageProvider>
       </ThemeProvider>
     </QueryClientProvider>

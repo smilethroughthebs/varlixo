@@ -27,6 +27,22 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    try {
+      if (typeof window !== 'undefined') {
+        const raw = window.localStorage.getItem('currency-store');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          const currencyCode = parsed?.state?.currencyCode;
+          if (currencyCode) {
+            config.headers['X-Currency'] = String(currencyCode).toUpperCase();
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+
     return config;
   },
   (error) => {
