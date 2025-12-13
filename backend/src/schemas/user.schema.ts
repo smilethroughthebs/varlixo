@@ -60,6 +60,18 @@ export class User {
   country: string;
 
   @Prop({ trim: true })
+  occupation: string;
+
+  @Prop({ trim: true })
+  annualIncomeRange: string;
+
+  @Prop({ trim: true })
+  sourceOfFunds: string;
+
+  @Prop({ trim: true })
+  investmentExperience: string;
+
+  @Prop({ trim: true })
   city: string;
 
   @Prop({ trim: true })

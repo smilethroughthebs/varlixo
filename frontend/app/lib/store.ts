@@ -15,6 +15,13 @@ interface User {
   email: string;
   firstName: string;
   lastName: string;
+  phone?: string;
+  dateOfBirth?: string;
+  country?: string;
+  occupation?: string;
+  annualIncomeRange?: string;
+  sourceOfFunds?: string;
+  investmentExperience?: string;
   role: string;
   emailVerified: boolean;
   twoFactorEnabled: boolean;
