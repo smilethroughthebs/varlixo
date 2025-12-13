@@ -10,6 +10,7 @@ import { LinkedWallet, LinkedWalletSchema } from '../schemas/linked-wallet.schem
 import { CurrencyModule } from '../currency/currency.module';
 import { MarketModule } from '../market/market.module';
 import { OnchainController } from './onchain.controller';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { OnchainController } from './onchain.controller';
     ]),
     CurrencyModule,
     MarketModule,
+    AuthModule,
   ],
   controllers: [OnchainController],
   providers: [OnchainService],
