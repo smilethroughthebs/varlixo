@@ -35,6 +35,7 @@ export default function AdminLoginPage() {
     email: '',
     password: '',
     twoFactorCode: '',
+    emailOtp: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -43,6 +44,9 @@ export default function AdminLoginPage() {
   const [isLocked, setIsLocked] = useState(false);
   const [lockTimer, setLockTimer] = useState(0);
   const [requires2FA, setRequires2FA] = useState(false);
+  const [requiresEmailOtp, setRequiresEmailOtp] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState('');
+  const [pendingPassword, setPendingPassword] = useState('');
 
   // Redirect if already authenticated as admin
   useEffect(() => {
@@ -75,13 +79,25 @@ export default function AdminLoginPage() {
     setIsLoading(true);
 
     try {
+      const emailToUse = requiresEmailOtp ? pendingEmail : formData.email;
+      const passwordToUse = requiresEmailOtp ? pendingPassword : formData.password;
+
+      if (!requiresEmailOtp) {
+        setPendingEmail(formData.email);
+        setPendingPassword(formData.password);
+      }
+
       const loginData: any = {
-        email: formData.email,
-        password: formData.password,
+        email: emailToUse,
+        password: passwordToUse,
       };
       
       if (formData.twoFactorCode) {
         loginData.twoFactorCode = formData.twoFactorCode;
+      }
+
+      if (formData.emailOtp) {
+        loginData.emailOtp = formData.emailOtp;
       }
       
       const response = await authAPI.login(loginData);
@@ -90,7 +106,15 @@ export default function AdminLoginPage() {
 
       if (data.requiresTwoFactor) {
         setRequires2FA(true);
+        setRequiresEmailOtp(false);
         toast.success('Enter your 2FA code');
+        setIsLoading(false);
+        return;
+      }
+
+      if (data.requiresEmailOtp) {
+        setRequiresEmailOtp(true);
+        toast.success('Enter the 6-digit code sent to your email');
         setIsLoading(false);
         return;
       }
@@ -198,7 +222,7 @@ export default function AdminLoginPage() {
               {/* Email Field */}
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-2">
-                  Administrator Email
+                  Email Address
                 </label>
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={20} />
@@ -208,7 +232,7 @@ export default function AdminLoginPage() {
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     placeholder="admin@varlixo.com"
                     required
-                    disabled={isLocked}
+                    disabled={isLocked || requiresEmailOtp}
                     className="w-full pl-12 pr-4 py-4 bg-dark-700/50 border border-dark-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all disabled:opacity-50"
                   />
                 </div>
@@ -227,7 +251,7 @@ export default function AdminLoginPage() {
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     placeholder="••••••••••••"
                     required
-                    disabled={isLocked}
+                    disabled={isLocked || requiresEmailOtp}
                     className="w-full pl-12 pr-12 py-4 bg-dark-700/50 border border-dark-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all disabled:opacity-50"
                   />
                   <button
@@ -252,6 +276,26 @@ export default function AdminLoginPage() {
                       type="text"
                       value={formData.twoFactorCode}
                       onChange={(e) => setFormData({ ...formData, twoFactorCode: e.target.value })}
+                      placeholder="000000"
+                      maxLength={6}
+                      disabled={isLocked}
+                      className="w-full pl-12 pr-4 py-4 bg-dark-700/50 border border-dark-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all disabled:opacity-50"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {requiresEmailOtp && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Email OTP
+                  </label>
+                  <div className="relative">
+                    <Shield className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={20} />
+                    <input
+                      type="text"
+                      value={formData.emailOtp}
+                      onChange={(e) => setFormData({ ...formData, emailOtp: e.target.value })}
                       placeholder="000000"
                       maxLength={6}
                       disabled={isLocked}

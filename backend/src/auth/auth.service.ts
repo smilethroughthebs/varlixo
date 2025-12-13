@@ -265,8 +265,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    // Check 2FA if enabled (App-based)
-    if (user.twoFactorEnabled && user.twoFactorSecret) {
+    const requiresApp2fa = Boolean(user.twoFactorEnabled && user.twoFactorSecret);
+
+    // App-based 2FA (Authenticator)
+    if (requiresApp2fa) {
       if (!twoFactorCode) {
         return {
           requiresTwoFactor: true,
@@ -287,23 +289,26 @@ export class AuthService {
       }
     }
 
-    if (!emailOtp) {
-      const otp = await this.otpService.generateOtp(
-        user.email,
-        OtpType.LOGIN,
-        user._id.toString(),
-        ipAddress,
-      );
+    // Email login OTP should only be required when app-based 2FA is NOT enabled.
+    if (!requiresApp2fa) {
+      if (!emailOtp) {
+        const otp = await this.otpService.generateOtp(
+          user.email,
+          OtpType.LOGIN,
+          user._id.toString(),
+          ipAddress,
+        );
 
-      await this.emailService.sendOtpEmail(user.email, user.firstName, otp.code, 'login');
+        await this.emailService.sendOtpEmail(user.email, user.firstName, otp.code, 'login');
 
-      return {
-        requiresEmailOtp: true,
-        message: 'A 6-digit login code has been sent to your email. Please enter the code to continue.',
-      };
+        return {
+          requiresEmailOtp: true,
+          message: 'A 6-digit login code has been sent to your email. Please enter the code to continue.',
+        };
+      }
+
+      await this.otpService.verifyOtp(user.email, emailOtp, OtpType.LOGIN);
     }
-
-    await this.otpService.verifyOtp(user.email, emailOtp, OtpType.LOGIN);
 
     // Reset failed login attempts and update last login
     await this.userModel.findByIdAndUpdate(user._id, {
