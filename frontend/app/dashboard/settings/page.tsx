@@ -184,10 +184,13 @@ export default function SettingsPage() {
   const loadLinkedWallets = async () => {
     try {
       const res = await walletAPI.listLinkedWallets();
-      const data = res.data.data || res.data;
-      setLinkedWallets(data.wallets || []);
-    } catch {
-      // ignore
+      const root = res?.data;
+      const data = root?.data ?? root;
+      const wallets = data?.wallets ?? data?.data?.wallets ?? root?.wallets ?? root?.data?.data?.wallets;
+      setLinkedWallets(Array.isArray(wallets) ? wallets : []);
+    } catch (error: any) {
+      console.error('Failed to load linked wallets', error);
+      toast.error(error?.response?.data?.message || 'Failed to load linked wallets');
     }
   };
 
@@ -245,11 +248,21 @@ export default function SettingsPage() {
       const message = nonceData.message;
       const signature = await signer.signMessage(message);
 
-      await walletAPI.verifyLinkedWallet({
+      const verifyRes = await walletAPI.verifyLinkedWallet({
         chain: 'evm',
         address,
         signature,
       });
+
+      const verifyRoot = verifyRes?.data;
+      const verifyData = verifyRoot?.data ?? verifyRoot;
+      const verifiedWallet = verifyData?.wallet ?? verifyData?.data?.wallet;
+      if (verifiedWallet?._id) {
+        setLinkedWallets((prev) => {
+          const filtered = Array.isArray(prev) ? prev.filter((w: any) => w?._id !== verifiedWallet._id) : [];
+          return [verifiedWallet, ...filtered];
+        });
+      }
 
       toast.success('EVM wallet linked');
       await loadLinkedWallets();
@@ -304,11 +317,21 @@ export default function SettingsPage() {
       const sigBytes = signed?.signature || signed;
       const signature = bs58.encode(sigBytes);
 
-      await walletAPI.verifyLinkedWallet({
+      const verifyRes = await walletAPI.verifyLinkedWallet({
         chain: 'solana',
         address,
         signature,
       });
+
+      const verifyRoot = verifyRes?.data;
+      const verifyData = verifyRoot?.data ?? verifyRoot;
+      const verifiedWallet = verifyData?.wallet ?? verifyData?.data?.wallet;
+      if (verifiedWallet?._id) {
+        setLinkedWallets((prev) => {
+          const filtered = Array.isArray(prev) ? prev.filter((w: any) => w?._id !== verifiedWallet._id) : [];
+          return [verifiedWallet, ...filtered];
+        });
+      }
 
       toast.success('Solana wallet linked');
       await loadLinkedWallets();
