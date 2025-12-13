@@ -34,6 +34,7 @@ export default function AdminLoginPage() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
+    twoFactorCode: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -41,6 +42,7 @@ export default function AdminLoginPage() {
   const [loginAttempts, setLoginAttempts] = useState(0);
   const [isLocked, setIsLocked] = useState(false);
   const [lockTimer, setLockTimer] = useState(0);
+  const [requires2FA, setRequires2FA] = useState(false);
 
   // Redirect if already authenticated as admin
   useEffect(() => {
@@ -76,9 +78,18 @@ export default function AdminLoginPage() {
       const response = await authAPI.login({
         email: formData.email,
         password: formData.password,
+        twoFactorCode: formData.twoFactorCode,
       });
 
       const data = response.data.data || response.data;
+
+      if (data.requiresTwoFactor) {
+        setRequires2FA(true);
+        toast.success('Enter your 2FA code');
+        setIsLoading(false);
+        return;
+      }
+
       const { user: userData, accessToken, refreshToken } = data;
 
       // Check if user is admin
@@ -90,8 +101,6 @@ export default function AdminLoginPage() {
           setIsLocked(true);
           setLockTimer(30);
         }
-        
-        setIsLoading(false);
         return;
       }
 
@@ -225,6 +234,27 @@ export default function AdminLoginPage() {
                   </button>
                 </div>
               </div>
+
+              {/* 2FA Field */}
+              {requires2FA && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Two-Factor Authentication Code
+                  </label>
+                  <div className="relative">
+                    <Shield className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={20} />
+                    <input
+                      type="text"
+                      value={formData.twoFactorCode}
+                      onChange={(e) => setFormData({ ...formData, twoFactorCode: e.target.value })}
+                      placeholder="000000"
+                      maxLength={6}
+                      disabled={isLocked}
+                      className="w-full pl-12 pr-4 py-4 bg-dark-700/50 border border-dark-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all disabled:opacity-50"
+                    />
+                  </div>
+                </div>
+              )}
 
               {/* Submit Button */}
               <Button
