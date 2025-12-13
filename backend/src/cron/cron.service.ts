@@ -11,12 +11,15 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Investment, InvestmentDocument, InvestmentStatus } from '../schemas/investment.schema';
+import { RecurringPlan, RecurringPlanDocument, RecurringPlanStatus } from '../schemas/recurring-plan.schema';
 import { Wallet, WalletDocument } from '../schemas/wallet.schema';
 import { Transaction, TransactionDocument, TransactionType, TransactionStatus } from '../schemas/transaction.schema';
 import { InvestmentPlan, InvestmentPlanDocument } from '../schemas/investment-plan.schema';
 import { User, UserDocument } from '../schemas/user.schema';
 import { generateReference, roundTo, calculatePercentage } from '../common/utils/helpers';
 import { CurrencyService } from '../currency/currency.service';
+import { EmailService } from '../email/email.service';
+import { MarketService } from '../market/market.service';
 
 @Injectable()
 export class CronService {
@@ -24,12 +27,162 @@ export class CronService {
 
   constructor(
     @InjectModel(Investment.name) private investmentModel: Model<InvestmentDocument>,
+    @InjectModel(RecurringPlan.name) private recurringPlanModel: Model<RecurringPlanDocument>,
     @InjectModel(Wallet.name) private walletModel: Model<WalletDocument>,
     @InjectModel(Transaction.name) private transactionModel: Model<TransactionDocument>,
     @InjectModel(InvestmentPlan.name) private planModel: Model<InvestmentPlanDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     private currencyService: CurrencyService,
+    private emailService: EmailService,
+    private marketService: MarketService,
   ) {}
+
+  /**
+   * Check recurring plans (daily):
+   * - send payment reminders
+   * - mark missed payments
+   * - notify on maturity
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_1AM, {
+    name: 'recurring-plan-check',
+    timeZone: 'UTC',
+  })
+  async handleRecurringPlanCheck() {
+    this.logger.log('🗓️ Running recurring plan check...');
+    const startTime = Date.now();
+
+    try {
+      const result = await this.processRecurringPlans();
+      const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+      this.logger.log(
+        `✅ Recurring plan check complete (reminders=${result.remindersSent}, missed=${result.markedMissed}, maturedNotified=${result.maturedNotified}) in ${duration}s`,
+      );
+    } catch (error) {
+      this.logger.error('❌ Recurring plan check failed:', error);
+    }
+  }
+
+  private async processRecurringPlans() {
+    const now = new Date();
+    const today = new Date(now);
+    today.setHours(0, 0, 0, 0);
+
+    const reminderWindowStart = new Date(today);
+    reminderWindowStart.setDate(reminderWindowStart.getDate() - 1);
+
+    const reminderWindowEnd = new Date(today);
+    reminderWindowEnd.setDate(reminderWindowEnd.getDate() + 3);
+
+    const [dueSoonPlans, overduePlans, maturedPlans] = await Promise.all([
+      this.recurringPlanModel.find({
+        status: RecurringPlanStatus.ACTIVE,
+        $expr: { $lt: ['$monthsCompleted', '$monthsRequired'] } as any,
+        nextPaymentDate: { $gte: reminderWindowStart, $lte: reminderWindowEnd },
+      }),
+      this.recurringPlanModel.find({
+        status: RecurringPlanStatus.ACTIVE,
+        nextPaymentDate: { $lt: today },
+      }),
+      this.recurringPlanModel.find({
+        status: RecurringPlanStatus.MATURED,
+        maturityDate: { $lte: now },
+      }),
+    ]);
+
+    let remindersSent = 0;
+    let markedMissed = 0;
+    let maturedNotified = 0;
+
+    for (const plan of dueSoonPlans) {
+      try {
+        if (plan.lastPaymentReminderSentAt) {
+          const last = new Date(plan.lastPaymentReminderSentAt);
+          last.setHours(0, 0, 0, 0);
+          if (last.getTime() === today.getTime()) {
+            continue;
+          }
+        }
+
+        const user = await this.userModel.findById(plan.userId);
+        if (!user || !user.emailNotifications) {
+          continue;
+        }
+
+        await this.emailService.sendRecurringPaymentDueEmail(
+          user.email,
+          user.firstName,
+          plan.planType,
+          plan.monthlyContribution,
+          plan.nextPaymentDate,
+        );
+
+        plan.lastPaymentReminderSentAt = now;
+        await plan.save();
+        remindersSent++;
+      } catch (error) {
+        this.logger.error(`Error sending recurring reminder for plan ${plan._id}:`, error);
+      }
+    }
+
+    for (const plan of overduePlans) {
+      try {
+        if (plan.monthsCompleted >= plan.monthsRequired) {
+          continue;
+        }
+
+        plan.status = RecurringPlanStatus.MISSED;
+
+        const shouldNotify = !plan.lastMissedNotifiedAt;
+        if (shouldNotify) {
+          const user = await this.userModel.findById(plan.userId);
+          if (user && user.emailNotifications) {
+            await this.emailService.sendRecurringMissedPaymentEmail(
+              user.email,
+              user.firstName,
+              plan.planType,
+              plan.monthlyContribution,
+              plan.nextPaymentDate,
+            );
+            plan.lastMissedNotifiedAt = now;
+          }
+        }
+
+        await plan.save();
+        markedMissed++;
+      } catch (error) {
+        this.logger.error(`Error marking recurring plan missed ${plan._id}:`, error);
+      }
+    }
+
+    for (const plan of maturedPlans) {
+      try {
+        if (plan.lastMaturityNotifiedAt) {
+          continue;
+        }
+
+        const user = await this.userModel.findById(plan.userId);
+        if (!user || !user.emailNotifications) {
+          continue;
+        }
+
+        await this.emailService.sendRecurringPlanMaturedEmail(
+          user.email,
+          user.firstName,
+          plan.planType,
+          plan.totalContributed,
+          plan.maturityDate,
+        );
+
+        plan.lastMaturityNotifiedAt = now;
+        await plan.save();
+        maturedNotified++;
+      } catch (error) {
+        this.logger.error(`Error notifying recurring plan maturity ${plan._id}:`, error);
+      }
+    }
+
+    return { remindersSent, markedMissed, maturedNotified };
+  }
 
   /**
    * Process daily profits every day at midnight UTC
@@ -89,7 +242,43 @@ export class CronService {
         }
 
         // Calculate daily profit
-        const dailyProfit = investment.dailyProfitAmount;
+        let dailyProfit = investment.dailyProfitAmount;
+        if (investment.marketLinked && investment.marketAssetId) {
+          const price = await this.marketService.getCryptoPrice(investment.marketAssetId);
+          const currentPrice = price?.current_price;
+
+          const baseRate =
+            typeof investment.marketBaseDailyRate === 'number'
+              ? investment.marketBaseDailyRate
+              : investment.dailyReturnRate;
+
+          let computedRate = baseRate;
+          if (
+            typeof currentPrice === 'number' &&
+            typeof investment.marketLastPrice === 'number' &&
+            investment.marketLastPrice > 0
+          ) {
+            const priceChangePct = ((currentPrice - investment.marketLastPrice) / investment.marketLastPrice) * 100;
+            const alpha = typeof investment.marketAlpha === 'number' ? investment.marketAlpha : 0;
+            computedRate = baseRate + alpha * priceChangePct;
+          }
+
+          if (typeof investment.marketMinDailyRate === 'number') {
+            computedRate = Math.max(computedRate, investment.marketMinDailyRate);
+          }
+          if (typeof investment.marketMaxDailyRate === 'number') {
+            computedRate = Math.min(computedRate, investment.marketMaxDailyRate);
+          }
+
+          if (!Number.isFinite(computedRate) || computedRate < 0) {
+            computedRate = Math.max(baseRate, 0);
+          }
+
+          dailyProfit = roundTo(calculatePercentage(investment.amount, computedRate), 2);
+          if (typeof currentPrice === 'number') {
+            investment.marketLastPrice = currentPrice;
+          }
+        }
 
         // Update investment record
         investment.accumulatedProfit = roundTo(investment.accumulatedProfit + dailyProfit, 2);

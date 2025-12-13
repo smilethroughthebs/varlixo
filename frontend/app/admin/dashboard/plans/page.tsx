@@ -83,6 +83,12 @@ interface InvestmentPlan {
   status: 'active' | 'inactive' | 'coming_soon';
   category: string;
   riskLevel: 'low' | 'medium' | 'high' | 'very_high';
+  marketLinked?: boolean;
+  marketAssetId?: string;
+  marketBaseDailyRate?: number;
+  marketAlpha?: number;
+  marketMinDailyRate?: number;
+  marketMaxDailyRate?: number;
   countryLimits?: Array<{
     country: string;
     minInvestment: number;
@@ -117,6 +123,12 @@ export default function AdminPlansPage() {
     category: 'stocks',
     riskLevel: 'medium',
     status: 'active',
+    marketLinked: false,
+    marketAssetId: '',
+    marketBaseDailyRate: '',
+    marketAlpha: '',
+    marketMinDailyRate: '',
+    marketMaxDailyRate: '',
   });
 
   useEffect(() => {
@@ -147,6 +159,12 @@ export default function AdminPlansPage() {
       category: 'stocks',
       riskLevel: 'medium',
       status: 'active',
+      marketLinked: false,
+      marketAssetId: '',
+      marketBaseDailyRate: '',
+      marketAlpha: '',
+      marketMinDailyRate: '',
+      marketMaxDailyRate: '',
     });
     setCountryLimits([]);
     setEditingPlan(null);
@@ -163,6 +181,12 @@ export default function AdminPlansPage() {
         dailyReturnRate: parseFloat(formData.dailyReturnRate),
         totalReturnRate: parseFloat(formData.totalReturnRate),
         durationDays: parseInt(formData.durationDays),
+        marketLinked: Boolean(formData.marketLinked),
+        marketAssetId: formData.marketAssetId?.trim() || undefined,
+        marketBaseDailyRate: formData.marketBaseDailyRate !== '' ? parseFloat(formData.marketBaseDailyRate) : undefined,
+        marketAlpha: formData.marketAlpha !== '' ? parseFloat(formData.marketAlpha) : undefined,
+        marketMinDailyRate: formData.marketMinDailyRate !== '' ? parseFloat(formData.marketMinDailyRate) : undefined,
+        marketMaxDailyRate: formData.marketMaxDailyRate !== '' ? parseFloat(formData.marketMaxDailyRate) : undefined,
         countryLimits: countryLimits.map(limit => ({
           country: limit.country,
           minInvestment: parseFloat(limit.minInvestment),
@@ -200,6 +224,12 @@ export default function AdminPlansPage() {
       category: plan.category,
       riskLevel: plan.riskLevel,
       status: plan.status,
+      marketLinked: Boolean(plan.marketLinked),
+      marketAssetId: plan.marketAssetId || '',
+      marketBaseDailyRate: typeof plan.marketBaseDailyRate === 'number' ? String(plan.marketBaseDailyRate) : '',
+      marketAlpha: typeof plan.marketAlpha === 'number' ? String(plan.marketAlpha) : '',
+      marketMinDailyRate: typeof plan.marketMinDailyRate === 'number' ? String(plan.marketMinDailyRate) : '',
+      marketMaxDailyRate: typeof plan.marketMaxDailyRate === 'number' ? String(plan.marketMaxDailyRate) : '',
     });
     
     if (plan.countryLimits) {
@@ -494,6 +524,70 @@ export default function AdminPlansPage() {
                   <option value="inactive">Inactive</option>
                   <option value="coming_soon">Coming Soon</option>
                 </select>
+              </div>
+
+              <div className="p-4 bg-dark-700 rounded-lg space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-white font-medium">Market-linked payouts</p>
+                    <p className="text-gray-400 text-sm">Adjust daily rate based on asset price movement</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(formData.marketLinked)}
+                    onChange={(e) => setFormData({ ...formData, marketLinked: e.target.checked })}
+                    className="h-5 w-5 rounded border-dark-500 bg-dark-600 text-primary-500 focus:ring-primary-500"
+                  />
+                </div>
+
+                {formData.marketLinked ? (
+                  <div className="space-y-4">
+                    <Input
+                      label="Market Asset ID (CoinGecko)"
+                      value={formData.marketAssetId}
+                      onChange={(e) => setFormData({ ...formData, marketAssetId: e.target.value })}
+                      placeholder="e.g. bitcoin, ethereum"
+                    />
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <Input
+                        label="Base Daily Rate (%)"
+                        type="number"
+                        step="0.01"
+                        value={formData.marketBaseDailyRate}
+                        onChange={(e) => setFormData({ ...formData, marketBaseDailyRate: e.target.value })}
+                        placeholder="e.g. 1.2"
+                      />
+                      <Input
+                        label="Alpha (multiplier)"
+                        type="number"
+                        step="0.01"
+                        value={formData.marketAlpha}
+                        onChange={(e) => setFormData({ ...formData, marketAlpha: e.target.value })}
+                        placeholder="e.g. 0.1"
+                      />
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <Input
+                        label="Min Daily Rate (%)"
+                        type="number"
+                        step="0.01"
+                        value={formData.marketMinDailyRate}
+                        onChange={(e) => setFormData({ ...formData, marketMinDailyRate: e.target.value })}
+                        placeholder="e.g. 0"
+                      />
+                      <Input
+                        label="Max Daily Rate (%)"
+                        type="number"
+                        step="0.01"
+                        value={formData.marketMaxDailyRate}
+                        onChange={(e) => setFormData({ ...formData, marketMaxDailyRate: e.target.value })}
+                        placeholder="e.g. 5"
+                      />
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
               {/* Country-Specific Limits */}

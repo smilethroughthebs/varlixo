@@ -35,6 +35,13 @@ export enum AdminActionType {
   // Investment actions
   INVESTMENT_CANCEL = 'investment_cancel',
   INVESTMENT_MODIFY = 'investment_modify',
+  INVESTMENT_PROCESS_PROFITS = 'investment_process_profits',
+
+  // Recurring plan actions
+  RECURRING_MARK_PAID = 'recurring_mark_paid',
+  RECURRING_MARK_MISSED = 'recurring_mark_missed',
+  RECURRING_UPDATE_PORTFOLIO = 'recurring_update_portfolio',
+  RECURRING_APPROVE_WITHDRAWAL = 'recurring_approve_withdrawal',
   
   // Plan management
   PLAN_CREATE = 'plan_create',

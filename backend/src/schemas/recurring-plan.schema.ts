@@ -69,6 +69,21 @@ export class RecurringPlan {
   @Prop({ default: false })
   withdrawalApproved: boolean;
 
+  @Prop()
+  withdrawalRequestedAt: Date;
+
+  @Prop()
+  withdrawalApprovedAt: Date;
+
+  @Prop()
+  lastPaymentReminderSentAt: Date;
+
+  @Prop()
+  lastMissedNotifiedAt: Date;
+
+  @Prop()
+  lastMaturityNotifiedAt: Date;
+
   createdAt: Date;
   updatedAt: Date;
 }

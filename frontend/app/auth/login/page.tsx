@@ -26,6 +26,7 @@ const loginSchema = z.object({
   email: z.string().email('Please enter a valid email'),
   password: z.string().min(1, 'Password is required'),
   twoFactorCode: z.string().optional(),
+  emailOtp: z.string().optional(),
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
@@ -35,6 +36,9 @@ export default function LoginPage() {
   const { login } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
   const [requires2FA, setRequires2FA] = useState(false);
+  const [requiresEmailOtp, setRequiresEmailOtp] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState('');
+  const [pendingPassword, setPendingPassword] = useState('');
   const [mounted, setMounted] = useState(false);
 
   // Quick mount for faster perceived loading
@@ -45,6 +49,7 @@ export default function LoginPage() {
   const {
     register,
     handleSubmit,
+    getValues,
     formState: { errors },
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -54,12 +59,33 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginForm) => {
     setIsLoading(true);
     try {
-      const response = await authAPI.login(data);
+      const emailToUse = requiresEmailOtp ? pendingEmail : data.email;
+      const passwordToUse = requiresEmailOtp ? pendingPassword : data.password;
+
+      if (!requiresEmailOtp) {
+        setPendingEmail(data.email);
+        setPendingPassword(data.password);
+      }
+
+      const response = await authAPI.login({
+        email: emailToUse,
+        password: passwordToUse,
+        twoFactorCode: data.twoFactorCode,
+        emailOtp: data.emailOtp,
+      });
       const result = response.data.data || response.data;
 
       if (result.requiresTwoFactor) {
         setRequires2FA(true);
+        setRequiresEmailOtp(false);
         toast.success('Enter your 2FA code');
+        setIsLoading(false);
+        return;
+      }
+
+      if (result.requiresEmailOtp) {
+        setRequiresEmailOtp(true);
+        toast.success('Enter the 6-digit code sent to your email');
         setIsLoading(false);
         return;
       }
@@ -79,6 +105,36 @@ export default function LoginPage() {
       toast.error(message);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const resendLoginOtp = async () => {
+    const email = requiresEmailOtp ? pendingEmail : getValues('email');
+    if (!email) {
+      toast.error('Enter your email first');
+      return;
+    }
+    try {
+      await authAPI.resendOtp(email, 'login');
+      toast.success('Login code resent');
+    } catch (error: any) {
+      const message = error.response?.data?.message || 'Failed to resend code';
+      toast.error(message);
+    }
+  };
+
+  const resendVerificationEmail = async () => {
+    const email = requiresEmailOtp ? pendingEmail : getValues('email');
+    if (!email) {
+      toast.error('Enter your email first');
+      return;
+    }
+    try {
+      await authAPI.resendVerification(email);
+      toast.success('Verification email sent');
+    } catch (error: any) {
+      const message = error.response?.data?.message || 'Failed to resend verification email';
+      toast.error(message);
     }
   };
 
@@ -121,6 +177,7 @@ export default function LoginPage() {
               placeholder="Enter your email"
               leftIcon={<Mail size={20} />}
               error={errors.email?.message}
+              disabled={requiresEmailOtp}
               {...register('email')}
             />
 
@@ -130,6 +187,7 @@ export default function LoginPage() {
               placeholder="Enter your password"
               leftIcon={<Lock size={20} />}
               error={errors.password?.message}
+              disabled={requiresEmailOtp}
               {...register('password')}
             />
 
@@ -147,6 +205,39 @@ export default function LoginPage() {
                   error={errors.twoFactorCode?.message}
                   {...register('twoFactorCode')}
                 />
+              </motion.div>
+            )}
+
+            {requiresEmailOtp && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+              >
+                <Input
+                  label="Email OTP"
+                  type="text"
+                  placeholder="Enter 6-digit code"
+                  leftIcon={<Shield size={20} />}
+                  maxLength={6}
+                  error={errors.emailOtp?.message}
+                  {...register('emailOtp')}
+                />
+                <div className="flex items-center justify-between mt-2">
+                  <button
+                    type="button"
+                    onClick={resendLoginOtp}
+                    className="text-xs text-primary-500 hover:text-primary-400"
+                  >
+                    Resend code
+                  </button>
+                  <button
+                    type="button"
+                    onClick={resendVerificationEmail}
+                    className="text-xs text-primary-500 hover:text-primary-400"
+                  >
+                    Resend verification email
+                  </button>
+                </div>
               </motion.div>
             )}
 

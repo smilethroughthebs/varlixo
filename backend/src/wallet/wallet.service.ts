@@ -15,8 +15,16 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import * as speakeasy from 'speakeasy';
+import { ethers } from 'ethers';
+import * as nacl from 'tweetnacl';
+import bs58 from 'bs58';
 import { Wallet, WalletDocument } from '../schemas/wallet.schema';
 import { User, UserDocument, KycStatus } from '../schemas/user.schema';
+import {
+  LinkedWallet,
+  LinkedWalletDocument,
+  LinkedWalletChain,
+} from '../schemas/linked-wallet.schema';
 import { Deposit, DepositDocument } from '../schemas/deposit.schema';
 import { Withdrawal, WithdrawalDocument } from '../schemas/withdrawal.schema';
 import {
@@ -27,6 +35,7 @@ import {
   PaymentMethod,
 } from '../schemas/transaction.schema';
 import { CreateDepositDto, CreateWithdrawalDto } from './dto/wallet.dto';
+import { RequestLinkedWalletNonceDto, VerifyLinkedWalletDto } from './dto/linked-wallet.dto';
 import { generateReference, roundTo } from '../common/utils/helpers';
 import { PaginationDto, createPaginatedResponse } from '../common/dto/pagination.dto';
 import { EmailService } from '../email/email.service';
@@ -38,6 +47,7 @@ export class WalletService {
   constructor(
     @InjectModel(Wallet.name) private walletModel: Model<WalletDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(LinkedWallet.name) private linkedWalletModel: Model<LinkedWalletDocument>,
     @InjectModel(Deposit.name) private depositModel: Model<DepositDocument>,
     @InjectModel(Withdrawal.name) private withdrawalModel: Model<WithdrawalDocument>,
     @InjectModel(Transaction.name) private transactionModel: Model<TransactionDocument>,
@@ -390,6 +400,177 @@ export class WalletService {
   private generateRandomString(length: number): string {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
     return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  }
+
+  private normalizeLinkedWalletAddress(chain: LinkedWalletChain, address: string): string {
+    const raw = (address || '').trim();
+    if (!raw) {
+      throw new BadRequestException('Wallet address is required');
+    }
+
+    if (chain === LinkedWalletChain.EVM) {
+      try {
+        return ethers.utils.getAddress(raw);
+      } catch {
+        throw new BadRequestException('Invalid EVM wallet address');
+      }
+    }
+
+    if (chain === LinkedWalletChain.SOLANA) {
+      // Basic validation: must decode as base58 public key
+      try {
+        bs58.decode(raw);
+      } catch {
+        throw new BadRequestException('Invalid Solana wallet address');
+      }
+      return raw;
+    }
+
+    throw new BadRequestException('Unsupported wallet chain');
+  }
+
+  private buildLinkedWalletMessage(chain: LinkedWalletChain, address: string, nonce: string): string {
+    const now = new Date().toISOString();
+    return `Varlixo wallet verification\n\nChain: ${chain}\nAddress: ${address}\nNonce: ${nonce}\nIssuedAt: ${now}`;
+  }
+
+  async listLinkedWallets(userId: string) {
+    const wallets = await this.linkedWalletModel
+      .find({ userId: new Types.ObjectId(userId) })
+      .sort({ createdAt: -1 });
+
+    return {
+      success: true,
+      wallets,
+    };
+  }
+
+  async requestLinkedWalletNonce(userId: string, dto: RequestLinkedWalletNonceDto) {
+    const chain = dto.chain;
+    const address = this.normalizeLinkedWalletAddress(chain, dto.address);
+    const nonce = this.generateRandomString(24);
+    const message = this.buildLinkedWalletMessage(chain, address, nonce);
+
+    const existing = await this.linkedWalletModel.findOne({
+      userId: new Types.ObjectId(userId),
+      chain,
+      address,
+    });
+
+    if (existing?.verified) {
+      return {
+        success: true,
+        verified: true,
+        wallet: existing,
+      };
+    }
+
+    const wallet =
+      existing ||
+      (await this.linkedWalletModel.create({
+        userId: new Types.ObjectId(userId),
+        chain,
+        address,
+      }));
+
+    wallet.label = dto.label;
+    wallet.pendingNonce = nonce;
+    wallet.pendingMessage = message;
+    wallet.lastLinkedAt = new Date();
+    await wallet.save();
+
+    return {
+      success: true,
+      verified: false,
+      chain,
+      address,
+      message,
+    };
+  }
+
+  async verifyLinkedWallet(userId: string, dto: VerifyLinkedWalletDto) {
+    const chain = dto.chain;
+    const address = this.normalizeLinkedWalletAddress(chain, dto.address);
+    const signature = (dto.signature || '').trim();
+
+    if (!signature) {
+      throw new BadRequestException('Signature is required');
+    }
+
+    const wallet = await this.linkedWalletModel.findOne({
+      userId: new Types.ObjectId(userId),
+      chain,
+      address,
+    });
+
+    if (!wallet) {
+      throw new NotFoundException('Linked wallet not found');
+    }
+
+    if (wallet.verified) {
+      return {
+        success: true,
+        verified: true,
+        wallet,
+      };
+    }
+
+    if (!wallet.pendingMessage || !wallet.pendingNonce) {
+      throw new BadRequestException('No pending verification request for this wallet');
+    }
+
+    const message = wallet.pendingMessage;
+
+    let isValid = false;
+    if (chain === LinkedWalletChain.EVM) {
+      try {
+        const recovered = ethers.utils.verifyMessage(message, signature);
+        isValid = ethers.utils.getAddress(recovered) === ethers.utils.getAddress(address);
+      } catch {
+        isValid = false;
+      }
+    } else if (chain === LinkedWalletChain.SOLANA) {
+      try {
+        const publicKeyBytes = bs58.decode(address);
+        const signatureBytes = bs58.decode(signature);
+        const messageBytes = Buffer.from(message, 'utf8');
+        isValid = nacl.sign.detached.verify(messageBytes, signatureBytes, publicKeyBytes);
+      } catch {
+        isValid = false;
+      }
+    }
+
+    if (!isValid) {
+      throw new BadRequestException('Invalid signature');
+    }
+
+    wallet.verified = true;
+    wallet.verifiedAt = new Date();
+    wallet.pendingNonce = undefined;
+    wallet.pendingMessage = undefined;
+    await wallet.save();
+
+    return {
+      success: true,
+      verified: true,
+      wallet,
+    };
+  }
+
+  async removeLinkedWallet(userId: string, linkedWalletId: string) {
+    const res = await this.linkedWalletModel.deleteOne({
+      _id: new Types.ObjectId(linkedWalletId),
+      userId: new Types.ObjectId(userId),
+    });
+
+    if (!res.deletedCount) {
+      throw new NotFoundException('Linked wallet not found');
+    }
+
+    return {
+      success: true,
+      message: 'Linked wallet removed',
+    };
   }
 
   /**

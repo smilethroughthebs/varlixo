@@ -20,7 +20,14 @@ import {
 import { Request } from 'express';
 import { InvestmentService } from './investment.service';
 import { CreateInvestmentDto, CalculateReturnsDto, CreatePlanDto, UpdatePlanDto } from './dto/investment.dto';
-import { StartRecurringPlanDto } from './dto/recurring-plan.dto';
+import {
+  StartRecurringPlanDto,
+  RequestRecurringWithdrawalDto,
+  AdminMarkRecurringPaidDto,
+  AdminMarkRecurringMissedDto,
+  AdminUpdateRecurringPortfolioDto,
+  AdminApproveRecurringWithdrawalDto,
+} from './dto/recurring-plan.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { AdminGuard } from '../common/guards/admin.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -139,6 +146,19 @@ export class InvestmentController {
   }
 
   /**
+   * Request withdrawal for a matured recurring plan
+   * POST /investments/recurring/request-withdrawal
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('recurring/request-withdrawal')
+  async requestRecurringWithdrawal(
+    @CurrentUser('sub') userId: string,
+    @Body() dto: RequestRecurringWithdrawalDto,
+  ) {
+    return this.investmentService.requestRecurringWithdrawal(userId, dto.planId);
+  }
+
+  /**
    * Get user's investment summary
    * GET /investments/summary
    */
@@ -192,6 +212,74 @@ export class InvestmentController {
   }
 
   /**
+   * Admin: Mark a recurring plan month as paid
+   * POST /investments/admin/recurring/:id/mark-paid
+   */
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Post('admin/recurring/:id/mark-paid')
+  async adminMarkRecurringPaid(
+    @CurrentUser('sub') adminId: string,
+    @Param('id') planId: string,
+    @Body() dto: AdminMarkRecurringPaidDto,
+    @Req() req: Request,
+  ) {
+    const ipAddress = getClientIp(req);
+    const userAgent = req.headers['user-agent'];
+    return this.investmentService.adminMarkRecurringPaid(adminId, planId, dto, ipAddress, userAgent);
+  }
+
+  /**
+   * Admin: Mark a recurring plan as missed
+   * POST /investments/admin/recurring/:id/mark-missed
+   */
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Post('admin/recurring/:id/mark-missed')
+  async adminMarkRecurringMissed(
+    @CurrentUser('sub') adminId: string,
+    @Param('id') planId: string,
+    @Body() dto: AdminMarkRecurringMissedDto,
+    @Req() req: Request,
+  ) {
+    const ipAddress = getClientIp(req);
+    const userAgent = req.headers['user-agent'];
+    return this.investmentService.adminMarkRecurringMissed(adminId, planId, dto, ipAddress, userAgent);
+  }
+
+  /**
+   * Admin: Update recurring plan portfolio value
+   * POST /investments/admin/recurring/:id/update-portfolio
+   */
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Post('admin/recurring/:id/update-portfolio')
+  async adminUpdateRecurringPortfolio(
+    @CurrentUser('sub') adminId: string,
+    @Param('id') planId: string,
+    @Body() dto: AdminUpdateRecurringPortfolioDto,
+    @Req() req: Request,
+  ) {
+    const ipAddress = getClientIp(req);
+    const userAgent = req.headers['user-agent'];
+    return this.investmentService.adminUpdateRecurringPortfolio(adminId, planId, dto, ipAddress, userAgent);
+  }
+
+  /**
+   * Admin: Approve recurring plan withdrawal
+   * POST /investments/admin/recurring/:id/approve-withdrawal
+   */
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Post('admin/recurring/:id/approve-withdrawal')
+  async adminApproveRecurringWithdrawal(
+    @CurrentUser('sub') adminId: string,
+    @Param('id') planId: string,
+    @Body() dto: AdminApproveRecurringWithdrawalDto,
+    @Req() req: Request,
+  ) {
+    const ipAddress = getClientIp(req);
+    const userAgent = req.headers['user-agent'];
+    return this.investmentService.adminApproveRecurringWithdrawal(adminId, planId, dto, ipAddress, userAgent);
+  }
+
+  /**
    * Admin: Get all plans
    * GET /investments/admin/plans
    */
@@ -207,8 +295,14 @@ export class InvestmentController {
    */
   @UseGuards(JwtAuthGuard, AdminGuard)
   @Post('admin/plans')
-  async createPlan(@Body() createPlanDto: CreatePlanDto) {
-    return this.investmentService.createPlan(createPlanDto);
+  async createPlan(
+    @CurrentUser('sub') adminId: string,
+    @Body() createPlanDto: CreatePlanDto,
+    @Req() req: Request,
+  ) {
+    const ipAddress = getClientIp(req);
+    const userAgent = req.headers['user-agent'];
+    return this.investmentService.createPlan(adminId, createPlanDto, ipAddress, userAgent, req.originalUrl, req.method);
   }
 
   /**
@@ -218,10 +312,14 @@ export class InvestmentController {
   @UseGuards(JwtAuthGuard, AdminGuard)
   @Put('admin/plans/:id')
   async updatePlan(
+    @CurrentUser('sub') adminId: string,
     @Param('id') planId: string,
     @Body() updatePlanDto: UpdatePlanDto,
+    @Req() req: Request,
   ) {
-    return this.investmentService.updatePlan(planId, updatePlanDto);
+    const ipAddress = getClientIp(req);
+    const userAgent = req.headers['user-agent'];
+    return this.investmentService.updatePlan(adminId, planId, updatePlanDto, ipAddress, userAgent, req.originalUrl, req.method);
   }
 
   /**
@@ -230,8 +328,14 @@ export class InvestmentController {
    */
   @UseGuards(JwtAuthGuard, AdminGuard)
   @Delete('admin/plans/:id')
-  async deletePlan(@Param('id') planId: string) {
-    return this.investmentService.deletePlan(planId);
+  async deletePlan(
+    @CurrentUser('sub') adminId: string,
+    @Param('id') planId: string,
+    @Req() req: Request,
+  ) {
+    const ipAddress = getClientIp(req);
+    const userAgent = req.headers['user-agent'];
+    return this.investmentService.deletePlan(adminId, planId, ipAddress, userAgent, req.originalUrl, req.method);
   }
 
   /**
@@ -240,8 +344,13 @@ export class InvestmentController {
    */
   @UseGuards(JwtAuthGuard, AdminGuard)
   @Post('admin/process-profits')
-  async processProfits() {
-    return this.investmentService.processDailyProfits();
+  async processProfits(
+    @CurrentUser('sub') adminId: string,
+    @Req() req: Request,
+  ) {
+    const ipAddress = getClientIp(req);
+    const userAgent = req.headers['user-agent'];
+    return this.investmentService.processDailyProfits(adminId, ipAddress, userAgent, req.originalUrl, req.method);
   }
 }
 

@@ -57,11 +57,45 @@ export class AuthService {
    * Register a new user
    */
   async register(registerDto: RegisterDto, ipAddress?: string) {
-    const { email, password, confirmPassword, firstName, lastName, referralCode, country, phone } = registerDto;
+    const {
+      email,
+      password,
+      confirmPassword,
+      firstName,
+      lastName,
+      referralCode,
+      country,
+      dateOfBirth,
+      phone,
+      occupation,
+      annualIncomeRange,
+      sourceOfFunds,
+      investmentExperience,
+      agreeTerms,
+      marketingOptIn,
+    } = registerDto;
 
     // Validate password confirmation
     if (password !== confirmPassword) {
       throw new BadRequestException('Passwords do not match');
+    }
+
+    if (!agreeTerms) {
+      throw new BadRequestException('You must accept the terms');
+    }
+
+    const dob = new Date(dateOfBirth);
+    if (Number.isNaN(dob.getTime())) {
+      throw new BadRequestException('Invalid date of birth');
+    }
+
+    const today = new Date();
+    const age = today.getFullYear() - dob.getFullYear();
+    const monthDiff = today.getMonth() - dob.getMonth();
+    const dayDiff = today.getDate() - dob.getDate();
+    const isAtLeast18 = age > 18 || (age === 18 && (monthDiff > 0 || (monthDiff === 0 && dayDiff >= 0)));
+    if (!isAtLeast18) {
+      throw new BadRequestException('You must be at least 18 years old');
     }
 
     // Check if user already exists
@@ -99,7 +133,17 @@ export class AuthService {
         email: email.toLowerCase(),
         password: hashedPassword,
         country,
+        countryCode: country,
+        dateOfBirth: dob,
         phone,
+        phoneE164: phone && phone.trim().startsWith('+') ? phone.trim() : undefined,
+        occupation,
+        annualIncomeRange,
+        sourceOfFunds,
+        investmentExperience,
+        agreedToTerms: true,
+        agreedToTermsAt: new Date(),
+        marketingOptIn: !!marketingOptIn,
         referralCode: userReferralCode,
         referredBy,
         emailVerificationToken,
@@ -171,7 +215,7 @@ export class AuthService {
    * User login with optional 2FA
    */
   async login(loginDto: LoginDto, ipAddress?: string, userAgent?: string) {
-    const { email, password, twoFactorCode } = loginDto;
+    const { email, password, twoFactorCode, emailOtp } = loginDto;
 
     // Find user by email
     const user = await this.userModel.findOne({ email: email.toLowerCase() });
@@ -186,6 +230,10 @@ export class AuthService {
 
     if (user.status === UserStatus.SUSPENDED) {
       throw new UnauthorizedException('Your account is suspended');
+    }
+
+    if (!user.emailVerified) {
+      throw new UnauthorizedException('Please verify your email before logging in');
     }
 
     // Check if account is locked
@@ -237,6 +285,24 @@ export class AuthService {
         throw new UnauthorizedException('Invalid two-factor authentication code');
       }
     }
+
+    if (!emailOtp) {
+      const otp = await this.otpService.generateOtp(
+        user.email,
+        OtpType.LOGIN,
+        user._id.toString(),
+        ipAddress,
+      );
+
+      await this.emailService.sendOtpEmail(user.email, user.firstName, otp.code, 'login');
+
+      return {
+        requiresEmailOtp: true,
+        message: 'A 6-digit login code has been sent to your email. Please enter the code to continue.',
+      };
+    }
+
+    await this.otpService.verifyOtp(user.email, emailOtp, OtpType.LOGIN);
 
     // Reset failed login attempts and update last login
     await this.userModel.findByIdAndUpdate(user._id, {
@@ -895,7 +961,14 @@ export class AuthService {
   async resendOtp(sendOtpDto: SendOtpDto, ipAddress?: string) {
     const { email, type = 'verification' } = sendOtpDto;
 
-    const otpType = type === 'reset' ? OtpType.PASSWORD_RESET : OtpType.EMAIL_VERIFICATION;
+    const otpType =
+      type === 'reset'
+        ? OtpType.PASSWORD_RESET
+        : type === 'withdrawal'
+          ? OtpType.WITHDRAWAL_CONFIRMATION
+          : type === 'login'
+            ? OtpType.LOGIN
+            : OtpType.EMAIL_VERIFICATION;
 
     // Check if user exists
     const user = await this.userModel.findOne({ email: email.toLowerCase() });
@@ -915,17 +988,11 @@ export class AuthService {
         ipAddress,
       );
 
-      // Send email
-      await this.emailService.sendOtpEmail(
-        email,
-        user.firstName,
-        otp.code,
-        type as 'verification' | 'reset' | 'withdrawal',
-      );
+      await this.emailService.sendOtpEmail(email, user.firstName, otp.code, type as any);
 
       return {
         success: true,
-        message: `New ${type} code sent to your email.`,
+        message: 'OTP resent successfully. Code expires in 10 minutes.',
       };
     } catch (error) {
       console.error(`Error resending ${type} OTP:`, error);

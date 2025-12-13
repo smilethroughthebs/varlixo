@@ -100,6 +100,18 @@ const registerSchema = z
     }),
     marketingOptIn: z.boolean().optional(),
   })
+  .refine((data) => {
+    const dob = new Date(data.dateOfBirth);
+    if (Number.isNaN(dob.getTime())) return false;
+    const today = new Date();
+    const age = today.getFullYear() - dob.getFullYear();
+    const monthDiff = today.getMonth() - dob.getMonth();
+    const dayDiff = today.getDate() - dob.getDate();
+    return age > 18 || (age === 18 && (monthDiff > 0 || (monthDiff === 0 && dayDiff >= 0)));
+  }, {
+    message: 'You must be at least 18 years old',
+    path: ['dateOfBirth'],
+  })
   .refine((data) => data.password === data.confirmPassword, {
     message: 'Passwords do not match',
     path: ['confirmPassword'],
@@ -167,7 +179,18 @@ export default function RegisterPage() {
   const onSubmit = async (data: RegisterForm) => {
     setIsLoading(true);
     try {
-      await authAPI.register(data);
+      const phoneRaw = (data.phone || '').trim();
+      const normalizedPhone =
+        phoneRaw.length === 0
+          ? undefined
+          : phoneRaw.startsWith('+')
+            ? phoneRaw
+            : `${phoneDialCode}${phoneRaw.replace(/\D/g, '')}`;
+
+      await authAPI.register({
+        ...data,
+        phone: normalizedPhone,
+      });
       toast.success('Registration successful! Please check your email to verify your account.');
       router.push('/auth/login');
     } catch (error: any) {

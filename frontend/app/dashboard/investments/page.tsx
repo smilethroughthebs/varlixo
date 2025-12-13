@@ -106,6 +106,7 @@ export default function InvestmentsPage() {
   const [showCalculator, setShowCalculator] = useState(false);
   const [calcAmount, setCalcAmount] = useState('1000');
   const [calcPlan, setCalcPlan] = useState(investmentPlans[2]); // Gold plan default
+  const [withdrawingPlanId, setWithdrawingPlanId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPlans();
@@ -138,6 +139,20 @@ export default function InvestmentsPage() {
       }
     } catch (error) {
       console.error('Failed to fetch plans:', error);
+    }
+  };
+
+  const handleRequestRecurringWithdrawal = async (planId: string) => {
+    try {
+      setWithdrawingPlanId(planId);
+      await investmentAPI.requestRecurringWithdrawal(planId);
+      toast.success('Withdrawal request submitted for approval');
+      fetchInvestments();
+    } catch (error: any) {
+      const message = error?.response?.data?.message || 'Failed to request withdrawal';
+      toast.error(message);
+    } finally {
+      setWithdrawingPlanId(null);
     }
   };
 
@@ -492,6 +507,23 @@ export default function InvestmentsPage() {
                     <p className="text-[11px] text-gray-500">
                       Maturity: {plan.maturityDate ? new Date(plan.maturityDate).toLocaleDateString() : '—'}
                     </p>
+
+                    {String(plan.status).toLowerCase() === 'matured' && (
+                      <Button
+                        className="w-full mt-3"
+                        size="sm"
+                        variant="secondary"
+                        isLoading={withdrawingPlanId === String(plan.id)}
+                        disabled={!!plan.withdrawalRequested || !!plan.withdrawalApproved}
+                        onClick={() => handleRequestRecurringWithdrawal(String(plan.id))}
+                      >
+                        {plan.withdrawalApproved
+                          ? 'Withdrawal Approved'
+                          : plan.withdrawalRequested
+                            ? 'Withdrawal Requested'
+                            : 'Request Withdrawal'}
+                      </Button>
+                    )}
                   </motion.div>
                 );
               })}

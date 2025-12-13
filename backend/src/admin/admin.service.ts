@@ -15,6 +15,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { User, UserDocument, UserRole, UserStatus, KycStatus } from '../schemas/user.schema';
 import { Wallet, WalletDocument } from '../schemas/wallet.schema';
+import { LinkedWallet, LinkedWalletDocument } from '../schemas/linked-wallet.schema';
 import { Deposit, DepositDocument } from '../schemas/deposit.schema';
 import { Withdrawal, WithdrawalDocument } from '../schemas/withdrawal.schema';
 import { Transaction, TransactionDocument, TransactionType, TransactionStatus } from '../schemas/transaction.schema';
@@ -30,6 +31,7 @@ export class AdminService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Wallet.name) private walletModel: Model<WalletDocument>,
+    @InjectModel(LinkedWallet.name) private linkedWalletModel: Model<LinkedWalletDocument>,
     @InjectModel(Deposit.name) private depositModel: Model<DepositDocument>,
     @InjectModel(Withdrawal.name) private withdrawalModel: Model<WithdrawalDocument>,
     @InjectModel(Transaction.name) private transactionModel: Model<TransactionDocument>,
@@ -215,8 +217,9 @@ export class AdminService {
       throw new NotFoundException('User not found');
     }
 
-    const [wallet, investments, deposits, withdrawals] = await Promise.all([
+    const [wallet, linkedWallets, investments, deposits, withdrawals] = await Promise.all([
       this.walletModel.findOne({ userId: new Types.ObjectId(userId) }),
+      this.linkedWalletModel.find({ userId: new Types.ObjectId(userId) }).sort({ createdAt: -1 }),
       this.investmentModel.find({ userId: new Types.ObjectId(userId) }).sort({ createdAt: -1 }).limit(10),
       this.depositModel.find({ userId: new Types.ObjectId(userId) }).sort({ createdAt: -1 }).limit(10),
       this.withdrawalModel.find({ userId: new Types.ObjectId(userId) }).sort({ createdAt: -1 }).limit(10),
@@ -226,6 +229,7 @@ export class AdminService {
       success: true,
       user,
       wallet,
+      linkedWallets,
       investments,
       deposits,
       withdrawals,

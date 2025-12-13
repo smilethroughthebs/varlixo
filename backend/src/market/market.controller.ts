@@ -35,6 +35,23 @@ export class MarketController {
     return { success: true, data: price };
   }
 
+  @Public()
+  @Get('price/:id')
+  async getSpotPrice(@Param('id') coinId: string) {
+    const price = await this.marketService.getCryptoPrice(coinId);
+    return {
+      success: true,
+      data: price
+        ? {
+            id: price.id,
+            symbol: price.symbol,
+            priceUsd: price.current_price,
+            timestamp: Date.now(),
+          }
+        : null,
+    };
+  }
+
   /**
    * Get global market stats
    * GET /market/global

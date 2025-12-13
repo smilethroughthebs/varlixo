@@ -49,6 +49,27 @@ export class Investment {
   @Prop({ default: false })
   principalReturn: boolean;
 
+  @Prop({ default: false })
+  marketLinked: boolean;
+
+  @Prop()
+  marketAssetId: string;
+
+  @Prop()
+  marketBaseDailyRate: number;
+
+  @Prop({ default: 0 })
+  marketAlpha: number;
+
+  @Prop()
+  marketMinDailyRate: number;
+
+  @Prop()
+  marketMaxDailyRate: number;
+
+  @Prop()
+  marketLastPrice: number;
+
   // Amount
   @Prop({ required: true, min: 0 })
   amount: number;

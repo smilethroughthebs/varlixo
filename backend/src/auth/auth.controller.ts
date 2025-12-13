@@ -16,6 +16,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { Request } from 'express';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import {
@@ -45,6 +46,7 @@ export class AuthController {
    */
   @Public()
   @Post('register')
+  @Throttle({ default: { limit: 5, ttl: 60 } })
   async register(@Body() registerDto: RegisterDto, @Req() req: Request) {
     const ipAddress = getClientIp(req);
     return this.authService.register(registerDto, ipAddress);
@@ -56,6 +58,7 @@ export class AuthController {
    */
   @Public()
   @Post('login')
+  @Throttle({ default: { limit: 10, ttl: 60 } })
   @HttpCode(HttpStatus.OK)
   async login(@Body() loginDto: LoginDto, @Req() req: Request) {
     const ipAddress = getClientIp(req);
@@ -113,6 +116,7 @@ export class AuthController {
    */
   @Public()
   @Post('forgot-password')
+  @Throttle({ default: { limit: 5, ttl: 60 } })
   @HttpCode(HttpStatus.OK)
   async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
     return this.authService.forgotPassword(forgotPasswordDto.email);
@@ -215,6 +219,7 @@ export class AuthController {
    */
   @Public()
   @Post('otp/send-verification')
+  @Throttle({ default: { limit: 5, ttl: 60 } })
   @HttpCode(HttpStatus.OK)
   async sendVerificationOtp(@Body() sendOtpDto: SendOtpDto, @Req() req: Request) {
     const ipAddress = getClientIp(req);
@@ -238,6 +243,7 @@ export class AuthController {
    */
   @Public()
   @Post('otp/send-reset')
+  @Throttle({ default: { limit: 5, ttl: 60 } })
   @HttpCode(HttpStatus.OK)
   async sendPasswordResetOtp(@Body() sendOtpDto: SendOtpDto, @Req() req: Request) {
     const ipAddress = getClientIp(req);
@@ -261,6 +267,7 @@ export class AuthController {
    */
   @Public()
   @Post('otp/resend')
+  @Throttle({ default: { limit: 5, ttl: 60 } })
   @HttpCode(HttpStatus.OK)
   async resendOtp(@Body() sendOtpDto: SendOtpDto, @Req() req: Request) {
     const ipAddress = getClientIp(req);

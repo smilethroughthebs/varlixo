@@ -14,6 +14,7 @@ import {
   Matches,
   IsNotEmpty,
   IsBoolean,
+  IsDateString,
 } from 'class-validator';
 
 export class RegisterDto {
@@ -54,17 +55,41 @@ export class RegisterDto {
   @IsString()
   referralCode?: string;
 
-  @IsOptional()
   @IsString()
-  country?: string;
+  @IsNotEmpty({ message: 'Country is required' })
+  country: string;
+
+  @IsDateString({}, { message: 'Date of birth must be a valid date' })
+  @IsNotEmpty({ message: 'Date of birth is required' })
+  dateOfBirth: string;
 
   @IsOptional()
   @IsString()
   phone?: string;
 
   @IsOptional()
+  @IsString()
+  occupation?: string;
+
+  @IsOptional()
+  @IsString()
+  annualIncomeRange?: string;
+
+  @IsOptional()
+  @IsString()
+  sourceOfFunds?: string;
+
+  @IsOptional()
+  @IsString()
+  investmentExperience?: string;
+
   @IsBoolean()
-  agreeTerms?: boolean;
+  @IsNotEmpty({ message: 'You must accept the terms' })
+  agreeTerms: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  marketingOptIn?: boolean;
 }
 
 

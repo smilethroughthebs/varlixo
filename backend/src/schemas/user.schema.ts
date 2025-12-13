@@ -53,11 +53,17 @@ export class User {
   @Prop({ trim: true })
   phone: string;
 
+  @Prop({ trim: true })
+  phoneE164: string;
+
   @Prop()
   dateOfBirth: Date;
 
   @Prop({ trim: true })
   country: string;
+
+  @Prop({ trim: true })
+  countryCode: string;
 
   @Prop({ trim: true })
   occupation: string;
@@ -89,6 +95,15 @@ export class User {
 
   @Prop({ default: false })
   emailVerified: boolean;
+
+  @Prop({ default: false })
+  agreedToTerms: boolean;
+
+  @Prop()
+  agreedToTermsAt: Date;
+
+  @Prop({ default: false })
+  marketingOptIn: boolean;
 
   @Prop()
   emailVerificationToken: string;

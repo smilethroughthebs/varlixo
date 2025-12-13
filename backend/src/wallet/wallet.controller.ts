@@ -21,8 +21,10 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { Request } from 'express';
+import { Throttle } from '@nestjs/throttler';
 import { WalletService } from './wallet.service';
 import { CreateDepositDto, CreateWithdrawalDto, UploadDepositProofDto } from './dto/wallet.dto';
+import { RequestLinkedWalletNonceDto, VerifyLinkedWalletDto } from './dto/linked-wallet.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { PaginationDto } from '../common/dto/pagination.dto';
@@ -53,11 +55,41 @@ export class WalletController {
     return this.walletService.getWalletSummary(userId);
   }
 
+  @Get('linked-wallets')
+  async listLinkedWallets(@CurrentUser('sub') userId: string) {
+    return this.walletService.listLinkedWallets(userId);
+  }
+
+  @Post('linked-wallets/nonce')
+  async requestLinkedWalletNonce(
+    @CurrentUser('sub') userId: string,
+    @Body() dto: RequestLinkedWalletNonceDto,
+  ) {
+    return this.walletService.requestLinkedWalletNonce(userId, dto);
+  }
+
+  @Post('linked-wallets/verify')
+  async verifyLinkedWallet(
+    @CurrentUser('sub') userId: string,
+    @Body() dto: VerifyLinkedWalletDto,
+  ) {
+    return this.walletService.verifyLinkedWallet(userId, dto);
+  }
+
+  @Delete('linked-wallets/:id')
+  async removeLinkedWallet(
+    @CurrentUser('sub') userId: string,
+    @Param('id') linkedWalletId: string,
+  ) {
+    return this.walletService.removeLinkedWallet(userId, linkedWalletId);
+  }
+
   /**
    * Create deposit request
    * POST /wallet/deposit
    */
   @Post('deposit')
+  @Throttle({ default: { limit: 10, ttl: 60 } })
   async createDeposit(
     @CurrentUser('sub') userId: string,
     @Body() createDepositDto: CreateDepositDto,
@@ -124,6 +156,7 @@ export class WalletController {
    * POST /wallet/withdrawal
    */
   @Post('withdrawal')
+  @Throttle({ default: { limit: 3, ttl: 60 } })
   async createWithdrawal(
     @CurrentUser('sub') userId: string,
     @Body() createWithdrawalDto: CreateWithdrawalDto,

@@ -19,14 +19,22 @@ import { Investment, InvestmentDocument, InvestmentStatus } from '../schemas/inv
 import { RecurringPlan, RecurringPlanDocument, RecurringPlanStatus } from '../schemas/recurring-plan.schema';
 import { Wallet, WalletDocument } from '../schemas/wallet.schema';
 import { User, UserDocument, KycStatus } from '../schemas/user.schema';
-import { Transaction, TransactionDocument, TransactionType, TransactionStatus } from '../schemas/transaction.schema';
+import { Transaction, TransactionDocument, TransactionType, TransactionStatus, PaymentMethod } from '../schemas/transaction.schema';
 import { Referral, ReferralDocument, ReferralStatus } from '../schemas/referral.schema';
 import { CreateInvestmentDto, CalculateReturnsDto, CreatePlanDto, UpdatePlanDto } from './dto/investment.dto';
-import { StartRecurringPlanDto } from './dto/recurring-plan.dto';
+import {
+  StartRecurringPlanDto,
+  AdminMarkRecurringPaidDto,
+  AdminMarkRecurringMissedDto,
+  AdminUpdateRecurringPortfolioDto,
+  AdminApproveRecurringWithdrawalDto,
+} from './dto/recurring-plan.dto';
 import { generateReference, roundTo, addDays, calculatePercentage } from '../common/utils/helpers';
 import { PaginationDto, createPaginatedResponse } from '../common/dto/pagination.dto';
 import { EmailService } from '../email/email.service';
 import { CurrencyService } from '../currency/currency.service';
+import { MarketService } from '../market/market.service';
+import { AdminLog, AdminLogDocument, AdminActionType } from '../schemas/admin-log.schema';
 
 @Injectable()
 export class InvestmentService {
@@ -38,9 +46,45 @@ export class InvestmentService {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Transaction.name) private transactionModel: Model<TransactionDocument>,
     @InjectModel(Referral.name) private referralModel: Model<ReferralDocument>,
+    @InjectModel(AdminLog.name) private adminLogModel: Model<AdminLogDocument>,
     private emailService: EmailService,
     private currencyService: CurrencyService,
+    private marketService: MarketService,
   ) {}
+
+  private async logAdminAction(
+    adminId: string,
+    action: AdminActionType,
+    details: {
+      targetType?: string;
+      targetId?: Types.ObjectId;
+      description: string;
+      previousValue?: Record<string, any>;
+      newValue?: Record<string, any>;
+      ipAddress?: string;
+      userAgent?: string;
+      requestUrl?: string;
+      requestMethod?: string;
+      success?: boolean;
+      errorMessage?: string;
+    },
+  ) {
+    await this.adminLogModel.create({
+      adminId: new Types.ObjectId(adminId),
+      action,
+      description: details.description,
+      targetType: details.targetType,
+      targetId: details.targetId,
+      previousValue: details.previousValue,
+      newValue: details.newValue,
+      ipAddress: details.ipAddress,
+      userAgent: details.userAgent,
+      requestUrl: details.requestUrl,
+      requestMethod: details.requestMethod,
+      success: typeof details.success === 'boolean' ? details.success : true,
+      errorMessage: details.errorMessage,
+    });
+  }
 
   // ==========================================
   // PUBLIC: Investment Plans
@@ -50,6 +94,14 @@ export class InvestmentService {
    * Get all active investment plans with country-specific limits
    */
   async getActivePlans(country?: string) {
+    const countryCode = country ? country.toUpperCase() : undefined;
+    if (countryCode === 'NG') {
+      return {
+        success: true,
+        plans: [],
+      };
+    }
+
     const plans = await this.planModel
       .find({ status: PlanStatus.ACTIVE })
       .sort({ sortOrder: 1, minInvestment: 1 });
@@ -58,9 +110,9 @@ export class InvestmentService {
     const plansWithCountryLimits = plans.map(plan => {
       const planObj = plan.toObject();
       
-      if (country && planObj.countryLimits && planObj.countryLimits.length > 0) {
+      if (countryCode && planObj.countryLimits && planObj.countryLimits.length > 0) {
         const countryLimit = planObj.countryLimits.find(
-          (limit: any) => limit.country === country
+          (limit: any) => String(limit.country).toUpperCase() === countryCode
         );
         
         if (countryLimit) {
@@ -176,6 +228,8 @@ export class InvestmentService {
         totalContributed: plan.totalContributed,
         portfolioValue: plan.portfolioValue,
         status: plan.status,
+        withdrawalRequested: plan.withdrawalRequested,
+        withdrawalApproved: plan.withdrawalApproved,
         progress,
       };
     });
@@ -199,8 +253,8 @@ export class InvestmentService {
       throw new NotFoundException('Recurring plan not found');
     }
 
-    if (plan.status !== RecurringPlanStatus.ACTIVE) {
-      throw new BadRequestException('Only active recurring plans can receive payments');
+    if (![RecurringPlanStatus.ACTIVE, RecurringPlanStatus.MISSED].includes(plan.status)) {
+      throw new BadRequestException('Only active or missed recurring plans can receive payments');
     }
 
     if (plan.monthsCompleted >= plan.monthsRequired) {
@@ -228,6 +282,11 @@ export class InvestmentService {
     plan.monthsCompleted += 1;
     plan.totalContributed += amount;
     plan.portfolioValue += amount; // Simple placeholder until a profit engine is added
+
+    // If the plan was previously missed, restore it to active after payment
+    if (plan.status === RecurringPlanStatus.MISSED) {
+      plan.status = RecurringPlanStatus.ACTIVE;
+    }
 
     // Update next payment date
     const nextPayment = plan.nextPaymentDate ? new Date(plan.nextPaymentDate) : new Date();
@@ -291,6 +350,364 @@ export class InvestmentService {
         status: plan.status,
         progress,
       },
+      transactionId: transaction._id,
+    };
+  }
+
+  async requestRecurringWithdrawal(userId: string, planId: string) {
+    const plan = await this.recurringPlanModel.findOne({
+      _id: new Types.ObjectId(planId),
+      userId: new Types.ObjectId(userId),
+    });
+
+    if (!plan) {
+      throw new NotFoundException('Recurring plan not found');
+    }
+
+    const now = new Date();
+    if (plan.status !== RecurringPlanStatus.MATURED || (plan.maturityDate && plan.maturityDate > now)) {
+      throw new BadRequestException('Withdrawal is only available after maturity');
+    }
+
+    if (plan.withdrawalApproved) {
+      return {
+        success: true,
+        message: 'Withdrawal already approved',
+      };
+    }
+
+    if (!plan.withdrawalRequested) {
+      plan.withdrawalRequested = true;
+      plan.withdrawalRequestedAt = now;
+      await plan.save();
+
+      const user = await this.userModel.findById(userId);
+      if (user) {
+        const userName = `${user.firstName} ${user.lastName}`.trim();
+        await this.emailService.notifyAdminRecurringWithdrawalRequest(
+          user.email,
+          userName,
+          plan.planType,
+          plan.portfolioValue || plan.totalContributed,
+          String(plan._id),
+        );
+      }
+    }
+
+    return {
+      success: true,
+      message: 'Withdrawal request submitted for admin approval',
+    };
+  }
+
+  async adminMarkRecurringPaid(
+    adminId: string,
+    planId: string,
+    dto: AdminMarkRecurringPaidDto,
+    ipAddress?: string,
+    userAgent?: string,
+    requestUrl?: string,
+    requestMethod?: string,
+  ) {
+    const plan = await this.recurringPlanModel.findById(planId);
+    if (!plan) {
+      throw new NotFoundException('Recurring plan not found');
+    }
+
+    if (plan.status === RecurringPlanStatus.COMPLETED) {
+      throw new BadRequestException('Recurring plan already completed');
+    }
+
+    if (plan.monthsCompleted >= plan.monthsRequired) {
+      throw new BadRequestException('This recurring plan is already fully funded');
+    }
+
+    const amount = dto.amount ?? plan.monthlyContribution;
+    if (!amount || amount <= 0) {
+      throw new BadRequestException('Invalid payment amount');
+    }
+
+    const paidAt = dto.datePaid ? new Date(dto.datePaid) : new Date();
+
+    // Reflect external contribution as locked funds (do not touch mainBalance)
+    const wallet = await this.walletModel.findOne({ userId: plan.userId });
+    if (!wallet) {
+      throw new NotFoundException('User wallet not found');
+    }
+    wallet.lockedBalance = roundTo((wallet.lockedBalance || 0) + amount, 2);
+    await wallet.save();
+
+    plan.monthsCompleted += 1;
+    plan.totalContributed = roundTo((plan.totalContributed || 0) + amount, 2);
+    plan.portfolioValue = roundTo((plan.portfolioValue || 0) + amount, 2);
+
+    plan.paymentHistory = plan.paymentHistory || [];
+    plan.paymentHistory.push({
+      monthNumber: plan.monthsCompleted,
+      amount,
+      datePaid: paidAt,
+      status: 'paid',
+    } as any);
+
+    const nextPayment = plan.nextPaymentDate ? new Date(plan.nextPaymentDate) : new Date();
+    nextPayment.setMonth(nextPayment.getMonth() + 1);
+    plan.nextPaymentDate = nextPayment;
+
+    if (plan.status === RecurringPlanStatus.MISSED) {
+      plan.status = RecurringPlanStatus.ACTIVE;
+    }
+
+    if (plan.monthsCompleted >= plan.monthsRequired) {
+      plan.status = RecurringPlanStatus.MATURED;
+    }
+
+    await plan.save();
+
+    const currencyFields = await this.currencyService.buildTransactionCurrencyFields({
+      amountUsd: amount,
+      ipAddress,
+    });
+
+    const transaction = await this.transactionModel.create({
+      userId: plan.userId,
+      transactionRef: generateReference('TXN'),
+      type: TransactionType.INVESTMENT,
+      status: TransactionStatus.COMPLETED,
+      amount,
+      description: `Admin marked recurring contribution (${plan.planType})`,
+      paymentMethod: PaymentMethod.INTERNAL,
+      processedBy: new Types.ObjectId(adminId),
+      processedAt: new Date(),
+      ipAddress,
+      userAgent,
+      ...currencyFields,
+    });
+
+    await this.logAdminAction(adminId, AdminActionType.RECURRING_MARK_PAID, {
+      targetType: 'recurring_plan',
+      targetId: plan._id as any,
+      description: `Marked recurring payment as paid (${plan.planType})`,
+      newValue: {
+        monthsCompleted: plan.monthsCompleted,
+        totalContributed: plan.totalContributed,
+        portfolioValue: plan.portfolioValue,
+        status: plan.status,
+      },
+      ipAddress,
+      userAgent,
+      requestUrl,
+      requestMethod,
+    });
+
+    return {
+      success: true,
+      message: 'Recurring payment marked as paid',
+      planId: plan._id,
+      transactionId: transaction._id,
+    };
+  }
+
+  async adminMarkRecurringMissed(
+    adminId: string,
+    planId: string,
+    dto: AdminMarkRecurringMissedDto,
+    ipAddress?: string,
+    userAgent?: string,
+    requestUrl?: string,
+    requestMethod?: string,
+  ) {
+    const plan = await this.recurringPlanModel.findById(planId);
+    if (!plan) {
+      throw new NotFoundException('Recurring plan not found');
+    }
+
+    plan.status = RecurringPlanStatus.MISSED;
+
+    if (dto.notifyUser) {
+      const user = await this.userModel.findById(plan.userId);
+      if (user && user.emailNotifications) {
+        await this.emailService.sendRecurringMissedPaymentEmail(
+          user.email,
+          user.firstName,
+          plan.planType,
+          plan.monthlyContribution,
+          plan.nextPaymentDate,
+        );
+        plan.lastMissedNotifiedAt = new Date();
+      }
+    }
+
+    await plan.save();
+
+    await this.logAdminAction(adminId, AdminActionType.RECURRING_MARK_MISSED, {
+      targetType: 'recurring_plan',
+      targetId: plan._id as any,
+      description: `Marked recurring plan as missed (${plan.planType})`,
+      newValue: {
+        status: plan.status,
+        nextPaymentDate: plan.nextPaymentDate,
+      },
+      ipAddress,
+      userAgent,
+      requestUrl,
+      requestMethod,
+    });
+
+    return {
+      success: true,
+      message: 'Recurring plan marked as missed',
+    };
+  }
+
+  async adminUpdateRecurringPortfolio(
+    adminId: string,
+    planId: string,
+    dto: AdminUpdateRecurringPortfolioDto,
+    ipAddress?: string,
+    userAgent?: string,
+    requestUrl?: string,
+    requestMethod?: string,
+  ) {
+    const plan = await this.recurringPlanModel.findById(planId);
+    if (!plan) {
+      throw new NotFoundException('Recurring plan not found');
+    }
+
+    const previousValue = {
+      portfolioValue: plan.portfolioValue,
+    };
+
+    plan.portfolioValue = roundTo(dto.portfolioValue, 2);
+    await plan.save();
+
+    await this.logAdminAction(adminId, AdminActionType.RECURRING_UPDATE_PORTFOLIO, {
+      targetType: 'recurring_plan',
+      targetId: plan._id as any,
+      description: `Updated recurring plan portfolio value (${plan.planType})`,
+      previousValue,
+      newValue: {
+        portfolioValue: plan.portfolioValue,
+      },
+      ipAddress,
+      userAgent,
+      requestUrl,
+      requestMethod,
+    });
+
+    return {
+      success: true,
+      message: 'Portfolio value updated',
+    };
+  }
+
+  async adminApproveRecurringWithdrawal(
+    adminId: string,
+    planId: string,
+    dto: AdminApproveRecurringWithdrawalDto,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    const plan = await this.recurringPlanModel.findById(planId);
+    if (!plan) {
+      throw new NotFoundException('Recurring plan not found');
+    }
+
+    if (!plan.withdrawalRequested) {
+      throw new BadRequestException('No withdrawal request exists for this plan');
+    }
+
+    const approve = dto.approve !== undefined ? dto.approve : true;
+    const now = new Date();
+
+    if (!approve) {
+      plan.withdrawalRequested = false;
+      plan.withdrawalRequestedAt = undefined;
+      plan.withdrawalApproved = false;
+      plan.withdrawalApprovedAt = undefined;
+      await plan.save();
+
+      await this.logAdminAction(adminId, AdminActionType.RECURRING_APPROVE_WITHDRAWAL, {
+        targetType: 'recurring_plan',
+        targetId: plan._id as any,
+        description: `Declined recurring plan withdrawal (${plan.planType})`,
+        newValue: {
+          withdrawalRequested: plan.withdrawalRequested,
+          withdrawalApproved: plan.withdrawalApproved,
+        },
+        ipAddress,
+        userAgent,
+      });
+
+      return {
+        success: true,
+        message: 'Withdrawal request declined',
+      };
+    }
+
+    if (plan.status !== RecurringPlanStatus.MATURED || (plan.maturityDate && plan.maturityDate > now)) {
+      throw new BadRequestException('Plan is not matured');
+    }
+
+    const amount = roundTo(plan.portfolioValue || plan.totalContributed, 2);
+    if (amount <= 0) {
+      throw new BadRequestException('Invalid withdrawal amount');
+    }
+
+    const wallet = await this.walletModel.findOne({ userId: plan.userId });
+    if (!wallet) {
+      throw new NotFoundException('User wallet not found');
+    }
+
+    if ((wallet.lockedBalance || 0) < amount) {
+      throw new BadRequestException('Insufficient locked balance to approve this withdrawal');
+    }
+
+    const lockedToRelease = amount;
+    wallet.lockedBalance = roundTo((wallet.lockedBalance || 0) - lockedToRelease, 2);
+    wallet.mainBalance = roundTo((wallet.mainBalance || 0) + lockedToRelease, 2);
+    await wallet.save();
+
+    plan.withdrawalApproved = true;
+    plan.withdrawalApprovedAt = now;
+    plan.withdrawalRequested = false;
+    plan.status = RecurringPlanStatus.COMPLETED;
+    await plan.save();
+
+    const currencyFields = await this.currencyService.buildTransactionCurrencyFields({
+      amountUsd: amount,
+      ipAddress,
+    });
+
+    const transaction = await this.transactionModel.create({
+      userId: plan.userId,
+      transactionRef: generateReference('TXN'),
+      type: TransactionType.TRANSFER,
+      status: TransactionStatus.COMPLETED,
+      amount: lockedToRelease,
+      description: `Recurring plan funds unlocked (${plan.planType})`,
+      paymentMethod: PaymentMethod.INTERNAL,
+      processedBy: new Types.ObjectId(adminId),
+      processedAt: now,
+      ipAddress,
+      userAgent,
+      ...currencyFields,
+    });
+
+    await this.logAdminAction(adminId, AdminActionType.RECURRING_APPROVE_WITHDRAWAL, {
+      targetType: 'recurring_plan',
+      targetId: plan._id as any,
+      description: `Approved recurring plan withdrawal and unlocked funds (${plan.planType})`,
+      newValue: {
+        withdrawalApproved: plan.withdrawalApproved,
+        status: plan.status,
+      },
+      ipAddress,
+      userAgent,
+    });
+
+    return {
+      success: true,
+      message: 'Withdrawal approved and funds unlocked',
       transactionId: transaction._id,
     };
   }
@@ -381,6 +798,10 @@ export class InvestmentService {
       throw new NotFoundException('Investment plan not found or not available');
     }
 
+    if (plan.marketLinked && !plan.marketAssetId) {
+      throw new BadRequestException('Market-linked plan is missing market asset id');
+    }
+
     // Validate amount
     if (amount < plan.minInvestment) {
       throw new BadRequestException(`Minimum investment for this plan is $${plan.minInvestment}`);
@@ -401,9 +822,20 @@ export class InvestmentService {
     }
 
     // Calculate expected profits
-    const dailyProfitAmount = roundTo(calculatePercentage(amount, plan.dailyReturnRate), 2);
+    const baseDailyRate = plan.marketLinked && typeof plan.marketBaseDailyRate === 'number'
+      ? plan.marketBaseDailyRate
+      : plan.dailyReturnRate;
+    const dailyProfitAmount = roundTo(calculatePercentage(amount, baseDailyRate), 2);
     const expectedTotalProfit = roundTo(calculatePercentage(amount, plan.totalReturnRate), 2);
     const maturityDate = addDays(new Date(), plan.durationDays);
+
+    let marketLastPrice: number | undefined;
+    if (plan.marketLinked && plan.marketAssetId) {
+      const price = await this.marketService.getCryptoPrice(plan.marketAssetId);
+      if (typeof price?.current_price === 'number') {
+        marketLastPrice = price.current_price;
+      }
+    }
 
     // Generate investment reference
     const investmentRef = generateReference('INV');
@@ -418,6 +850,13 @@ export class InvestmentService {
       totalReturnRate: plan.totalReturnRate,
       durationDays: plan.durationDays,
       principalReturn: plan.principalReturn,
+      marketLinked: plan.marketLinked || false,
+      marketAssetId: plan.marketAssetId,
+      marketBaseDailyRate: plan.marketBaseDailyRate,
+      marketAlpha: plan.marketAlpha,
+      marketMinDailyRate: plan.marketMinDailyRate,
+      marketMaxDailyRate: plan.marketMaxDailyRate,
+      marketLastPrice,
       amount,
       status: InvestmentStatus.ACTIVE,
       activatedAt: new Date(),
@@ -644,7 +1083,14 @@ export class InvestmentService {
   /**
    * Create a new investment plan
    */
-  async createPlan(createPlanDto: CreatePlanDto) {
+  async createPlan(
+    adminId: string,
+    createPlanDto: CreatePlanDto,
+    ipAddress?: string,
+    userAgent?: string,
+    requestUrl?: string,
+    requestMethod?: string,
+  ) {
     // Generate slug from name
     const slug = createPlanDto.name
       .toLowerCase()
@@ -664,6 +1110,17 @@ export class InvestmentService {
 
     await plan.save();
 
+    await this.logAdminAction(adminId, AdminActionType.PLAN_CREATE, {
+      targetType: 'investment_plan',
+      targetId: plan._id as any,
+      description: `Created investment plan ${plan.name}`,
+      newValue: plan.toObject() as any,
+      ipAddress,
+      userAgent,
+      requestUrl,
+      requestMethod,
+    });
+
     return {
       success: true,
       message: 'Investment plan created successfully',
@@ -674,16 +1131,33 @@ export class InvestmentService {
   /**
    * Update an investment plan
    */
-  async updatePlan(planId: string, updatePlanDto: UpdatePlanDto) {
-    const plan = await this.planModel.findByIdAndUpdate(
-      planId,
-      { $set: updatePlanDto },
-      { new: true },
-    );
+  async updatePlan(
+    adminId: string,
+    planId: string,
+    updatePlanDto: UpdatePlanDto,
+    ipAddress?: string,
+    userAgent?: string,
+    requestUrl?: string,
+    requestMethod?: string,
+  ) {
+    const before = await this.planModel.findById(planId);
+    const plan = await this.planModel.findByIdAndUpdate(planId, { $set: updatePlanDto }, { new: true });
 
     if (!plan) {
       throw new NotFoundException('Investment plan not found');
     }
+
+    await this.logAdminAction(adminId, AdminActionType.PLAN_UPDATE, {
+      targetType: 'investment_plan',
+      targetId: plan._id as any,
+      description: `Updated investment plan ${plan.name}`,
+      previousValue: before ? (before.toObject() as any) : undefined,
+      newValue: plan.toObject() as any,
+      ipAddress,
+      userAgent,
+      requestUrl,
+      requestMethod,
+    });
 
     return {
       success: true,
@@ -781,7 +1255,15 @@ export class InvestmentService {
   /**
    * Delete/deactivate a plan
    */
-  async deletePlan(planId: string) {
+  async deletePlan(
+    adminId: string,
+    planId: string,
+    ipAddress?: string,
+    userAgent?: string,
+    requestUrl?: string,
+    requestMethod?: string,
+  ) {
+    const before = await this.planModel.findById(planId);
     // Check if plan has active investments
     const activeInvestments = await this.investmentModel.countDocuments({
       planId: new Types.ObjectId(planId),
@@ -794,6 +1276,18 @@ export class InvestmentService {
         status: PlanStatus.DISCONTINUED,
       });
 
+      await this.logAdminAction(adminId, AdminActionType.PLAN_DELETE, {
+        targetType: 'investment_plan',
+        targetId: new Types.ObjectId(planId),
+        description: `Deactivated investment plan (had active investments)` ,
+        previousValue: before ? (before.toObject() as any) : undefined,
+        newValue: { status: PlanStatus.DISCONTINUED },
+        ipAddress,
+        userAgent,
+        requestUrl,
+        requestMethod,
+      });
+
       return {
         success: true,
         message: 'Plan deactivated (has active investments)',
@@ -802,6 +1296,17 @@ export class InvestmentService {
 
     // Hard delete if no active investments
     await this.planModel.findByIdAndDelete(planId);
+
+    await this.logAdminAction(adminId, AdminActionType.PLAN_DELETE, {
+      targetType: 'investment_plan',
+      targetId: new Types.ObjectId(planId),
+      description: `Deleted investment plan`,
+      previousValue: before ? (before.toObject() as any) : undefined,
+      ipAddress,
+      userAgent,
+      requestUrl,
+      requestMethod,
+    });
 
     return {
       success: true,
@@ -817,7 +1322,13 @@ export class InvestmentService {
    * Process daily profits for all active investments
    * Called by cron job
    */
-  async processDailyProfits() {
+  async processDailyProfits(
+    adminId?: string,
+    ipAddress?: string,
+    userAgent?: string,
+    requestUrl?: string,
+    requestMethod?: string,
+  ) {
     const activeInvestments = await this.investmentModel.find({
       status: InvestmentStatus.ACTIVE,
       maturityDate: { $gt: new Date() },
@@ -836,7 +1347,43 @@ export class InvestmentService {
       }
 
       // Calculate and credit daily profit
-      const dailyProfit = investment.dailyProfitAmount;
+      let dailyProfit = investment.dailyProfitAmount;
+      if (investment.marketLinked && investment.marketAssetId) {
+        const price = await this.marketService.getCryptoPrice(investment.marketAssetId);
+        const currentPrice = price?.current_price;
+
+        const baseRate =
+          typeof investment.marketBaseDailyRate === 'number'
+            ? investment.marketBaseDailyRate
+            : investment.dailyReturnRate;
+
+        let computedRate = baseRate;
+        if (
+          typeof currentPrice === 'number' &&
+          typeof investment.marketLastPrice === 'number' &&
+          investment.marketLastPrice > 0
+        ) {
+          const priceChangePct = ((currentPrice - investment.marketLastPrice) / investment.marketLastPrice) * 100;
+          const alpha = typeof investment.marketAlpha === 'number' ? investment.marketAlpha : 0;
+          computedRate = baseRate + alpha * priceChangePct;
+        }
+
+        if (typeof investment.marketMinDailyRate === 'number') {
+          computedRate = Math.max(computedRate, investment.marketMinDailyRate);
+        }
+        if (typeof investment.marketMaxDailyRate === 'number') {
+          computedRate = Math.min(computedRate, investment.marketMaxDailyRate);
+        }
+
+        if (!Number.isFinite(computedRate) || computedRate < 0) {
+          computedRate = Math.max(baseRate, 0);
+        }
+
+        dailyProfit = roundTo(calculatePercentage(investment.amount, computedRate), 2);
+        if (typeof currentPrice === 'number') {
+          investment.marketLastPrice = currentPrice;
+        }
+      }
 
       // Update investment
       investment.accumulatedProfit += dailyProfit;
@@ -883,6 +1430,16 @@ export class InvestmentService {
 
     // Check for matured investments
     await this.processMaturedInvestments();
+
+    if (adminId) {
+      await this.logAdminAction(adminId, AdminActionType.INVESTMENT_PROCESS_PROFITS, {
+        description: `Manually processed daily profits (processed=${processed}, totalProfit=${roundTo(totalProfitDistributed, 2)})`,
+        ipAddress,
+        userAgent,
+        requestUrl,
+        requestMethod,
+      });
+    }
 
     return {
       processed,

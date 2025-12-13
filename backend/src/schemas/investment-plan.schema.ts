@@ -68,6 +68,24 @@ export class InvestmentPlan {
     maxInvestment: number;
   }>;
 
+  @Prop({ default: false })
+  marketLinked: boolean;
+
+  @Prop()
+  marketAssetId: string;
+
+  @Prop()
+  marketBaseDailyRate: number;
+
+  @Prop({ default: 0 })
+  marketAlpha: number;
+
+  @Prop()
+  marketMinDailyRate: number;
+
+  @Prop()
+  marketMaxDailyRate: number;
+
   // Returns configuration
   @Prop({ required: true, min: 0 })
   dailyReturnRate: number; // Percentage

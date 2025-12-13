@@ -14,6 +14,7 @@ import { WalletController } from './wallet.controller';
 import { WalletService } from './wallet.service';
 import { Wallet, WalletSchema } from '../schemas/wallet.schema';
 import { User, UserSchema } from '../schemas/user.schema';
+import { LinkedWallet, LinkedWalletSchema } from '../schemas/linked-wallet.schema';
 import { Deposit, DepositSchema } from '../schemas/deposit.schema';
 import { Withdrawal, WithdrawalSchema } from '../schemas/withdrawal.schema';
 import { Transaction, TransactionSchema } from '../schemas/transaction.schema';
@@ -25,6 +26,7 @@ import { CurrencyModule } from '../currency/currency.module';
     MongooseModule.forFeature([
       { name: Wallet.name, schema: WalletSchema },
       { name: User.name, schema: UserSchema },
+      { name: LinkedWallet.name, schema: LinkedWalletSchema },
       { name: Deposit.name, schema: DepositSchema },
       { name: Withdrawal.name, schema: WithdrawalSchema },
       { name: Transaction.name, schema: TransactionSchema },

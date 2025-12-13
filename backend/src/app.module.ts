@@ -6,9 +6,10 @@
  */
 
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 import configuration from './config/configuration';
 
@@ -27,6 +28,7 @@ import { CurrencyModule } from './currency/currency.module';
 import { TestimonialModule } from './testimonial/testimonial.module';
 import { CryptoDepositModule } from './crypto-deposit/crypto-deposit.module';
 import { UploadsModule } from './uploads/uploads.module';
+import { OnchainModule } from './onchain/onchain.module';
 
 // Middleware
 import { LoggerMiddleware } from './common/middleware/logger.middleware';
@@ -80,6 +82,13 @@ import { SecurityMiddleware } from './common/middleware/security.middleware';
     TestimonialModule,
     CryptoDepositModule,
     UploadsModule,
+    OnchainModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule implements NestModule {

@@ -64,6 +64,8 @@ interface AdminRecurringPlan {
   startDate?: string;
   nextPaymentDate?: string;
   maturityDate?: string;
+  withdrawalRequested?: boolean;
+  withdrawalApproved?: boolean;
 }
 
 export default function AdminInvestmentsPage() {
@@ -98,6 +100,60 @@ export default function AdminInvestmentsPage() {
       console.error(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const markRecurringPaid = async (planId: string, defaultAmount?: number) => {
+    const amountStr = window.prompt('Enter amount to mark as paid (USD)', String(defaultAmount ?? ''));
+    if (!amountStr) return;
+    const amount = parseFloat(amountStr);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error('Invalid amount');
+      return;
+    }
+    try {
+      await api.post(`/investments/admin/recurring/${planId}/mark-paid`, { amount });
+      toast.success('Marked as paid');
+      fetchInvestments();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to mark paid');
+    }
+  };
+
+  const markRecurringMissed = async (planId: string) => {
+    try {
+      await api.post(`/investments/admin/recurring/${planId}/mark-missed`, { notifyUser: true });
+      toast.success('Marked as missed');
+      fetchInvestments();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to mark missed');
+    }
+  };
+
+  const updateRecurringPortfolio = async (planId: string, currentValue?: number) => {
+    const valueStr = window.prompt('Enter portfolio value (USD)', String(currentValue ?? ''));
+    if (!valueStr) return;
+    const portfolioValue = parseFloat(valueStr);
+    if (!Number.isFinite(portfolioValue) || portfolioValue < 0) {
+      toast.error('Invalid portfolio value');
+      return;
+    }
+    try {
+      await api.post(`/investments/admin/recurring/${planId}/update-portfolio`, { portfolioValue });
+      toast.success('Portfolio updated');
+      fetchInvestments();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to update portfolio');
+    }
+  };
+
+  const approveRecurringWithdrawal = async (planId: string) => {
+    try {
+      await api.post(`/investments/admin/recurring/${planId}/approve-withdrawal`, { approve: true });
+      toast.success('Withdrawal approved');
+      fetchInvestments();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to approve withdrawal');
     }
   };
 
@@ -324,18 +380,19 @@ export default function AdminInvestmentsPage() {
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Progress</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Status</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Dates</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center">
+                  <td colSpan={8} className="px-6 py-12 text-center">
                     <Loader className="animate-spin mx-auto text-primary-500" />
                   </td>
                 </tr>
               ) : recurringPlans.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-6 text-center text-gray-500">
+                  <td colSpan={8} className="px-6 py-6 text-center text-gray-500">
                     No recurring investments found
                   </td>
                 </tr>
@@ -374,6 +431,39 @@ export default function AdminInvestmentsPage() {
                       <div>Start: {plan.startDate ? new Date(plan.startDate).toLocaleDateString() : '—'}</div>
                       <div>Next: {plan.nextPaymentDate ? new Date(plan.nextPaymentDate).toLocaleDateString() : '—'}</div>
                       <div>End: {plan.maturityDate ? new Date(plan.maturityDate).toLocaleDateString() : '—'}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => markRecurringPaid(plan._id, plan.monthlyContribution)}
+                        >
+                          Mark Paid
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => markRecurringMissed(plan._id)}
+                        >
+                          Mark Missed
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => updateRecurringPortfolio(plan._id, plan.portfolioValue)}
+                        >
+                          Update Portfolio
+                        </Button>
+                        {plan.withdrawalRequested && !plan.withdrawalApproved && (
+                          <Button
+                            size="sm"
+                            onClick={() => approveRecurringWithdrawal(plan._id)}
+                          >
+                            Approve Withdrawal
+                          </Button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))

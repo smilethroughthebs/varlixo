@@ -6,11 +6,13 @@
  * ==============================================
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { ethers } from 'ethers';
+import bs58 from 'bs58';
 import {
   User,
   Mail,
@@ -37,7 +39,7 @@ import Button from '@/app/components/ui/Button';
 import Input from '@/app/components/ui/Input';
 import { useAuthStore, useLanguageStore } from '@/app/lib/store';
 import { languages } from '@/app/lib/i18n';
-import { authAPI } from '@/app/lib/api';
+import { authAPI, walletAPI } from '@/app/lib/api';
 
 // Country data with dial codes
 const countries = [
@@ -135,6 +137,8 @@ export default function SettingsPage() {
   const [twoFaCode, setTwoFaCode] = useState('');
   const [selectedCountry, setSelectedCountry] = useState(countries[0]); // Default to US
   const [phoneDialCode, setPhoneDialCode] = useState(countries[0].dialCode);
+  const [linkedWallets, setLinkedWallets] = useState<any[]>([]);
+  const [walletsBusy, setWalletsBusy] = useState(false);
 
   const {
     register: registerProfile,
@@ -174,6 +178,144 @@ export default function SettingsPage() {
       toast.error(error.response?.data?.message || 'Failed to update profile');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadLinkedWallets = async () => {
+    try {
+      const res = await walletAPI.listLinkedWallets();
+      const data = res.data.data || res.data;
+      setLinkedWallets(data.wallets || []);
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'security') {
+      loadLinkedWallets();
+    }
+  }, [activeTab]);
+
+  const truncateAddress = (address: string) => {
+    if (!address) return '';
+    if (address.length <= 16) return address;
+    return `${address.slice(0, 6)}...${address.slice(-6)}`;
+  };
+
+  const connectEvmWallet = async () => {
+    const anyWindow = window as any;
+    if (!anyWindow?.ethereum) {
+      toast.error('MetaMask not found. Please install MetaMask.');
+      return;
+    }
+
+    setWalletsBusy(true);
+    try {
+      const provider = new ethers.providers.Web3Provider(anyWindow.ethereum);
+      await provider.send('eth_requestAccounts', []);
+      const signer = provider.getSigner();
+      const address = await signer.getAddress();
+
+      const nonceRes = await walletAPI.requestLinkedWalletNonce({
+        chain: 'evm',
+        address,
+      });
+      const nonceData = nonceRes.data.data || nonceRes.data;
+
+      if (nonceData.verified) {
+        toast.success('Wallet already linked');
+        await loadLinkedWallets();
+        return;
+      }
+
+      const message = nonceData.message;
+      const signature = await signer.signMessage(message);
+
+      await walletAPI.verifyLinkedWallet({
+        chain: 'evm',
+        address,
+        signature,
+      });
+
+      toast.success('EVM wallet linked');
+      await loadLinkedWallets();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to link EVM wallet');
+    } finally {
+      setWalletsBusy(false);
+    }
+  };
+
+  const connectSolanaWallet = async () => {
+    const anyWindow = window as any;
+    const solana = anyWindow?.solana;
+    if (!solana) {
+      toast.error('Solana wallet not found. Please install Phantom.');
+      return;
+    }
+
+    if (!solana?.isPhantom) {
+      toast.error('Please use Phantom wallet for Solana connection.');
+      return;
+    }
+
+    setWalletsBusy(true);
+    try {
+      await solana.connect();
+      const address = solana.publicKey?.toString();
+      if (!address) {
+        throw new Error('Unable to read Solana public key');
+      }
+
+      const nonceRes = await walletAPI.requestLinkedWalletNonce({
+        chain: 'solana',
+        address,
+      });
+      const nonceData = nonceRes.data.data || nonceRes.data;
+
+      if (nonceData.verified) {
+        toast.success('Wallet already linked');
+        await loadLinkedWallets();
+        return;
+      }
+
+      const message = nonceData.message;
+      const messageBytes = new TextEncoder().encode(message);
+
+      if (!solana.signMessage) {
+        throw new Error('This wallet does not support message signing');
+      }
+
+      const signed = await solana.signMessage(messageBytes, 'utf8');
+      const sigBytes = signed?.signature || signed;
+      const signature = bs58.encode(sigBytes);
+
+      await walletAPI.verifyLinkedWallet({
+        chain: 'solana',
+        address,
+        signature,
+      });
+
+      toast.success('Solana wallet linked');
+      await loadLinkedWallets();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || error?.message || 'Failed to link Solana wallet');
+    } finally {
+      setWalletsBusy(false);
+    }
+  };
+
+  const removeLinkedWallet = async (id: string) => {
+    setWalletsBusy(true);
+    try {
+      await walletAPI.removeLinkedWallet(id);
+      toast.success('Wallet removed');
+      await loadLinkedWallets();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to remove wallet');
+    } finally {
+      setWalletsBusy(false);
     }
   };
 
@@ -326,6 +468,64 @@ export default function SettingsPage() {
                     Member since {new Date().toLocaleDateString()}
                   </p>
                 </div>
+              </div>
+            </div>
+          </Card>
+
+          <Card>
+            <div className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Connected Wallets</h3>
+                  <p className="text-gray-400 text-sm mt-1">Link wallets by signing a verification message</p>
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-col sm:flex-row gap-3">
+                <Button type="button" variant="outline" onClick={connectEvmWallet} isLoading={walletsBusy}>
+                  Connect MetaMask (EVM)
+                </Button>
+                <Button type="button" variant="outline" onClick={connectSolanaWallet} isLoading={walletsBusy}>
+                  Connect Phantom (Solana)
+                </Button>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                {linkedWallets.length === 0 ? (
+                  <div className="text-sm text-gray-500">No wallets linked yet.</div>
+                ) : (
+                  linkedWallets.map((w: any) => (
+                    <div
+                      key={w._id}
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-dark-800 rounded-xl"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-white font-medium capitalize">{w.chain}</span>
+                          <span
+                            className={`text-xs px-2 py-1 rounded-full ${
+                              w.verified ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'
+                            }`}
+                          >
+                            {w.verified ? 'Verified' : 'Pending'}
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-400 font-mono break-all">{truncateAddress(w.address)}</div>
+                      </div>
+                      <div className="flex justify-end">
+                        <Button
+                          type="button"
+                          variant="danger"
+                          size="sm"
+                          onClick={() => removeLinkedWallet(w._id)}
+                          isLoading={walletsBusy}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </Card>

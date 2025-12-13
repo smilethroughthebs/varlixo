@@ -202,23 +202,26 @@ export class EmailService {
   /**
    * Send OTP code email (for email verification, password reset, etc)
    */
-  async sendOtpEmail(email: string, name: string, code: string, type: 'verification' | 'reset' | 'withdrawal' = 'verification'): Promise<boolean> {
+  async sendOtpEmail(email: string, name: string, code: string, type: 'verification' | 'reset' | 'withdrawal' | 'login' = 'verification'): Promise<boolean> {
     const titles = {
       verification: 'Verify Your Email Address',
       reset: 'Reset Your Password',
       withdrawal: 'Confirm Withdrawal Request',
+      login: 'Confirm Your Login',
     };
 
     const descriptions = {
       verification: 'Complete your account verification',
       reset: 'Password reset request for your account',
       withdrawal: 'Confirm your withdrawal request',
+      login: 'Complete your secure login',
     };
 
     const actionTexts = {
       verification: 'Verify your email and activate your account',
       reset: 'Change your password securely',
       withdrawal: 'Approve your withdrawal request',
+      login: 'Enter this code to complete your login',
     };
 
     const html = this.getEmailTemplate({
@@ -257,6 +260,7 @@ export class EmailService {
       verification: `📧 Verify Your Email - ${code}`,
       reset: `🔐 Reset Password Code - ${code}`,
       withdrawal: `💳 Withdrawal Confirmation - ${code}`,
+      login: `🔑 Login Code - ${code}`,
     };
 
     return this.sendEmail(email, subjects[type], html);
@@ -645,6 +649,172 @@ export class EmailService {
     });
 
     return this.sendEmail(email, '🎉 Investment Activated - Varlixo', html);
+  }
+
+  async sendRecurringPaymentDueEmail(
+    email: string,
+    name: string,
+    planType: string,
+    monthlyContribution: number,
+    nextPaymentDate: Date,
+  ): Promise<boolean> {
+    const html = this.getEmailTemplate({
+      title: 'Upcoming Payment Due',
+      preheader: 'Your recurring plan payment is due soon',
+      name,
+      content: `
+        <p style="margin: 0 0 16px; color: #e0e0e0; font-size: 16px; line-height: 1.6;">
+          Your next recurring plan payment is due soon.
+        </p>
+        <div style="background: #1a1a2e; border-radius: 12px; padding: 24px; margin: 24px 0;">
+          <table width="100%" style="border-collapse: collapse;">
+            <tr>
+              <td style="padding: 12px 0; border-bottom: 1px solid #2a2a3e; color: #888;">Plan</td>
+              <td style="padding: 12px 0; border-bottom: 1px solid #2a2a3e; text-align: right; color: #fff;">${planType}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 0; border-bottom: 1px solid #2a2a3e; color: #888;">Amount</td>
+              <td style="padding: 12px 0; border-bottom: 1px solid #2a2a3e; text-align: right; color: #00d4aa; font-weight: 600;">$${monthlyContribution.toLocaleString()}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 0; color: #888;">Due Date</td>
+              <td style="padding: 12px 0; text-align: right; color: #fff;">${nextPaymentDate.toLocaleDateString()}</td>
+            </tr>
+          </table>
+        </div>
+      `,
+      buttonText: 'View My Plans',
+      buttonUrl: `${this.frontendUrl}/dashboard/investments`,
+    });
+
+    return this.sendEmail(email, '⏰ Recurring Plan Payment Due - Varlixo', html);
+  }
+
+  async sendRecurringMissedPaymentEmail(
+    email: string,
+    name: string,
+    planType: string,
+    monthlyContribution: number,
+    nextPaymentDate: Date,
+  ): Promise<boolean> {
+    const html = this.getEmailTemplate({
+      title: 'Payment Missed',
+      preheader: 'Your recurring plan payment was missed',
+      name,
+      content: `
+        <p style="margin: 0 0 16px; color: #e0e0e0; font-size: 16px; line-height: 1.6;">
+          Your recurring plan payment was missed.
+        </p>
+        <div style="background: rgba(220, 53, 69, 0.1); border-left: 4px solid #dc3545; padding: 16px; margin: 20px 0; border-radius: 4px;">
+          <p style="margin: 0; color: #dc3545; font-size: 14px;">
+            Please make your payment as soon as possible to keep your plan on track.
+          </p>
+        </div>
+        <div style="background: #1a1a2e; border-radius: 12px; padding: 24px; margin: 24px 0;">
+          <table width="100%" style="border-collapse: collapse;">
+            <tr>
+              <td style="padding: 12px 0; border-bottom: 1px solid #2a2a3e; color: #888;">Plan</td>
+              <td style="padding: 12px 0; border-bottom: 1px solid #2a2a3e; text-align: right; color: #fff;">${planType}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 0; border-bottom: 1px solid #2a2a3e; color: #888;">Amount</td>
+              <td style="padding: 12px 0; border-bottom: 1px solid #2a2a3e; text-align: right; color: #ffc107; font-weight: 600;">$${monthlyContribution.toLocaleString()}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 0; color: #888;">Was Due</td>
+              <td style="padding: 12px 0; text-align: right; color: #fff;">${nextPaymentDate.toLocaleDateString()}</td>
+            </tr>
+          </table>
+        </div>
+      `,
+      buttonText: 'Pay Now',
+      buttonUrl: `${this.frontendUrl}/dashboard/investments`,
+    });
+
+    return this.sendEmail(email, '⚠️ Missed Recurring Plan Payment - Varlixo', html);
+  }
+
+  async sendRecurringPlanMaturedEmail(
+    email: string,
+    name: string,
+    planType: string,
+    totalContributed: number,
+    maturityDate: Date,
+  ): Promise<boolean> {
+    const html = this.getEmailTemplate({
+      title: 'Plan Reached Maturity',
+      preheader: 'Your recurring plan has reached maturity',
+      name,
+      content: `
+        <p style="margin: 0 0 16px; color: #e0e0e0; font-size: 16px; line-height: 1.6;">
+          Your recurring plan has reached maturity.
+        </p>
+        <div style="background: #1a1a2e; border-radius: 12px; padding: 24px; margin: 24px 0;">
+          <table width="100%" style="border-collapse: collapse;">
+            <tr>
+              <td style="padding: 12px 0; border-bottom: 1px solid #2a2a3e; color: #888;">Plan</td>
+              <td style="padding: 12px 0; border-bottom: 1px solid #2a2a3e; text-align: right; color: #fff;">${planType}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 0; border-bottom: 1px solid #2a2a3e; color: #888;">Total Contributed</td>
+              <td style="padding: 12px 0; border-bottom: 1px solid #2a2a3e; text-align: right; color: #00d4aa; font-weight: 600;">$${totalContributed.toLocaleString()}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 0; color: #888;">Maturity Date</td>
+              <td style="padding: 12px 0; text-align: right; color: #fff;">${maturityDate.toLocaleDateString()}</td>
+            </tr>
+          </table>
+        </div>
+        <p style="margin: 0; color: #a0a0a0; font-size: 14px; line-height: 1.6;">
+          You can request a withdrawal from your dashboard. Withdrawals require admin approval.
+        </p>
+      `,
+      buttonText: 'Request Withdrawal',
+      buttonUrl: `${this.frontendUrl}/dashboard/investments`,
+    });
+
+    return this.sendEmail(email, '✅ Recurring Plan Matured - Varlixo', html);
+  }
+
+  async notifyAdminRecurringWithdrawalRequest(
+    userEmail: string,
+    userName: string,
+    planType: string,
+    amountUsd: number,
+    planId: string,
+  ): Promise<boolean> {
+    const html = this.getAdminEmailTemplate({
+      title: '📤 Recurring Plan Withdrawal Request',
+      content: `
+        <p style="margin: 0 0 16px; color: #e0e0e0; font-size: 16px;">
+          A user has requested a withdrawal for a recurring plan.
+        </p>
+        <div style="background: #1a1a2e; border-radius: 12px; padding: 24px; margin: 24px 0;">
+          <table width="100%" style="border-collapse: collapse;">
+            <tr>
+              <td style="padding: 12px 0; border-bottom: 1px solid #2a2a3e; color: #888;">User</td>
+              <td style="padding: 12px 0; border-bottom: 1px solid #2a2a3e; text-align: right; color: #fff;">${userName} (${userEmail})</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 0; border-bottom: 1px solid #2a2a3e; color: #888;">Plan</td>
+              <td style="padding: 12px 0; border-bottom: 1px solid #2a2a3e; text-align: right; color: #fff;">${planType}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 0; border-bottom: 1px solid #2a2a3e; color: #888;">Amount (USD)</td>
+              <td style="padding: 12px 0; border-bottom: 1px solid #2a2a3e; text-align: right; color: #ffc107; font-weight: 600;">$${amountUsd.toLocaleString()}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 0; color: #888;">Plan ID</td>
+              <td style="padding: 12px 0; text-align: right; color: #fff; font-family: monospace;">${planId}</td>
+            </tr>
+          </table>
+        </div>
+      `,
+      buttonText: 'Review Recurring Plans',
+      buttonUrl: `${this.frontendUrl}/admin/dashboard/investments`,
+    });
+
+    return this.sendEmail(this.adminEmail, `📤 Recurring Withdrawal Request - ${userName}`, html);
   }
 
   // ==========================================

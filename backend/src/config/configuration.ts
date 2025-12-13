@@ -53,6 +53,7 @@ export default () => ({
     secretRoute: process.env.ADMIN_SECRET_ROUTE || 'admin-secret-2024',
     defaultEmail: process.env.ADMIN_DEFAULT_EMAIL || 'admin@varlixo.com',
     defaultPassword: process.env.ADMIN_DEFAULT_PASSWORD || 'Admin@123456',
+    ipAllowlist: process.env.ADMIN_IP_ALLOWLIST || '',
   },
 
   // External APIs

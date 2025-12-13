@@ -13,8 +13,25 @@ import {
   IsNotEmpty,
   Min,
   Max,
+  ValidateNested,
+  IsArray,
   Length,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+
+class CountryLimitDto {
+  @IsString()
+  @IsNotEmpty()
+  country: string;
+
+  @IsNumber()
+  @Min(0)
+  minInvestment: number;
+
+  @IsNumber()
+  @Min(0)
+  maxInvestment: number;
+}
 
 // Create investment DTO
 export class CreateInvestmentDto {
@@ -61,6 +78,10 @@ export class CreatePlanDto {
   @IsString()
   shortDescription?: string;
 
+  @IsOptional()
+  @IsString()
+  status?: string;
+
   @IsNumber()
   @Min(0)
   minInvestment: number;
@@ -68,6 +89,42 @@ export class CreatePlanDto {
   @IsNumber()
   @Min(0)
   maxInvestment: number;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CountryLimitDto)
+  countryLimits?: CountryLimitDto[];
+
+  @IsOptional()
+  @IsBoolean()
+  marketLinked?: boolean;
+
+  @IsOptional()
+  @IsString()
+  marketAssetId?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  marketBaseDailyRate?: number;
+
+  @IsOptional()
+  @IsNumber()
+  marketAlpha?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  marketMinDailyRate?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  marketMaxDailyRate?: number;
 
   @IsNumber()
   @Min(0)
@@ -116,8 +173,20 @@ export class CreatePlanDto {
   isFeatured?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  isPopular?: boolean;
+
+  @IsOptional()
   @IsString({ each: true })
   features?: string[];
+
+  @IsOptional()
+  @IsNumber()
+  maxActiveInvestments?: number;
+
+  @IsOptional()
+  @IsNumber()
+  totalSlots?: number;
 
   @IsOptional()
   @IsNumber()
@@ -184,6 +253,46 @@ export class UpdatePlanDto {
   @IsOptional()
   @IsBoolean()
   isPopular?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  sortOrder?: number;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CountryLimitDto)
+  countryLimits?: CountryLimitDto[];
+
+  @IsOptional()
+  @IsBoolean()
+  marketLinked?: boolean;
+
+  @IsOptional()
+  @IsString()
+  marketAssetId?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  marketBaseDailyRate?: number;
+
+  @IsOptional()
+  @IsNumber()
+  marketAlpha?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  marketMinDailyRate?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  marketMaxDailyRate?: number;
 }
 
 

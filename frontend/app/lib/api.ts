@@ -9,7 +9,7 @@ import axios from 'axios';
 import Cookies from 'js-cookie';
 
 // API Base URL - Uses environment variable in production
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
 
 // Create axios instance
 export const api = axios.create({
@@ -80,6 +80,8 @@ export const authAPI = {
   getProfile: () => api.get('/auth/profile'),
   verifyEmail: (token: string) => api.post('/auth/verify-email', { token }),
   resendVerification: (email: string) => api.post('/auth/resend-verification', { email }),
+  resendOtp: (email: string, type: 'verification' | 'reset' | 'withdrawal' | 'login') =>
+    api.post('/auth/otp/resend', { email, type }),
   forgotPassword: (email: string) => api.post('/auth/forgot-password', { email }),
   resetPassword: (data: any) => api.post('/auth/reset-password', data),
   changePassword: (data: any) => api.post('/auth/change-password', data),
@@ -91,6 +93,10 @@ export const authAPI = {
 export const walletAPI = {
   getWallet: () => api.get('/wallet'),
   getSummary: () => api.get('/wallet/summary'),
+  listLinkedWallets: () => api.get('/wallet/linked-wallets'),
+  requestLinkedWalletNonce: (data: any) => api.post('/wallet/linked-wallets/nonce', data),
+  verifyLinkedWallet: (data: any) => api.post('/wallet/linked-wallets/verify', data),
+  removeLinkedWallet: (id: string) => api.delete(`/wallet/linked-wallets/${id}`),
   createDeposit: (data: any) => api.post('/wallet/deposit', data),
   getDeposits: (params?: any) => api.get('/wallet/deposits', { params }),
   uploadDepositProof: (data: FormData) => api.post('/wallet/deposit/proof', data, {
@@ -120,6 +126,7 @@ export const investmentAPI = {
   startRecurringPlan: (data: any) => api.post('/investments/recurring/start', data),
   getMyRecurringPlans: () => api.get('/investments/recurring/my'),
   payRecurringInstallment: (id: string) => api.post(`/investments/recurring/${id}/pay`),
+  requestRecurringWithdrawal: (planId: string) => api.post('/investments/recurring/request-withdrawal', { planId }),
 };
 
 export const kycAPI = {
@@ -167,10 +174,10 @@ export const adminAPI = {
   getPendingKyc: (params?: any) => api.get('/kyc/admin/pending', { params }),
   approveKyc: (id: string, data?: any) => api.post(`/admin/kyc/${id}/approve`, data),
   rejectKyc: (id: string, data: any) => api.post(`/admin/kyc/${id}/reject`, data),
-  getPlans: (params?: any) => api.get('/admin/plans', { params }),
-  createPlan: (data: any) => api.post('/admin/plans', data),
-  updatePlan: (id: string, data: any) => api.put(`/admin/plans/${id}`, data),
-  deletePlan: (id: string) => api.delete(`/admin/plans/${id}`),
+  getPlans: (params?: any) => api.get('/investments/admin/plans', { params }),
+  createPlan: (data: any) => api.post('/investments/admin/plans', data),
+  updatePlan: (id: string, data: any) => api.put(`/investments/admin/plans/${id}`, data),
+  deletePlan: (id: string) => api.delete(`/investments/admin/plans/${id}`),
   getLogs: (params?: any) => api.get('/admin/logs', { params }),
   getStats: () => api.get('/admin/stats'),
   clearTestData: () => api.post('/admin/clear-test-data'),

@@ -18,8 +18,10 @@ import { Wallet, WalletSchema } from '../schemas/wallet.schema';
 import { User, UserSchema } from '../schemas/user.schema';
 import { Transaction, TransactionSchema } from '../schemas/transaction.schema';
 import { Referral, ReferralSchema } from '../schemas/referral.schema';
+import { AdminLog, AdminLogSchema } from '../schemas/admin-log.schema';
 import { EmailModule } from '../email/email.module';
 import { CurrencyModule } from '../currency/currency.module';
+import { MarketModule } from '../market/market.module';
 
 @Module({
   imports: [
@@ -31,6 +33,7 @@ import { CurrencyModule } from '../currency/currency.module';
       { name: User.name, schema: UserSchema },
       { name: Transaction.name, schema: TransactionSchema },
       { name: Referral.name, schema: ReferralSchema },
+      { name: AdminLog.name, schema: AdminLogSchema },
     ]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -44,6 +47,7 @@ import { CurrencyModule } from '../currency/currency.module';
     }),
     forwardRef(() => EmailModule),
     CurrencyModule,
+    MarketModule,
   ],
   controllers: [InvestmentController],
   providers: [InvestmentService],

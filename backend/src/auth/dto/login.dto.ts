@@ -20,6 +20,11 @@ export class LoginDto {
   @IsString()
   @Length(6, 6, { message: '2FA code must be 6 digits' })
   twoFactorCode?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(6, 6, { message: 'Email OTP must be 6 digits' })
+  emailOtp?: string;
 }
 
 export class RefreshTokenDto {
@@ -102,7 +107,7 @@ export class SendOtpDto {
 
   @IsString()
   @IsOptional()
-  type?: 'verification' | 'reset' | 'withdrawal';
+  type?: 'verification' | 'reset' | 'withdrawal' | 'login';
 }
 
 export class ResetPasswordWithOtpDto {
