@@ -97,6 +97,7 @@ const investmentPlans = [
 ];
 
 export default function InvestmentsPage() {
+  const router = useRouter();
   const { wallet } = useAuthStore();
   const { country } = useCurrencyStore();
   const [plans, setPlans] = useState<any[]>(investmentPlans);
@@ -221,7 +222,10 @@ export default function InvestmentsPage() {
         };
       });
 
-      setActiveInvestments(normalizedInvestments);
+      const oneTimeActive = normalizedInvestments.filter(
+        (inv: any) => String(inv?.status || '').toLowerCase() === 'active',
+      );
+      setActiveInvestments(oneTimeActive);
       setInvestmentSummary(summaryRes.data.data?.summary || null);
       const recurringData = recurringRes.data.data?.plans || recurringRes.data.plans || [];
       setRecurringPlans(Array.isArray(recurringData) ? recurringData : []);
@@ -329,7 +333,9 @@ export default function InvestmentsPage() {
           </div>
           <p className="text-sm text-gray-400">Active Plans</p>
           <p className="text-xl font-bold text-white">
-            {investmentSummary?.activeInvestments || 0}
+            {activeInvestments.length + (Array.isArray(recurringPlans)
+              ? recurringPlans.filter((p: any) => p?.status === 'active' || p?.status === 'missed').length
+              : 0)}
           </p>
         </Card>
 

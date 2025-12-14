@@ -201,7 +201,10 @@ export default function DashboardPage() {
   // Calculate total balance
   const totalBalance = (wallet?.mainBalance || 0) + (wallet?.pendingBalance || 0) + (wallet?.lockedBalance || 0);
 
-  const totalActivePlans = (investmentSummary?.activeInvestments || 0) + (recurringPlans.length || 0);
+  const activeRecurringCount = Array.isArray(recurringPlans)
+    ? recurringPlans.filter((p: any) => p?.status === 'active' || p?.status === 'missed').length
+    : 0;
+  const totalActivePlans = (investmentSummary?.activeInvestments || 0) + activeRecurringCount;
 
   // Get time-based greeting
   const getGreeting = () => {
