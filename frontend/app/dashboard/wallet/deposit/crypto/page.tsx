@@ -11,6 +11,7 @@ import toast from 'react-hot-toast';
 import { Card } from '@/app/components/ui/Card';
 import Button from '@/app/components/ui/Button';
 import Input from '@/app/components/ui/Input';
+import Money from '@/app/components/ui/Money';
 import { walletAPI } from '@/app/lib/api';
 
 const cryptoMethods = [
@@ -175,7 +176,9 @@ export default function CryptoDepositPage() {
               </div>
               <p className="text-white font-semibold text-lg">{crypto.name}</p>
               <p className="text-gray-500 text-sm">{crypto.symbol}</p>
-              <p className="text-gray-600 text-xs mt-2">Min ${crypto.minDeposit}</p>
+              <p className="text-gray-600 text-xs mt-2">
+                Min <Money valueUsd={crypto.minDeposit} className="text-gray-600 text-xs" showUsdEquivalent={false} />
+              </p>
             </button>
           ))}
         </div>
@@ -192,7 +195,9 @@ export default function CryptoDepositPage() {
               </div>
               <div className="flex-1">
                 <p className="text-white font-semibold">{selectedCrypto.name}</p>
-                <p className="text-gray-400 text-sm">Minimum: ${selectedCrypto.minDeposit}</p>
+                <p className="text-gray-400 text-sm">
+                  Minimum: <Money valueUsd={selectedCrypto.minDeposit} className="text-gray-400 text-sm" showUsdEquivalent={false} />
+                </p>
               </div>
               <button 
                 onClick={() => setStep('select')}
@@ -231,7 +236,7 @@ export default function CryptoDepositPage() {
                       : 'bg-dark-700 text-gray-400 hover:bg-dark-600 hover:text-white'
                   }`}
                 >
-                  ${amt.toLocaleString()}
+                  <Money valueUsd={amt} className="" showUsdEquivalent={false} />
                 </button>
               ))}
             </div>
@@ -267,7 +272,7 @@ export default function CryptoDepositPage() {
             <div className="text-center mb-6">
               <p className="text-gray-400 text-sm mb-1">Amount to Deposit</p>
               <p className="text-4xl font-bold text-white">
-                ${depositInstructions.deposit?.amount?.toLocaleString() || amount}
+                <Money valueUsd={depositInstructions.deposit?.amount || parseFloat(amount || '0')} className="text-4xl font-bold text-white" showUsdEquivalent={false} />
               </p>
             </div>
 

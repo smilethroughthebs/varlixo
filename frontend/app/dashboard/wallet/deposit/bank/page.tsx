@@ -10,6 +10,7 @@ import { ArrowLeft, Check, CheckCircle, Copy, Building2, Zap } from 'lucide-reac
 import toast from 'react-hot-toast';
 import { Card } from '@/app/components/ui/Card';
 import Button from '@/app/components/ui/Button';
+import Money from '@/app/components/ui/Money';
 import { walletAPI } from '@/app/lib/api';
 
 const bankMethods = [
@@ -152,7 +153,9 @@ export default function BankDepositPage() {
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-xl font-bold text-white">{method.name}</h3>
-                    <span className="text-gray-500 text-sm">Min ${method.minDeposit}</span>
+                    <span className="text-gray-500 text-sm">
+                      Min <Money valueUsd={method.minDeposit} className="text-gray-500 text-sm" showUsdEquivalent={false} />
+                    </span>
                   </div>
                   <p className="text-gray-400 mb-3">{method.description}</p>
                   <div className="flex items-center gap-2 text-sm text-gray-500">
@@ -177,7 +180,9 @@ export default function BankDepositPage() {
               </div>
               <div className="flex-1">
                 <p className="text-white font-semibold">{selectedBank.name}</p>
-                <p className="text-gray-400 text-sm">Min ${selectedBank.minDeposit} • {selectedBank.processingTime}</p>
+                <p className="text-gray-400 text-sm">
+                  Min <Money valueUsd={selectedBank.minDeposit} className="text-gray-400 text-sm" showUsdEquivalent={false} /> • {selectedBank.processingTime}
+                </p>
               </div>
               <button 
                 onClick={() => setStep('select')}
@@ -216,7 +221,7 @@ export default function BankDepositPage() {
                       : 'bg-dark-700 text-gray-400 hover:bg-dark-600 hover:text-white'
                   }`}
                 >
-                  ${amt.toLocaleString()}
+                  <Money valueUsd={amt} className="" showUsdEquivalent={false} />
                 </button>
               ))}
             </div>
@@ -252,7 +257,7 @@ export default function BankDepositPage() {
             <div className="text-center mb-6">
               <p className="text-gray-400 text-sm mb-1">Amount to Transfer</p>
               <p className="text-4xl font-bold text-white">
-                ${depositInstructions.deposit?.amount?.toLocaleString() || amount}
+                <Money valueUsd={depositInstructions.deposit?.amount || parseFloat(amount || '0')} className="text-4xl font-bold text-white" showUsdEquivalent={false} />
               </p>
             </div>
 

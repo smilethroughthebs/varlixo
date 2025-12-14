@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { ArrowLeft, Sparkles, Gift, Building2, ChevronRight, Shield, Zap, Clock } from 'lucide-react';
 import { Card } from '@/app/components/ui/Card';
 import Button from '@/app/components/ui/Button';
+import Money from '@/app/components/ui/Money';
 
 const depositMethods = [
   {
@@ -94,7 +95,9 @@ export default function DepositPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-xl font-bold text-white">{method.name}</h3>
-                    <span className="text-gray-500 text-sm">Min ${method.minDeposit}</span>
+                    <span className="text-gray-500 text-sm">
+                      Min <Money valueUsd={method.minDeposit} className="text-gray-500 text-sm" showUsdEquivalent={false} />
+                    </span>
                   </div>
                   <p className="text-gray-400 mb-4">{method.description}</p>
                   <div className="flex flex-wrap gap-2">

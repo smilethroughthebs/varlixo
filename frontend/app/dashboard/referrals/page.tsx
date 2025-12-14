@@ -26,6 +26,7 @@ import {
 import { Card, CardHeader, CardTitle } from '@/app/components/ui/Card';
 import Button from '@/app/components/ui/Button';
 import Input from '@/app/components/ui/Input';
+import Money from '@/app/components/ui/Money';
 import { useAuthStore } from '@/app/lib/store';
 import { referralAPI } from '@/app/lib/api';
 import toast from 'react-hot-toast';
@@ -173,10 +174,10 @@ export default function ReferralsPage() {
           </div>
           <p className="text-gray-400 text-sm mb-1">Total Earnings</p>
           <p className="text-2xl font-bold text-white">
-            ${referralStats.totalEarnings.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            <Money valueUsd={referralStats.totalEarnings} className="text-2xl font-bold text-white" />
           </p>
           <p className="text-sm text-green-500 mt-1">
-            +${referralStats.thisMonthEarnings.toLocaleString()} this month
+            +<Money valueUsd={referralStats.thisMonthEarnings} className="text-sm text-green-500" showUsdEquivalent={false} /> this month
           </p>
         </Card>
 
@@ -188,7 +189,7 @@ export default function ReferralsPage() {
           </div>
           <p className="text-gray-400 text-sm mb-1">Pending Earnings</p>
           <p className="text-2xl font-bold text-white">
-            ${referralStats.pendingEarnings.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            <Money valueUsd={referralStats.pendingEarnings} className="text-2xl font-bold text-white" />
           </p>
           <p className="text-sm text-gray-500 mt-1">Processing</p>
         </Card>
@@ -571,10 +572,10 @@ export default function ReferralsPage() {
                           {new Date(refUser.joinedAt || refUser.createdAt).toLocaleDateString()}
                         </td>
                         <td className="py-4 pr-4 text-white font-medium">
-                          ${(refUser.totalInvested || refUser.totalDeposits || 0).toLocaleString()}
+                          <Money valueUsd={refUser.totalInvested || refUser.totalDeposits || 0} className="text-white font-medium" />
                         </td>
                         <td className="py-4 text-green-400 font-semibold">
-                          +${(refUser.earnings || refUser.referralEarnings || 0).toLocaleString()}
+                          +<Money valueUsd={refUser.earnings || refUser.referralEarnings || 0} className="text-green-400 font-semibold" showUsdEquivalent={false} />
                         </td>
                       </tr>
                     );

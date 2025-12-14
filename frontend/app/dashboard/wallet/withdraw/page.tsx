@@ -11,6 +11,7 @@ import toast from 'react-hot-toast';
 import { Card } from '@/app/components/ui/Card';
 import Button from '@/app/components/ui/Button';
 import Input from '@/app/components/ui/Input';
+import Money from '@/app/components/ui/Money';
 import { useAuthStore } from '@/app/lib/store';
 import { walletAPI } from '@/app/lib/api';
 
@@ -137,7 +138,7 @@ export default function WithdrawPage() {
             <div>
               <p className="text-gray-400 text-sm">Available Balance</p>
               <p className="text-2xl font-bold text-white">
-                ${(wallet?.mainBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                <Money valueUsd={wallet?.mainBalance || 0} className="text-2xl font-bold text-white" />
               </p>
             </div>
           </div>
@@ -190,7 +191,9 @@ export default function WithdrawPage() {
                     {method.icon}
                   </div>
                   <p className="text-white font-medium">{method.name}</p>
-                  <p className="text-gray-500 text-xs">Fee: ${method.fee}</p>
+                  <p className="text-gray-500 text-xs">
+                    Fee: <Money valueUsd={method.fee} className="text-gray-500 text-xs" showUsdEquivalent={false} />
+                  </p>
                 </button>
               ))}
             </div>
@@ -210,7 +213,9 @@ export default function WithdrawPage() {
                     {method.icon}
                   </div>
                   <p className="text-white font-medium">{method.name}</p>
-                  <p className="text-gray-500 text-xs">Fee: ${method.fee} • {method.time}</p>
+                  <p className="text-gray-500 text-xs">
+                    Fee: <Money valueUsd={method.fee} className="text-gray-500 text-xs" showUsdEquivalent={false} /> • {method.time}
+                  </p>
                 </button>
               ))}
             </div>
@@ -229,7 +234,9 @@ export default function WithdrawPage() {
               </div>
               <div className="flex-1">
                 <p className="text-white font-semibold">{selectedWithdrawMethod.name}</p>
-                <p className="text-gray-400 text-sm">Fee: ${selectedWithdrawMethod.fee} • {selectedWithdrawMethod.time}</p>
+                <p className="text-gray-400 text-sm">
+                  Fee: <Money valueUsd={selectedWithdrawMethod.fee} className="text-gray-400 text-sm" showUsdEquivalent={false} /> • {selectedWithdrawMethod.time}
+                </p>
               </div>
               <button 
                 onClick={() => setStep('method')}
@@ -311,15 +318,21 @@ export default function WithdrawPage() {
               <div className="p-4 bg-dark-700/50 rounded-xl space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-400">Withdrawal Amount</span>
-                  <span className="text-white">${parseFloat(amount).toLocaleString()}</span>
+                  <span className="text-white">
+                    <Money valueUsd={parseFloat(amount)} className="text-white" showUsdEquivalent={false} />
+                  </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-400">Processing Fee</span>
-                  <span className="text-yellow-400">-${fee.toFixed(2)}</span>
+                  <span className="text-yellow-400">
+                    -<Money valueUsd={fee} className="text-yellow-400" showUsdEquivalent={false} />
+                  </span>
                 </div>
                 <div className="border-t border-dark-600 pt-2 flex justify-between">
                   <span className="text-white font-medium">You'll Receive</span>
-                  <span className="text-green-400 font-bold text-lg">${netAmount.toLocaleString()}</span>
+                  <span className="text-green-400 font-bold text-lg">
+                    <Money valueUsd={netAmount} className="text-green-400 font-bold text-lg" showUsdEquivalent={false} />
+                  </span>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-gray-500 pt-1">
                   <Clock size={12} />
@@ -368,15 +381,21 @@ export default function WithdrawPage() {
               </div>
               <div className="flex justify-between p-3 bg-dark-700 rounded-lg">
                 <span className="text-gray-400">Amount</span>
-                <span className="text-white font-medium">${parseFloat(amount).toLocaleString()}</span>
+                <span className="text-white font-medium">
+                  <Money valueUsd={parseFloat(amount)} className="text-white font-medium" showUsdEquivalent={false} />
+                </span>
               </div>
               <div className="flex justify-between p-3 bg-dark-700 rounded-lg">
                 <span className="text-gray-400">Fee</span>
-                <span className="text-yellow-400">-${fee.toFixed(2)}</span>
+                <span className="text-yellow-400">
+                  -<Money valueUsd={fee} className="text-yellow-400" showUsdEquivalent={false} />
+                </span>
               </div>
               <div className="flex justify-between p-3 bg-dark-700 rounded-lg">
                 <span className="text-white font-medium">You'll Receive</span>
-                <span className="text-green-400 font-bold text-xl">${netAmount.toLocaleString()}</span>
+                <span className="text-green-400 font-bold text-xl">
+                  <Money valueUsd={netAmount} className="text-green-400 font-bold text-xl" showUsdEquivalent={false} />
+                </span>
               </div>
               {selectedMethod?.startsWith('crypto_') && (
                 <div className="p-3 bg-dark-700 rounded-lg">
@@ -435,7 +454,9 @@ export default function WithdrawPage() {
           <div className="p-4 bg-dark-700/50 rounded-xl mb-6 text-left">
             <div className="flex justify-between mb-2">
               <span className="text-gray-400">Amount</span>
-              <span className="text-white font-semibold">${netAmount.toLocaleString()}</span>
+              <span className="text-white font-semibold">
+                <Money valueUsd={netAmount} className="text-white font-semibold" showUsdEquivalent={false} />
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">Processing Time</span>

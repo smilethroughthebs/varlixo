@@ -11,6 +11,7 @@ import toast from 'react-hot-toast';
 import { Card } from '@/app/components/ui/Card';
 import Button from '@/app/components/ui/Button';
 import Input from '@/app/components/ui/Input';
+import Money from '@/app/components/ui/Money';
 import { walletAPI } from '@/app/lib/api';
 
 const giftCardMethods = [
@@ -174,7 +175,9 @@ export default function GiftCardDepositPage() {
                     {card.icon}
                   </div>
                   <p className="text-white font-medium">{card.name}</p>
-                  <p className="text-gray-500 text-xs">Min ${card.minDeposit}</p>
+                  <p className="text-gray-500 text-xs">
+                    Min <Money valueUsd={card.minDeposit} className="text-gray-500 text-xs" showUsdEquivalent={false} />
+                  </p>
                 </button>
               ))}
             </div>
@@ -194,7 +197,9 @@ export default function GiftCardDepositPage() {
                     {card.icon}
                   </div>
                   <p className="text-white font-medium text-sm">{card.name}</p>
-                  <p className="text-gray-500 text-xs">Min ${card.minDeposit}</p>
+                  <p className="text-gray-500 text-xs">
+                    Min <Money valueUsd={card.minDeposit} className="text-gray-500 text-xs" showUsdEquivalent={false} />
+                  </p>
                 </button>
               ))}
             </div>
@@ -213,7 +218,9 @@ export default function GiftCardDepositPage() {
               </div>
               <div className="flex-1">
                 <p className="text-white font-semibold text-lg">{selectedCard.name}</p>
-                <p className="text-gray-400 text-sm">Minimum: ${selectedCard.minDeposit}</p>
+                <p className="text-gray-400 text-sm">
+                  Minimum: <Money valueUsd={selectedCard.minDeposit} className="text-gray-400 text-sm" showUsdEquivalent={false} />
+                </p>
               </div>
               <button 
                 onClick={() => setStep('select')}
@@ -329,7 +336,9 @@ export default function GiftCardDepositPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-400">Amount</span>
-                <span className="text-white font-semibold">${parseFloat(amount).toLocaleString()}</span>
+                <span className="text-white font-semibold">
+                  <Money valueUsd={parseFloat(amount)} className="text-white font-semibold" showUsdEquivalent={false} />
+                </span>
               </div>
             </div>
 

@@ -193,11 +193,6 @@ export default function DashboardPage() {
     }
   };
 
-  const formatBalance = (amount: number) => {
-    if (!showBalance) return '••••••';
-    return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
-
   // Calculate total balance
   const totalBalance = (wallet?.mainBalance || 0) + (wallet?.pendingBalance || 0) + (wallet?.lockedBalance || 0);
 
@@ -540,7 +535,7 @@ export default function DashboardPage() {
                         <div>
                           <p className="text-white font-medium capitalize">{plan.planType}</p>
                           <p className="text-gray-500 text-sm">
-                            ${plan.monthlyContribution?.toLocaleString()} / month
+                            <Money valueUsd={plan.monthlyContribution || 0} className="text-gray-500 text-sm" showUsdEquivalent={false} /> / month
                           </p>
                         </div>
                         <span
@@ -557,8 +552,14 @@ export default function DashboardPage() {
                       </div>
                       <div className="flex items-center justify-between mb-2">
                         <div className="text-sm text-gray-400">
-                          <div>Contributed: ${plan.totalContributed?.toLocaleString()}</div>
-                          <div>Portfolio: ${plan.portfolioValue?.toLocaleString()}</div>
+                          <div>
+                            Contributed:{' '}
+                            <Money valueUsd={plan.totalContributed || 0} className="text-sm text-gray-400" showUsdEquivalent={false} />
+                          </div>
+                          <div>
+                            Portfolio:{' '}
+                            <Money valueUsd={plan.portfolioValue || 0} className="text-sm text-gray-400" showUsdEquivalent={false} />
+                          </div>
                         </div>
                         <div className="text-right text-sm text-gray-400">
                           <div>{plan.monthsCompleted || 0} / {plan.monthsRequired || 0} months</div>
@@ -811,7 +812,7 @@ export default function DashboardPage() {
                       </div>
                       <div className="text-right">
                         <p className="text-white font-medium text-sm">
-                          ${(crypto.current_price || crypto.price || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                          <Money valueUsd={crypto.current_price || crypto.price || 0} className="text-white font-medium text-sm" showUsdEquivalent={false} />
                         </p>
                         <p
                           className={`text-xs flex items-center justify-end gap-0.5 ${
