@@ -94,10 +94,16 @@ export default function TransactionsPage() {
         ...filters,
       });
 
-      const payload = response.data?.data || response.data;
-      const inner = payload?.data || payload;
-      const items = Array.isArray(inner?.data) ? inner.data : [];
-      const meta = inner?.meta || {};
+      const apiPayload = response.data?.data ?? response.data;
+
+      // Expected backend shape (after TransformInterceptor):
+      // { success, message, data: { data: Transaction[], meta: {...} } }
+      const items = Array.isArray(apiPayload?.data)
+        ? apiPayload.data
+        : Array.isArray(apiPayload)
+          ? apiPayload
+          : [];
+      const meta = apiPayload?.meta || {};
 
       setTransactions(items);
       setPagination((prev) => ({
