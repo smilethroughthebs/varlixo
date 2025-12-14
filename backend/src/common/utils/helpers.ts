@@ -127,12 +127,48 @@ export function addDays(date: Date, days: number): Date {
  * @param request - Express request object
  */
 export function getClientIp(request: any): string {
-  return (
-    request.headers['x-forwarded-for']?.split(',')[0] ||
+  const headers = request?.headers || {};
+
+  const getHeader = (name: string): string | undefined => {
+    const value = headers[name] ?? headers[name.toLowerCase()];
+    if (!value) return undefined;
+    if (Array.isArray(value)) return String(value[0]);
+    return String(value);
+  };
+
+  const candidate =
+    // Cloudflare
+    getHeader('cf-connecting-ip') ||
+    // Some proxies
+    getHeader('x-real-ip') ||
+    // Vercel
+    getHeader('x-vercel-forwarded-for') ||
+    // Standard
+    (getHeader('x-forwarded-for') ? getHeader('x-forwarded-for')!.split(',')[0] : undefined) ||
     request.connection?.remoteAddress ||
     request.socket?.remoteAddress ||
-    'unknown'
-  );
+    request.ip;
+
+  if (!candidate) return 'unknown';
+
+  let ip = String(candidate).trim();
+
+  // Strip port if present (e.g. "1.2.3.4:1234")
+  if (/^\d+\.\d+\.\d+\.\d+:\d+$/.test(ip)) {
+    ip = ip.split(':')[0];
+  }
+
+  // Handle IPv6-mapped IPv4 addresses (e.g. "::ffff:1.2.3.4")
+  if (ip.startsWith('::ffff:')) {
+    ip = ip.replace('::ffff:', '');
+  }
+
+  // Remove IPv6 brackets if present
+  if (ip.startsWith('[') && ip.includes(']')) {
+    ip = ip.slice(1, ip.indexOf(']'));
+  }
+
+  return ip || 'unknown';
 }
 
 

@@ -115,8 +115,9 @@ export const useCurrencyStore = create<CurrencyState>()(
       detectCurrency: async () => {
         try {
           const response = await api.get('/currency/detect');
-          const payload = response.data?.data;
-          const { country, currency_code, currency_symbol, locale, conversion_rate, is_fallback } = payload;
+          const payload = response.data?.data || response.data;
+          const inner = payload?.data || payload;
+          const { country, currency_code, currency_symbol, locale, conversion_rate, is_fallback } = inner;
 
           set({
             country,
@@ -126,7 +127,7 @@ export const useCurrencyStore = create<CurrencyState>()(
             conversionRate: conversion_rate,
             isAutoDetected: true,
             isFallbackRate: is_fallback,
-            countryRules: payload.country_rules,
+            countryRules: inner.country_rules,
           });
         } catch (error) {
           console.error('Failed to detect currency:', error);
@@ -185,9 +186,11 @@ export const useCurrencyStore = create<CurrencyState>()(
             // ignore
           }
 
-          // If we already have a persisted currencyCode (store persistence), just refresh its rate.
+          // If we already have a persisted currencyCode (store persistence) AND it was manually selected,
+          // just refresh its rate.
           const existing = get().currencyCode;
-          if (existing && existing !== 'USD') {
+          const existingWasAuto = get().isAutoDetected;
+          if (existing && existing !== 'USD' && !existingWasAuto) {
             await applyCurrencyNoPersist(existing);
             return;
           }
@@ -205,11 +208,24 @@ export const useCurrencyStore = create<CurrencyState>()(
     }),
     {
       name: 'currency-store',
+      version: 1,
+      migrate: (persistedState: any, version: number) => {
+        // Previous versions didn't persist isAutoDetected. Those values were almost always
+        // the result of auto-detection, so default them to true to allow VPN/IP changes
+        // to re-trigger detection.
+        if (version === 0 && persistedState && typeof persistedState === 'object') {
+          if (persistedState.isAutoDetected === undefined) {
+            return { ...persistedState, isAutoDetected: true };
+          }
+        }
+        return persistedState;
+      },
       partialize: (state) => ({
         currencyCode: state.currencyCode,
         currencySymbol: state.currencySymbol,
         locale: state.locale,
         country: state.country,
+        isAutoDetected: state.isAutoDetected,
       }),
     }
   )

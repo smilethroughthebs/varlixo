@@ -21,6 +21,9 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  // Trust proxy headers (Vercel/Cloudflare/Nginx) so req.ip and forwarded-for are respected
+  app.set('trust proxy', true);
+
   // Get configuration service
   const configService = app.get(ConfigService);
   const port = configService.get<number>('app.port') || 3001;
