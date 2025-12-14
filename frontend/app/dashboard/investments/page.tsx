@@ -169,7 +169,59 @@ export default function InvestmentsPage() {
         investmentAPI.getMyRecurringPlans().catch(() => ({ data: { data: { plans: [] } } })),
       ]);
       
-      setActiveInvestments(investmentsRes.data.data || []);
+      const investmentsPayload = investmentsRes.data?.data || investmentsRes.data;
+      const investmentsRaw = investmentsPayload?.data || investmentsPayload || [];
+      const investmentsArray = Array.isArray(investmentsRaw)
+        ? investmentsRaw
+        : Array.isArray(investmentsRaw?.data)
+          ? investmentsRaw.data
+          : [];
+
+      const normalizedInvestments = investmentsArray.map((inv: any) => {
+        const durationDays = Number(inv?.durationDays || 0);
+
+        const startDate = inv?.activatedAt || inv?.createdAt;
+        const endDate = inv?.maturityDate;
+
+        const start = startDate ? new Date(startDate) : null;
+        const end = endDate ? new Date(endDate) : null;
+        const now = new Date();
+
+        const elapsedDaysFromDates =
+          start && !isNaN(start.getTime())
+            ? Math.floor((now.getTime() - start.getTime()) / (24 * 60 * 60 * 1000))
+            : 0;
+
+        const daysCompletedRaw = Number(inv?.daysCompleted || 0);
+        const daysCompleted = daysCompletedRaw > 0
+          ? daysCompletedRaw
+          : Math.max(0, Math.min(elapsedDaysFromDates, durationDays || elapsedDaysFromDates));
+
+        const progress = durationDays > 0
+          ? Math.min(100, Math.max(0, Math.round((daysCompleted / durationDays) * 100)))
+          : 0;
+
+        const dailyProfitAmount = Number(inv?.dailyProfitAmount || 0);
+        const expectedTotalProfit = Number(inv?.expectedTotalProfit || 0);
+        const accumulatedProfit = typeof inv?.accumulatedProfit === 'number'
+          ? Number(inv.accumulatedProfit)
+          : 0;
+        const earnedSoFar = accumulatedProfit > 0
+          ? accumulatedProfit
+          : Math.min(expectedTotalProfit || Number.MAX_SAFE_INTEGER, dailyProfitAmount * daysCompleted);
+
+        return {
+          ...inv,
+          startDate,
+          endDate,
+          dailyReturn: inv?.dailyReturnRate,
+          totalReturn: earnedSoFar,
+          daysRemaining: Math.max(durationDays - daysCompleted, 0),
+          progress,
+        };
+      });
+
+      setActiveInvestments(normalizedInvestments);
       setInvestmentSummary(summaryRes.data.data?.summary || null);
       const recurringData = recurringRes.data.data?.plans || recurringRes.data.plans || [];
       setRecurringPlans(Array.isArray(recurringData) ? recurringData : []);

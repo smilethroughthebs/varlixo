@@ -41,6 +41,7 @@ import { PaginationDto, createPaginatedResponse } from '../common/dto/pagination
 import { EmailService } from '../email/email.service';
 import { ConfigService } from '@nestjs/config';
 import { CurrencyService } from '../currency/currency.service';
+import { GetTransactionsDto } from './dto/wallet.dto';
 
 @Injectable()
 export class WalletService {
@@ -802,11 +803,45 @@ export class WalletService {
   /**
    * Get user transactions
    */
-  async getTransactions(userId: string, paginationDto: PaginationDto) {
-    const { page = 1, limit = 10, sortOrder = 'desc', search } = paginationDto;
+  async getTransactions(userId: string, paginationDto: GetTransactionsDto) {
+    const { page = 1, limit = 10, sortOrder = 'desc', search, type, status, startDate, endDate } = paginationDto;
     const skip = (page - 1) * limit;
 
     const query: any = { userId: new Types.ObjectId(userId) };
+
+    if (type) {
+      query.type = type;
+    }
+
+    if (status) {
+      query.status = status;
+    }
+
+    if (startDate || endDate) {
+      const createdAt: any = {};
+
+      if (startDate) {
+        const start = new Date(startDate);
+        if (!isNaN(start.getTime())) {
+          // If a date-only string is provided, interpret as start of day
+          if (/^\d{4}-\d{2}-\d{2}$/.test(startDate)) start.setHours(0, 0, 0, 0);
+          createdAt.$gte = start;
+        }
+      }
+
+      if (endDate) {
+        const end = new Date(endDate);
+        if (!isNaN(end.getTime())) {
+          // If a date-only string is provided, interpret as end of day
+          if (/^\d{4}-\d{2}-\d{2}$/.test(endDate)) end.setHours(23, 59, 59, 999);
+          createdAt.$lte = end;
+        }
+      }
+
+      if (Object.keys(createdAt).length > 0) {
+        query.createdAt = createdAt;
+      }
+    }
     
     if (search) {
       query.$or = [

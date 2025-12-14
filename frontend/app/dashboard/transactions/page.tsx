@@ -49,7 +49,7 @@ const transactionTypes = {
   deposit: { label: 'Deposit', icon: ArrowDownRight, color: 'text-green-500', bgColor: 'bg-green-500/20' },
   withdrawal: { label: 'Withdrawal', icon: ArrowUpRight, color: 'text-red-500', bgColor: 'bg-red-500/20' },
   profit: { label: 'Profit', icon: TrendingUp, color: 'text-primary-500', bgColor: 'bg-primary-500/20' },
-  referral: { label: 'Referral Bonus', icon: Wallet, color: 'text-yellow-500', bgColor: 'bg-yellow-500/20' },
+  referral_bonus: { label: 'Referral Bonus', icon: Wallet, color: 'text-yellow-500', bgColor: 'bg-yellow-500/20' },
   investment: { label: 'Investment', icon: TrendingUp, color: 'text-purple-500', bgColor: 'bg-purple-500/20' },
 };
 
@@ -93,12 +93,17 @@ export default function TransactionsPage() {
         limit: pagination.limit,
         ...filters,
       });
-      
-      setTransactions(response.data.data?.data || []);
-      setPagination(prev => ({
+
+      const payload = response.data?.data || response.data;
+      const inner = payload?.data || payload;
+      const items = Array.isArray(inner?.data) ? inner.data : [];
+      const meta = inner?.meta || {};
+
+      setTransactions(items);
+      setPagination((prev) => ({
         ...prev,
-        total: response.data.data?.pagination?.total || 0,
-        pages: response.data.data?.pagination?.pages || 1,
+        total: meta.total || 0,
+        pages: meta.totalPages || 1,
       }));
     } catch (error) {
       console.error('Failed to fetch transactions:', error);
@@ -116,7 +121,7 @@ export default function TransactionsPage() {
       tx.type,
       tx.amount,
       tx.status,
-      tx.method,
+      tx.paymentMethod,
       tx.description || '',
     ]);
 

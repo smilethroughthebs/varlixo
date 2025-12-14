@@ -23,7 +23,7 @@ import { diskStorage } from 'multer';
 import { Request } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { WalletService } from './wallet.service';
-import { CreateDepositDto, CreateWithdrawalDto, UploadDepositProofDto } from './dto/wallet.dto';
+import { CreateDepositDto, CreateWithdrawalDto, GetTransactionsDto, UploadDepositProofDto } from './dto/wallet.dto';
 import { RequestLinkedWalletNonceDto, VerifyLinkedWalletDto } from './dto/linked-wallet.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -198,7 +198,7 @@ export class WalletController {
   @Get('transactions')
   async getTransactions(
     @CurrentUser('sub') userId: string,
-    @Query() paginationDto: PaginationDto,
+    @Query() paginationDto: GetTransactionsDto,
   ) {
     return this.walletService.getTransactions(userId, paginationDto);
   }

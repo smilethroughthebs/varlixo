@@ -14,7 +14,10 @@ import {
   Min,
   Max,
   Length,
+  ValidateIf,
 } from 'class-validator';
+import { PaginationDto } from '../../common/dto/pagination.dto';
+import { TransactionStatus, TransactionType } from '../../schemas/transaction.schema';
 import { PaymentMethod } from '../../schemas/transaction.schema';
 
 // Create deposit request DTO
@@ -100,6 +103,28 @@ export class CreateWithdrawalDto {
   @IsString()
   @Length(6, 6)
   twoFactorCode?: string;
+}
+
+export class GetTransactionsDto extends PaginationDto {
+  @IsOptional()
+  @ValidateIf((o) => o.type !== undefined && o.type !== '')
+  @IsEnum(TransactionType)
+  type?: TransactionType;
+
+  @IsOptional()
+  @ValidateIf((o) => o.status !== undefined && o.status !== '')
+  @IsEnum(TransactionStatus)
+  status?: TransactionStatus;
+
+  @IsOptional()
+  @ValidateIf((o) => o.startDate !== undefined && o.startDate !== '')
+  @IsString()
+  startDate?: string;
+
+  @IsOptional()
+  @ValidateIf((o) => o.endDate !== undefined && o.endDate !== '')
+  @IsString()
+  endDate?: string;
 }
 
 // Transfer between wallets (internal)
