@@ -44,6 +44,7 @@ import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 import Button from './components/ui/Button';
 import { Card } from './components/ui/Card';
+import Money from './components/ui/Money';
 import { marketAPI } from './lib/api';
 import { useLanguageStore } from './lib/store';
 import { getTranslation } from './lib/i18n';
@@ -592,7 +593,8 @@ export default function HomePage() {
                         <span className="text-gray-400">Investment Range</span>
                       </div>
                       <p className="text-white font-semibold">
-                        ${plan.minInvestment.toLocaleString()} - ${plan.maxInvestment.toLocaleString()}
+                        <Money valueUsd={plan.minInvestment} className="text-white font-semibold" showUsdEquivalent={false} /> -{' '}
+                        <Money valueUsd={plan.maxInvestment} className="text-white font-semibold" showUsdEquivalent={false} />
                       </p>
                     </div>
                     

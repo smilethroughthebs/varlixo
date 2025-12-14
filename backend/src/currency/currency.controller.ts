@@ -5,7 +5,7 @@
  * REST API endpoints for currency operations
  */
 
-import { Controller, Get, Put, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Put, Body, Param, Query, UseGuards, Header } from '@nestjs/common';
 import { CurrencyService } from './currency.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { AdminGuard } from '../common/guards/admin.guard';
@@ -35,6 +35,9 @@ export class CurrencyController {
    */
   @Public()
   @Get('detect')
+  @Header('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+  @Header('Pragma', 'no-cache')
+  @Header('Expires', '0')
   async detectCurrency(@Req() req: Request) {
     const ipAddress = getClientIp(req);
     const countryCode = await this.currencyService.detectCountryFromIp(ipAddress);

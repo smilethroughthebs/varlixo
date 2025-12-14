@@ -28,6 +28,7 @@ import {
 import { Card } from '@/app/components/ui/Card';
 import Button from '@/app/components/ui/Button';
 import Input from '@/app/components/ui/Input';
+import Money from '@/app/components/ui/Money';
 import toast from 'react-hot-toast';
 import api, { adminAPI } from '@/app/lib/api';
 
@@ -333,7 +334,10 @@ export default function AdminPlansPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                   <div>
                     <span className="text-gray-500">Min/Max:</span>
-                    <p className="text-white">${plan.minInvestment} - ${plan.maxInvestment}</p>
+                    <p className="text-white">
+                      <Money valueUsd={plan.minInvestment} className="text-white" showUsdEquivalent={false} /> -{' '}
+                      <Money valueUsd={plan.maxInvestment} className="text-white" showUsdEquivalent={false} />
+                    </p>
                   </div>
                   <div>
                     <span className="text-gray-500">Daily Return:</span>

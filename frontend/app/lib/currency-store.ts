@@ -139,7 +139,9 @@ export const useCurrencyStore = create<CurrencyState>()(
 
       detectCurrency: async () => {
         try {
-          const response = await api.get('/currency/detect');
+          const response = await api.get('/currency/detect', {
+            params: { t: Date.now() },
+          });
           const payload = response.data?.data || response.data;
           const inner = payload?.data || payload;
           const { country, currency_code, currency_symbol, locale, conversion_rate, is_fallback } = inner;
