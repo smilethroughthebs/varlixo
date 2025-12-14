@@ -78,6 +78,14 @@ export const useAuthStore = create<AuthState>()(
       login: (user, accessToken, refreshToken) => {
         Cookies.set('accessToken', accessToken, { expires: 7 });
         Cookies.set('refreshToken', refreshToken, { expires: 30 });
+        try {
+          if (typeof window !== 'undefined') {
+            window.localStorage.setItem('accessToken', accessToken);
+            window.localStorage.setItem('refreshToken', refreshToken);
+          }
+        } catch {
+          // ignore
+        }
         set({
           user,
           isAuthenticated: true,
@@ -88,6 +96,14 @@ export const useAuthStore = create<AuthState>()(
       logout: () => {
         Cookies.remove('accessToken');
         Cookies.remove('refreshToken');
+        try {
+          if (typeof window !== 'undefined') {
+            window.localStorage.removeItem('accessToken');
+            window.localStorage.removeItem('refreshToken');
+          }
+        } catch {
+          // ignore
+        }
         set({
           user: null,
           wallet: null,

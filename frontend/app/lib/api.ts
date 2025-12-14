@@ -23,7 +23,16 @@ export const api = axios.create({
 // Request interceptor - Add auth token
 api.interceptors.request.use(
   (config) => {
-    const token = Cookies.get('accessToken');
+    let token = Cookies.get('accessToken');
+    if (!token) {
+      try {
+        if (typeof window !== 'undefined') {
+          token = window.localStorage.getItem('accessToken') || undefined;
+        }
+      } catch {
+        // ignore
+      }
+    }
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -60,7 +69,16 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
-      const refreshToken = Cookies.get('refreshToken');
+      let refreshToken = Cookies.get('refreshToken');
+      if (!refreshToken) {
+        try {
+          if (typeof window !== 'undefined') {
+            refreshToken = window.localStorage.getItem('refreshToken') || undefined;
+          }
+        } catch {
+          // ignore
+        }
+      }
       if (refreshToken) {
         try {
           const response = await axios.post(`${API_URL}/auth/refresh`, {
@@ -71,6 +89,14 @@ api.interceptors.response.use(
 
           Cookies.set('accessToken', accessToken, { expires: 7 });
           Cookies.set('refreshToken', newRefreshToken, { expires: 30 });
+          try {
+            if (typeof window !== 'undefined') {
+              window.localStorage.setItem('accessToken', accessToken);
+              window.localStorage.setItem('refreshToken', newRefreshToken);
+            }
+          } catch {
+            // ignore
+          }
 
           originalRequest.headers.Authorization = `Bearer ${accessToken}`;
           return api(originalRequest);
@@ -78,6 +104,14 @@ api.interceptors.response.use(
           // Refresh failed - logout user
           Cookies.remove('accessToken');
           Cookies.remove('refreshToken');
+          try {
+            if (typeof window !== 'undefined') {
+              window.localStorage.removeItem('accessToken');
+              window.localStorage.removeItem('refreshToken');
+            }
+          } catch {
+            // ignore
+          }
           window.location.href = '/auth/login';
           return Promise.reject(refreshError);
         }
