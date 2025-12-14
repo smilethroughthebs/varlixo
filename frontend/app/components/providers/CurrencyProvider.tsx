@@ -8,7 +8,7 @@ interface CurrencyProviderProps {
 }
 
 export default function CurrencyProvider({ children }: CurrencyProviderProps) {
-  const { updateCurrencyFromServer } = useCurrencyStore();
+  const { updateCurrencyFromServer, currencyMode } = useCurrencyStore();
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
@@ -28,6 +28,26 @@ export default function CurrencyProvider({ children }: CurrencyProviderProps) {
       mounted = false;
     };
   }, [updateCurrencyFromServer]);
+
+  useEffect(() => {
+    if (currencyMode !== 'auto') return;
+
+    const refresh = () => {
+      updateCurrencyFromServer();
+    };
+
+    const onVisibility = () => {
+      if (!document.hidden) refresh();
+    };
+
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [currencyMode, updateCurrencyFromServer]);
 
   if (!initialized) return null;
 

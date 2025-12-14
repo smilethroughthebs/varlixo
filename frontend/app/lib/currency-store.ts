@@ -9,6 +9,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { api, authAPI } from './api';
 
+type CurrencyMode = 'auto' | 'manual';
+
 export interface CurrencyState {
   // Currency info
   currencyCode: string;
@@ -18,12 +20,15 @@ export interface CurrencyState {
   isAutoDetected: boolean;
   isFallbackRate: boolean;
 
+  currencyMode: CurrencyMode;
+
   // Country info
   country: string;
   countryRules: any;
 
   // Actions
   setPreferredCurrency: (code: string) => Promise<void>;
+  setCurrencyMode: (mode: CurrencyMode) => Promise<void>;
   detectCurrency: () => Promise<void>;
   updateCurrencyFromServer: () => Promise<void>;
   reset: () => void;
@@ -34,8 +39,9 @@ const defaultCurrency = {
   currencySymbol: '$',
   locale: 'en-US',
   conversionRate: 1,
-  isAutoDetected: false,
+  isAutoDetected: true,
   isFallbackRate: false,
+  currencyMode: 'auto' as CurrencyMode,
   country: 'US',
   countryRules: null,
 };
@@ -73,6 +79,7 @@ export const useCurrencyStore = create<CurrencyState>()(
             currencySymbol,
             locale,
             isAutoDetected: false,
+            currencyMode: 'manual',
           });
 
           if (persistToProfile) {
@@ -102,6 +109,7 @@ export const useCurrencyStore = create<CurrencyState>()(
             conversionRate: rate,
             isAutoDetected: false,
             isFallbackRate: false,
+            currencyMode: 'manual',
           });
         };
 
@@ -110,6 +118,23 @@ export const useCurrencyStore = create<CurrencyState>()(
         } catch (error) {
           console.error('Failed to set preferred currency:', error);
         }
+      },
+
+      setCurrencyMode: async (mode: CurrencyMode) => {
+        const normalizedMode: CurrencyMode = mode === 'manual' ? 'manual' : 'auto';
+
+        set({
+          currencyMode: normalizedMode,
+          isAutoDetected: normalizedMode === 'auto',
+        });
+
+        if (normalizedMode === 'auto') {
+          await get().detectCurrency();
+          return;
+        }
+
+        // manual: keep current currencyCode but refresh the rate
+        await get().updateCurrencyFromServer();
       },
 
       detectCurrency: async () => {
@@ -127,6 +152,7 @@ export const useCurrencyStore = create<CurrencyState>()(
             conversionRate: conversion_rate,
             isAutoDetected: true,
             isFallbackRate: is_fallback,
+            currencyMode: 'auto',
             countryRules: inner.country_rules,
           });
         } catch (error) {
@@ -138,6 +164,12 @@ export const useCurrencyStore = create<CurrencyState>()(
 
       updateCurrencyFromServer: async () => {
         try {
+          const mode = get().currencyMode;
+          if (mode === 'auto') {
+            await get().detectCurrency();
+            return;
+          }
+
           const applyCurrencyNoPersist = async (currencyCode: string) => {
             const normalized = String(currencyCode).trim().toUpperCase();
             const state = get();
@@ -149,6 +181,7 @@ export const useCurrencyStore = create<CurrencyState>()(
               currencySymbol,
               locale,
               isAutoDetected: false,
+              currencyMode: 'manual',
             });
 
             const ratesResponse = await api.get('/currency/rates', {
@@ -170,6 +203,7 @@ export const useCurrencyStore = create<CurrencyState>()(
               conversionRate: rate,
               isAutoDetected: false,
               isFallbackRate: false,
+              currencyMode: 'manual',
             });
           };
 
@@ -208,14 +242,18 @@ export const useCurrencyStore = create<CurrencyState>()(
     }),
     {
       name: 'currency-store',
-      version: 1,
+      version: 2,
       migrate: (persistedState: any, version: number) => {
         // Previous versions didn't persist isAutoDetected. Those values were almost always
         // the result of auto-detection, so default them to true to allow VPN/IP changes
         // to re-trigger detection.
-        if (version === 0 && persistedState && typeof persistedState === 'object') {
-          if (persistedState.isAutoDetected === undefined) {
-            return { ...persistedState, isAutoDetected: true };
+        if (persistedState && typeof persistedState === 'object') {
+          if (version === 0 && persistedState.isAutoDetected === undefined) {
+            persistedState = { ...persistedState, isAutoDetected: true };
+          }
+          if (version < 2 && persistedState.currencyMode === undefined) {
+            const inferredMode: CurrencyMode = persistedState.isAutoDetected ? 'auto' : 'manual';
+            persistedState = { ...persistedState, currencyMode: inferredMode };
           }
         }
         return persistedState;
@@ -226,6 +264,7 @@ export const useCurrencyStore = create<CurrencyState>()(
         locale: state.locale,
         country: state.country,
         isAutoDetected: state.isAutoDetected,
+        currencyMode: state.currencyMode,
       }),
     }
   )
