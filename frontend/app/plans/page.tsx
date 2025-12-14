@@ -166,7 +166,7 @@ const faqs = [
 export default function PlansPage() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
-  const { country: detectedCountry } = useCurrencyStore();
+  const { country: detectedCountry, currencySymbol } = useCurrencyStore();
   const [plans, setPlans] = useState<any[]>(defaultPlans);
   const [isLoading, setIsLoading] = useState(true);
   const [showCalculator, setShowCalculator] = useState(false);
@@ -307,6 +307,7 @@ export default function PlansPage() {
                 size="lg" 
                 onClick={() => setShowCalculator(true)}
                 leftIcon={<Calculator size={20} />}
+                disabled={plans.length === 0}
               >
                 Calculate Returns
               </Button>
@@ -346,7 +347,12 @@ export default function PlansPage() {
             variants={stagger}
             className="grid md:grid-cols-3 gap-6 lg:gap-8"
           >
-            {plans.map((plan, index) => {
+            {plans.length === 0 ? (
+              <div className="md:col-span-3 p-8 rounded-2xl bg-dark-800/50 border border-dark-700 text-center text-gray-400">
+                No investment plans are currently available.
+              </div>
+            ) : (
+            plans.map((plan, index) => {
               const Icon = getIcon(plan.icon || 'Star');
               return (
                 <motion.div
@@ -455,7 +461,8 @@ export default function PlansPage() {
                   </motion.div>
                 </motion.div>
               );
-            })}
+            })
+            )}
           </motion.div>
 
           {/* Recurring Plans Section */}
@@ -495,7 +502,7 @@ export default function PlansPage() {
                     Monthly contribution
                   </label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm">{currencySymbol}</span>
                     <input
                       type="number"
                       min={1}
@@ -562,7 +569,7 @@ export default function PlansPage() {
                     Monthly contribution
                   </label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm">{currencySymbol}</span>
                     <input
                       type="number"
                       min={1}
@@ -598,6 +605,7 @@ export default function PlansPage() {
               </div>
             </Card>
           </motion.div>
+          ) : null}
         </div>
       </section>
 
@@ -621,6 +629,7 @@ export default function PlansPage() {
             </p>
           </motion.div>
 
+          {selectedPlan ? (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
@@ -638,7 +647,7 @@ export default function PlansPage() {
                         key={plan._id}
                         onClick={() => setSelectedPlan(plan)}
                         className={`p-3 rounded-xl text-center transition-all ${
-                          selectedPlan._id === plan._id
+                          selectedPlan?._id === plan._id
                             ? 'bg-primary-500/20 border-primary-500 text-primary-400'
                             : 'bg-dark-700/50 border-dark-600 text-gray-400 hover:border-dark-500'
                         } border`}
@@ -653,20 +662,20 @@ export default function PlansPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-3">Investment Amount</label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-lg">$</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-lg">{currencySymbol}</span>
                     <input
                       type="number"
                       value={calcAmount}
                       onChange={(e) => setCalcAmount(e.target.value)}
-                      min={selectedPlan.minAmount}
-                      max={selectedPlan.maxAmount}
+                      min={selectedPlan?.minAmount}
+                      max={selectedPlan?.maxAmount}
                       className="w-full pl-10 pr-4 py-4 bg-dark-700 border border-dark-600 rounded-xl text-white text-xl font-semibold placeholder-gray-500 focus:outline-none focus:border-primary-500 transition-colors"
                     />
                   </div>
                   <p className="text-xs text-gray-500 mt-2">
                     Range:{' '}
-                    <Money valueUsd={selectedPlan.minAmount} className="text-xs text-gray-500" showUsdEquivalent={false} /> -{' '}
-                    <Money valueUsd={selectedPlan.maxAmount} className="text-xs text-gray-500" showUsdEquivalent={false} />
+                    <Money valueUsd={selectedPlan?.minAmount || 0} className="text-xs text-gray-500" showUsdEquivalent={false} /> -{' '}
+                    <Money valueUsd={selectedPlan?.maxAmount || 0} className="text-xs text-gray-500" showUsdEquivalent={false} />
                   </p>
                 </div>
 
@@ -697,6 +706,7 @@ export default function PlansPage() {
                       +<Money
                         valueUsd={calcResults.dailyProfit}
                         className="text-xl font-bold text-green-400"
+                        showUsdEquivalent={false}
                       />
                     </span>
                   </div>
@@ -706,15 +716,17 @@ export default function PlansPage() {
                       +<Money
                         valueUsd={calcResults.weeklyProfit}
                         className="text-xl font-bold text-green-400"
+                        showUsdEquivalent={false}
                       />
                     </span>
                   </div>
                   <div className="flex justify-between items-center p-4 rounded-xl bg-dark-800/50">
-                    <span className="text-gray-400">Total Profit ({selectedPlan.duration} days)</span>
+                    <span className="text-gray-400">Total Profit ({selectedPlan?.duration} days)</span>
                     <span className="text-xl font-bold text-green-400">
                       +<Money
                         valueUsd={calcResults.totalProfit}
                         className="text-xl font-bold text-green-400"
+                        showUsdEquivalent={false}
                       />
                     </span>
                   </div>
@@ -724,6 +736,7 @@ export default function PlansPage() {
                       <Money
                         valueUsd={calcResults.totalReturn}
                         className="text-2xl font-bold text-white"
+                        showUsdEquivalent={false}
                       />
                     </span>
                   </div>
@@ -737,6 +750,11 @@ export default function PlansPage() {
               </div>
             </div>
           </motion.div>
+          ) : (
+            <div className="p-8 rounded-3xl bg-dark-800/50 border border-dark-700 text-center text-gray-400">
+              Profit calculator is unavailable because there are no investment plans.
+            </div>
+          )}
         </div>
       </section>
 
@@ -760,6 +778,7 @@ export default function PlansPage() {
             </p>
           </motion.div>
 
+          {plans.length > 0 ? (
           <motion.div
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
@@ -992,7 +1011,7 @@ export default function PlansPage() {
 
       {/* Calculator Modal */}
       <AnimatePresence>
-        {showCalculator && (
+        {showCalculator && selectedPlan && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -1039,7 +1058,7 @@ export default function PlansPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-2">Investment Amount</label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">{currencySymbol}</span>
                     <input
                       type="number"
                       value={calcAmount}
@@ -1054,19 +1073,27 @@ export default function PlansPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-xs text-gray-500">Daily Profit</p>
-                      <p className="text-lg font-bold text-green-400">+${calcResults.dailyProfit.toFixed(2)}</p>
+                      <p className="text-lg font-bold text-green-400">
+                        +<Money valueUsd={calcResults.dailyProfit} className="text-lg font-bold text-green-400" showUsdEquivalent={false} />
+                      </p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500">Weekly Profit</p>
-                      <p className="text-lg font-bold text-green-400">+${calcResults.weeklyProfit.toFixed(2)}</p>
+                      <p className="text-lg font-bold text-green-400">
+                        +<Money valueUsd={calcResults.weeklyProfit} className="text-lg font-bold text-green-400" showUsdEquivalent={false} />
+                      </p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500">Total Profit</p>
-                      <p className="text-lg font-bold text-green-400">+${calcResults.totalProfit.toFixed(2)}</p>
+                      <p className="text-lg font-bold text-green-400">
+                        +<Money valueUsd={calcResults.totalProfit} className="text-lg font-bold text-green-400" showUsdEquivalent={false} />
+                      </p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500">Total Return</p>
-                      <p className="text-lg font-bold text-white">${calcResults.totalReturn.toFixed(2)}</p>
+                      <p className="text-lg font-bold text-white">
+                        <Money valueUsd={calcResults.totalReturn} className="text-lg font-bold text-white" showUsdEquivalent={false} />
+                      </p>
                     </div>
                   </div>
                 </div>

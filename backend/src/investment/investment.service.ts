@@ -36,6 +36,8 @@ import { CurrencyService } from '../currency/currency.service';
 import { MarketService } from '../market/market.service';
 import { AdminLog, AdminLogDocument, AdminActionType } from '../schemas/admin-log.schema';
 
+const BLOCKED_PUBLIC_PLAN_SLUGS = new Set(['momentum', 'velocity', 'apex', 'surge']);
+
 @Injectable()
 export class InvestmentService {
   constructor(
@@ -133,9 +135,14 @@ export class InvestmentService {
       return planObj;
     });
 
+    const filteredPlans = plansWithCountryLimits.filter((plan: any) => {
+      const slug = String(plan?.slug || '').toLowerCase();
+      return !BLOCKED_PUBLIC_PLAN_SLUGS.has(slug);
+    });
+
     return {
       success: true,
-      plans: plansWithCountryLimits,
+      plans: filteredPlans,
     };
   }
 
@@ -725,6 +732,9 @@ export class InvestmentService {
    * Get plan details by slug
    */
   async getPlanBySlug(slug: string) {
+    if (BLOCKED_PUBLIC_PLAN_SLUGS.has(String(slug || '').toLowerCase())) {
+      throw new NotFoundException('Investment plan not found');
+    }
     const plan = await this.planModel.findOne({ slug, status: PlanStatus.ACTIVE });
 
     if (!plan) {
@@ -745,6 +755,10 @@ export class InvestmentService {
 
     const plan = await this.planModel.findById(planId);
     if (!plan) {
+      throw new NotFoundException('Investment plan not found');
+    }
+
+    if (BLOCKED_PUBLIC_PLAN_SLUGS.has(String(plan?.slug || '').toLowerCase())) {
       throw new NotFoundException('Investment plan not found');
     }
 
@@ -804,6 +818,10 @@ export class InvestmentService {
     // Get plan
     const plan = await this.planModel.findById(planId);
     if (!plan || plan.status !== PlanStatus.ACTIVE) {
+      throw new NotFoundException('Investment plan not found or not available');
+    }
+
+    if (BLOCKED_PUBLIC_PLAN_SLUGS.has(String(plan?.slug || '').toLowerCase())) {
       throw new NotFoundException('Investment plan not found or not available');
     }
 

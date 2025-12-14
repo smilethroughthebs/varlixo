@@ -48,7 +48,17 @@ export const Money: React.FC<MoneyProps> = ({
     maximumFractionDigits: decimals,
   });
 
-  const formatted = formatter.format(localValue);
+  const formatted = formatter
+    .formatToParts(localValue)
+    .filter((part) => {
+      if (part.type !== 'currency') return true;
+      return showSymbol;
+    })
+    .map((part) => {
+      if (part.type !== 'currency') return part.value;
+      return currencySymbol || part.value;
+    })
+    .join('');
 
   const showUsd = showUsdEquivalent && currencyCode !== 'USD';
   const usdFormatter = new Intl.NumberFormat('en-US', {
