@@ -45,7 +45,7 @@ export class CurrencyService {
     this.fallbackProvider =
       this.configService.get<string>('FX_PROVIDER_FALLBACK') ||
       'https://open.er-api.com/v6';
-    this.autoCurrency = this.configService.get<string>('AUTO_CURRENCY') === 'true';
+    this.autoCurrency = this.configService.get<string>('AUTO_CURRENCY') !== 'false';
     this.defaultCurrency = this.configService.get<string>('DEFAULT_CURRENCY') || 'USD';
   }
 
