@@ -97,6 +97,15 @@ export class AdminController {
     return this.adminService.adjustUserBalance(adminId, userId, body.amount, body.type, body.reason);
   }
 
+  @Post('users/:id/email')
+  async sendUserEmail(
+    @CurrentUser('sub') adminId: string,
+    @Param('id') userId: string,
+    @Body() body: { subject: string; body: string },
+  ) {
+    return this.adminService.sendUserEmail(adminId, userId, body?.subject, body?.body);
+  }
+
   // ==========================================
   // DEPOSIT MANAGEMENT
   // ==========================================

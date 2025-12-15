@@ -264,6 +264,43 @@ export class AdminService {
     };
   }
 
+  async sendUserEmail(adminId: string, userId: string, subject: string, body: string) {
+    const safeSubject = (subject ?? '').trim();
+    const safeBody = (body ?? '').trim();
+
+    if (!safeSubject || !safeBody) {
+      throw new BadRequestException('Subject and body are required');
+    }
+
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const ok = await this.emailService.sendAdminCustomUserEmail(
+      user.email,
+      user.firstName ?? user.email,
+      safeSubject,
+      safeBody,
+    );
+
+    await this.logAdminAction(adminId, AdminActionType.OTHER, {
+      targetType: 'user',
+      targetId: new Types.ObjectId(userId),
+      description: `Sent email to user ${user.email}`,
+      newValue: { subject: safeSubject, ok },
+    });
+
+    if (!ok) {
+      throw new BadRequestException('Email delivery failed');
+    }
+
+    return {
+      success: ok,
+      message: ok ? 'Email sent successfully' : 'Email delivery failed',
+    };
+  }
+
   /**
    * Adjust user balance
    */

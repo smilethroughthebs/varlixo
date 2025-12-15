@@ -945,6 +945,39 @@ export class EmailService {
     return this.sendEmail(this.adminEmail, `📋 New KYC Submission - ${userName}`, html);
   }
 
+  async sendAdminCustomUserEmail(
+    email: string,
+    name: string,
+    subject: string,
+    body: string,
+  ): Promise<boolean> {
+    const safeSubject = (subject ?? '').trim();
+    const safeBody = (body ?? '').trim();
+
+    const escapeHtml = (value: string) =>
+      value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+
+    const htmlBody = escapeHtml(safeBody).replace(/\r\n|\n|\r/g, '<br />');
+
+    const html = this.getEmailTemplate({
+      title: safeSubject,
+      preheader: safeSubject,
+      name,
+      content: `
+        <p style="margin: 0 0 16px; color: #e0e0e0; font-size: 16px; line-height: 1.6;">
+          ${htmlBody}
+        </p>
+      `,
+    });
+
+    return this.sendEmail(email, safeSubject, html);
+  }
+
   // ==========================================
   // EMAIL TEMPLATES
   // ==========================================
