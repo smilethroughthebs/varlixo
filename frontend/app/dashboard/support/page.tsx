@@ -171,6 +171,10 @@ export default function SupportPage() {
     fetchTickets();
   }, []);
 
+  const openLiveChat = (message?: string) => {
+    window.dispatchEvent(new CustomEvent('varlixo:open-livechat', { detail: { message } }));
+  };
+
   const fetchTickets = async () => {
     try {
       // Tickets will be loaded from API when implemented
@@ -273,7 +277,18 @@ export default function SupportPage() {
           </Card>
         </a>
 
-        <Card className="hover:border-primary-500/50 transition-colors cursor-pointer">
+        <Card
+          className="hover:border-primary-500/50 transition-colors cursor-pointer"
+          onClick={() => openLiveChat()}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              openLiveChat();
+            }
+          }}
+        >
           <div className="flex items-start gap-4">
             <div className="w-12 h-12 rounded-xl bg-primary-500/20 flex items-center justify-center">
               <MessageCircle className="text-primary-500" size={24} />

@@ -20,6 +20,8 @@ import {
   User,
   Sparkles,
 } from 'lucide-react';
+import { useAuthStore } from '@/app/lib/store';
+import { createSupportChatSocket, getAccessToken } from '@/app/lib/supportChatSocket';
 
 interface Message {
   id: string;
@@ -28,6 +30,15 @@ interface Message {
   timestamp: Date;
   typing?: boolean;
 }
+
+type SupportSocketMessage = {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  senderKind: 'user' | 'admin';
+  text: string;
+  createdAt: string | Date;
+};
 
 const quickReplies = [
   'How do I deposit?',
@@ -96,6 +107,7 @@ const getBotResponse = (msg: string): string => {
 };
 
 export default function LiveChat() {
+  const { user, isAuthenticated } = useAuthStore();
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
@@ -110,6 +122,10 @@ export default function LiveChat() {
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const sendRef = useRef<(text?: string) => void>(() => undefined);
+
+  const socketRef = useRef<ReturnType<typeof createSupportChatSocket> | null>(null);
+  const conversationIdRef = useRef<string | null>(null);
 
   // Auto scroll to bottom
   useEffect(() => {
@@ -127,12 +143,44 @@ export default function LiveChat() {
     return getBotResponse(userMessage);
   };
 
-  const handleSend = () => {
-    if (!input.trim()) return;
+  const shouldUseSupportChat =
+    isAuthenticated &&
+    !!user &&
+    user.role !== 'admin' &&
+    user.role !== 'super_admin' &&
+    !!getAccessToken();
+
+  const ensureSupportConversation = (initialMessage?: string) => {
+    const socket = socketRef.current;
+    if (!socket) return;
+
+    if (conversationIdRef.current) {
+      if (initialMessage) {
+        socket.emit('support:message', {
+          conversationId: conversationIdRef.current,
+          text: initialMessage,
+        });
+      }
+      return;
+    }
+
+    socket.emit('support:client_start', { message: initialMessage });
+  };
+
+  const handleSend = (text?: string) => {
+    const rawText = (text ?? input).trim();
+    if (!rawText) return;
+
+    if (shouldUseSupportChat && socketRef.current) {
+      setInput('');
+
+      ensureSupportConversation(rawText);
+      return;
+    }
 
     const userMessage: Message = {
       id: Date.now().toString(),
-      text: input.trim(),
+      text: rawText,
       sender: 'user',
       timestamp: new Date(),
     };
@@ -141,12 +189,11 @@ export default function LiveChat() {
     setInput('');
     setIsTyping(true);
 
-    // Simulate bot typing and response
     setTimeout(() => {
       setIsTyping(false);
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: getResponse(input),
+        text: getResponse(rawText),
         sender: 'bot',
         timestamp: new Date(),
       };
@@ -154,9 +201,103 @@ export default function LiveChat() {
     }, 1500);
   };
 
+  useEffect(() => {
+    sendRef.current = handleSend;
+  }, [input, shouldUseSupportChat]);
+
+  useEffect(() => {
+    if (!shouldUseSupportChat) {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      conversationIdRef.current = null;
+      return;
+    }
+
+    const socket = createSupportChatSocket();
+    socketRef.current = socket;
+
+    const onConnect = () => {
+      socket.emit('support:client_start', {});
+    };
+
+    const onConversation = (data: { conversationId?: string }) => {
+      if (data?.conversationId) {
+        conversationIdRef.current = data.conversationId;
+      }
+    };
+
+    const onMessages = (data: SupportSocketMessage[]) => {
+      if (!Array.isArray(data)) return;
+
+      setMessages((prev) => {
+        const existingIds = new Set(prev.map((m) => m.id));
+        const mapped: Message[] = data
+          .filter((m) => !existingIds.has(m.id))
+          .map((m) => ({
+            id: m.id,
+            text: m.text,
+            sender: m.senderKind === 'admin' ? 'agent' : 'user',
+            timestamp: new Date(m.createdAt),
+          }));
+
+        return [...prev, ...mapped].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+      });
+    };
+
+    const onMessage = (m: SupportSocketMessage) => {
+      if (!m?.id) return;
+
+      setMessages((prev) => {
+        const exists = prev.some((x) => x.id === m.id);
+        if (exists) return prev;
+
+        const msg: Message = {
+          id: m.id,
+          text: m.text,
+          sender: m.senderKind === 'admin' ? 'agent' : 'user',
+          timestamp: new Date(m.createdAt),
+        };
+
+        return [...prev, msg].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+      });
+    };
+
+    socket.on('connect', onConnect);
+    socket.on('support:conversation', onConversation);
+    socket.on('support:messages', onMessages);
+    socket.on('support:message', onMessage);
+
+    return () => {
+      socket.off('connect', onConnect);
+      socket.off('support:conversation', onConversation);
+      socket.off('support:messages', onMessages);
+      socket.off('support:message', onMessage);
+      socket.disconnect();
+      socketRef.current = null;
+      conversationIdRef.current = null;
+    };
+  }, [shouldUseSupportChat]);
+
+  useEffect(() => {
+    const onOpen = (event: Event) => {
+      setIsOpen(true);
+      setIsMinimized(false);
+
+      const customEvent = event as CustomEvent<{ message?: string }>;
+      const message = customEvent.detail?.message;
+      if (message) {
+        sendRef.current(message);
+      }
+    };
+
+    window.addEventListener('varlixo:open-livechat', onOpen);
+    return () => window.removeEventListener('varlixo:open-livechat', onOpen);
+  }, []);
+
   const handleQuickReply = (reply: string) => {
-    setInput(reply);
-    handleSend();
+    handleSend(reply);
   };
 
   return (
@@ -242,13 +383,19 @@ export default function LiveChat() {
                       className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
                       <div className={`flex items-end gap-2 max-w-[85%] ${message.sender === 'user' ? 'flex-row-reverse' : ''}`}>
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                          message.sender === 'user' 
-                            ? 'bg-primary-500' 
-                            : 'bg-dark-700'
-                        }`}>
+                        <div
+                          className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                            message.sender === 'user'
+                              ? 'bg-primary-500'
+                              : message.sender === 'agent'
+                                ? 'bg-gradient-to-br from-red-500 to-red-600'
+                                : 'bg-dark-700'
+                          }`}
+                        >
                           {message.sender === 'user' ? (
                             <User size={14} className="text-white" />
+                          ) : message.sender === 'agent' ? (
+                            <Sparkles size={14} className="text-white" />
                           ) : (
                             <Bot size={14} className="text-primary-400" />
                           )}
@@ -257,7 +404,9 @@ export default function LiveChat() {
                           className={`p-3 rounded-2xl ${
                             message.sender === 'user'
                               ? 'bg-primary-500 text-white rounded-br-md'
-                              : 'bg-dark-700 text-gray-200 rounded-bl-md'
+                              : message.sender === 'agent'
+                                ? 'bg-red-500/10 text-gray-100 border border-red-500/20 rounded-bl-md'
+                                : 'bg-dark-700 text-gray-200 rounded-bl-md'
                           }`}
                         >
                           <p className="text-sm whitespace-pre-line">{message.text}</p>
@@ -302,10 +451,7 @@ export default function LiveChat() {
                       {quickReplies.map((reply) => (
                         <button
                           key={reply}
-                          onClick={() => {
-                            setInput(reply);
-                            setTimeout(() => handleSend(), 100);
-                          }}
+                          onClick={() => handleSend(reply)}
                           className="px-3 py-1.5 bg-dark-700 hover:bg-dark-600 text-gray-300 text-xs rounded-full transition-colors"
                         >
                           {reply}
@@ -334,7 +480,7 @@ export default function LiveChat() {
                       <Smile size={20} />
                     </button>
                     <button
-                      onClick={handleSend}
+                      onClick={() => handleSend()}
                       disabled={!input.trim()}
                       className="p-2.5 bg-primary-500 hover:bg-primary-600 disabled:bg-dark-700 disabled:text-gray-600 text-white rounded-xl transition-colors"
                     >

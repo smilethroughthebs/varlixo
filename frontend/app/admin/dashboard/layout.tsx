@@ -19,6 +19,7 @@ import {
   ArrowUpRight,
   Shield,
   TrendingUp,
+  MessageCircle,
   Settings,
   LogOut,
   Menu,
@@ -40,6 +41,7 @@ const adminLinks = [
   { href: '/admin/dashboard/kyc', icon: Shield, label: 'KYC Requests' },
   { href: '/admin/dashboard/investments', icon: TrendingUp, label: 'Investments' },
   { href: '/admin/dashboard/plans', icon: Activity, label: 'Investment Plans' },
+  { href: '/admin/dashboard/live-chat', icon: MessageCircle, label: 'Live Chat' },
   { href: '/admin/dashboard/notifications', icon: Bell, label: 'Notifications' },
   { href: '/admin/dashboard/settings', icon: Settings, label: 'Settings' },
 ];

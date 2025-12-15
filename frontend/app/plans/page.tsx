@@ -604,10 +604,9 @@ export default function PlansPage() {
                 </Button>
               </div>
             </Card>
-          </motion.div>
-          ) : null}
-        </div>
-      </section>
+           </motion.div>
+         </div>
+       </section>
 
       {/* Profit Calculator Section */}
       <section className="py-20 px-4 bg-dark-800/30">
@@ -900,9 +899,14 @@ export default function PlansPage() {
                 </tr>
               </tbody>
             </table>
-          </motion.div>
-        </div>
-      </section>
+           </motion.div>
+           ) : (
+             <div className="p-8 rounded-2xl bg-dark-800/50 border border-dark-700 text-center text-gray-400">
+               Plan comparison is unavailable because there are no investment plans.
+             </div>
+           )}
+         </div>
+       </section>
 
       {/* FAQ Section */}
       <section className="py-20 px-4 bg-dark-800/30">

@@ -57,6 +57,10 @@ const quickLinks = [
 ];
 
 export default function SupportPage() {
+  const openLiveChat = () => {
+    window.dispatchEvent(new CustomEvent('varlixo:open-livechat'));
+  };
+
   return (
     <div className="min-h-screen bg-dark-900">
       <Navbar />
@@ -118,7 +122,12 @@ export default function SupportPage() {
                         <ArrowRight size={16} />
                       </a>
                     ) : (
-                      <button className="text-primary-400 font-medium hover:text-primary-300 inline-flex items-center gap-1">
+                      <button
+                        onClick={() => {
+                          if (option.title === 'Live Chat') openLiveChat();
+                        }}
+                        className="text-primary-400 font-medium hover:text-primary-300 inline-flex items-center gap-1"
+                      >
                         {option.action}
                         <ArrowRight size={16} />
                       </button>

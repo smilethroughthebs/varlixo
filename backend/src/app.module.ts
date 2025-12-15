@@ -30,6 +30,7 @@ import { CryptoDepositModule } from './crypto-deposit/crypto-deposit.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { OnchainModule } from './onchain/onchain.module';
 import { RedisModule } from './redis/redis.module';
+import { SupportChatModule } from './support-chat/support-chat.module';
 
 // Middleware
 import { LoggerMiddleware } from './common/middleware/logger.middleware';
@@ -86,6 +87,7 @@ import { SecurityMiddleware } from './common/middleware/security.middleware';
     CryptoDepositModule,
     UploadsModule,
     OnchainModule,
+    SupportChatModule,
   ],
   providers: [
     {
