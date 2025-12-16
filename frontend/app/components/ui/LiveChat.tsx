@@ -312,13 +312,14 @@ export default function LiveChat() {
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={() => setIsOpen(true)}
-            className="fixed bottom-6 right-6 w-16 h-16 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full shadow-lg shadow-primary-500/30 flex items-center justify-center text-white z-50 group"
+            className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full shadow-lg shadow-primary-500/30 flex items-center justify-center text-white z-50 group"
           >
-            <MessageCircle size={28} />
+            <MessageCircle size={22} className="sm:hidden" />
+            <MessageCircle size={28} className="hidden sm:block" />
             {/* Pulse animation */}
             <span className="absolute w-full h-full rounded-full bg-primary-500 animate-ping opacity-30" />
             {/* Notification dot */}
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-xs font-bold">
+            <span className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-red-500 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold">
               1
             </span>
           </motion.button>
@@ -334,11 +335,11 @@ export default function LiveChat() {
               opacity: 1, 
               y: 0, 
               scale: 1,
-              height: isMinimized ? 'auto' : 500,
+              height: isMinimized ? 'auto' : 'min(500px, 70vh)',
             }}
             exit={{ opacity: 0, y: 100, scale: 0.8 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed bottom-6 right-6 w-[380px] bg-dark-800 rounded-2xl shadow-2xl border border-dark-700 overflow-hidden z-50 flex flex-col"
+            className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:bottom-6 w-auto sm:w-[380px] bg-dark-800 rounded-2xl shadow-2xl border border-dark-700 overflow-hidden z-50 flex flex-col"
           >
             {/* Header */}
             <div className="bg-gradient-to-r from-primary-600 to-primary-500 p-4 flex items-center justify-between">
