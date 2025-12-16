@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { EmailModule } from '../email/email.module';
 import {
   SupportChatConversation,
   SupportChatConversationSchema,
@@ -19,6 +20,7 @@ import { SupportChatGateway } from './support-chat.gateway';
       { name: SupportChatConversation.name, schema: SupportChatConversationSchema },
       { name: SupportChatMessage.name, schema: SupportChatMessageSchema },
     ]),
+    EmailModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

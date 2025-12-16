@@ -13,6 +13,7 @@ import { SupportChatService } from './support-chat.service';
 import { JwtPayload } from '../auth/auth.service';
 import { UserRole } from '../schemas/user.schema';
 import { SupportChatSenderKind } from '../schemas/support-chat-message.schema';
+import { EmailService } from '../email/email.service';
 
 type AuthedSocket = Socket & {
   data: {
@@ -35,6 +36,7 @@ export class SupportChatGateway {
     private readonly chatService: SupportChatService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly emailService: EmailService,
   ) {}
 
   private extractToken(socket: Socket): string | undefined {
@@ -99,7 +101,8 @@ export class SupportChatGateway {
       throw new WsException('Admins cannot start a client chat');
     }
 
-    const conversation = await this.chatService.getOrCreateOpenConversationForUser(user.sub);
+    const { conversation, created } =
+      await this.chatService.getOrCreateOpenConversationForUserWithFlag(user.sub);
 
     const conversationId = conversation._id.toString();
     client.join(this.roomForConversation(conversationId));
@@ -126,6 +129,32 @@ export class SupportChatGateway {
         text: message.text,
         createdAt: message.createdAt,
       });
+    }
+
+    if (created) {
+      try {
+        const firstMsg = body?.message?.trim();
+        const subject = '🟢 New Live Chat Started - Varlixo';
+        const adminBody = firstMsg
+          ? `A user started a new live chat.
+
+User: ${user.email}
+
+First message:
+${firstMsg}`
+          : `A user started a new live chat.
+
+User: ${user.email}`;
+
+        await this.emailService.sendAdminCustomUserEmail(
+          this.configService.get<string>('email.adminEmail') || 'admin@varlixo.com',
+          'Admin',
+          subject,
+          adminBody,
+        );
+      } catch {
+        // ignore notification failures
+      }
     }
 
     const messages = await this.chatService.getMessages(conversationId, 50);

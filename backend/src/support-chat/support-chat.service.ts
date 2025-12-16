@@ -42,6 +42,30 @@ export class SupportChatService {
     });
   }
 
+  async getOrCreateOpenConversationForUserWithFlag(userId: string): Promise<{
+    conversation: SupportChatConversationDocument;
+    created: boolean;
+  }> {
+    const userObjectId = this.toObjectId(userId);
+
+    const existing = await this.conversationModel
+      .findOne({ userId: userObjectId, status: SupportChatConversationStatus.OPEN })
+      .sort({ lastMessageAt: -1 })
+      .exec();
+
+    if (existing) {
+      return { conversation: existing, created: false };
+    }
+
+    const conversation = await this.conversationModel.create({
+      userId: userObjectId,
+      status: SupportChatConversationStatus.OPEN,
+      lastMessageAt: new Date(),
+    });
+
+    return { conversation, created: true };
+  }
+
   async getConversationById(conversationId: string) {
     const conversation = await this.conversationModel
       .findById(this.toObjectId(conversationId))
