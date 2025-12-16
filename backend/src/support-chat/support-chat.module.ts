@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EmailModule } from '../email/email.module';
+import { AppSettings, AppSettingsSchema } from '../schemas/app-settings.schema';
 import {
   SupportChatConversation,
   SupportChatConversationSchema,
@@ -19,6 +20,7 @@ import { SupportChatGateway } from './support-chat.gateway';
     MongooseModule.forFeature([
       { name: SupportChatConversation.name, schema: SupportChatConversationSchema },
       { name: SupportChatMessage.name, schema: SupportChatMessageSchema },
+      { name: AppSettings.name, schema: AppSettingsSchema },
     ]),
     EmailModule,
     JwtModule.registerAsync({

@@ -21,10 +21,12 @@ import { Withdrawal, WithdrawalDocument } from '../schemas/withdrawal.schema';
 import { Transaction, TransactionDocument, TransactionType, TransactionStatus } from '../schemas/transaction.schema';
 import { Investment, InvestmentDocument } from '../schemas/investment.schema';
 import { AdminLog, AdminLogDocument, AdminActionType } from '../schemas/admin-log.schema';
+import { AppSettings, AppSettingsDocument } from '../schemas/app-settings.schema';
 import { generateReference, roundTo } from '../common/utils/helpers';
 import { PaginationDto, createPaginatedResponse } from '../common/dto/pagination.dto';
 import { EmailService } from '../email/email.service';
 import { CurrencyService } from '../currency/currency.service';
+import { UpdateAppSettingsDto } from './dto/update-app-settings.dto';
 
 @Injectable()
 export class AdminService {
@@ -37,9 +39,47 @@ export class AdminService {
     @InjectModel(Transaction.name) private transactionModel: Model<TransactionDocument>,
     @InjectModel(Investment.name) private investmentModel: Model<InvestmentDocument>,
     @InjectModel(AdminLog.name) private adminLogModel: Model<AdminLogDocument>,
+    @InjectModel(AppSettings.name) private appSettingsModel: Model<AppSettingsDocument>,
     private emailService: EmailService,
     private currencyService: CurrencyService,
   ) {}
+
+  // ==========================================
+  // APP SETTINGS
+  // ==========================================
+
+  async getAppSettings() {
+    const settings = await this.appSettingsModel.findOne({ key: 'global' });
+    if (settings) return settings;
+
+    return this.appSettingsModel.create({ key: 'global' });
+  }
+
+  async updateAppSettings(adminId: string, dto: UpdateAppSettingsDto) {
+    const current = await this.appSettingsModel.findOne({ key: 'global' });
+
+    const updated = await this.appSettingsModel.findOneAndUpdate(
+      { key: 'global' },
+      {
+        $set: {
+          ...dto,
+          updatedByAdminId: new Types.ObjectId(adminId),
+        },
+        $setOnInsert: { key: 'global' },
+      },
+      { new: true, upsert: true },
+    );
+
+    await this.logAdminAction(adminId, AdminActionType.SYSTEM_SETTING_CHANGE, {
+      targetType: 'app_settings',
+      targetId: updated?._id,
+      description: 'Updated application settings',
+      previousValue: current ? (current.toObject ? current.toObject() : (current as any)) : undefined,
+      newValue: updated ? (updated.toObject ? updated.toObject() : (updated as any)) : undefined,
+    });
+
+    return updated;
+  }
 
   // ==========================================
   // DASHBOARD STATISTICS

@@ -117,4 +117,34 @@ export class SupportChatService {
 
     return messages;
   }
+
+  async markAdminNotified(conversationId: string) {
+    await this.conversationModel
+      .updateOne(
+        { _id: this.toObjectId(conversationId) },
+        {
+          $set: {
+            adminNotified: true,
+            adminNotifiedAt: new Date(),
+            adminNotificationLastAttemptAt: new Date(),
+            adminNotificationLastError: undefined,
+          },
+        },
+      )
+      .exec();
+  }
+
+  async markAdminNotificationFailed(conversationId: string, errorMessage: string) {
+    await this.conversationModel
+      .updateOne(
+        { _id: this.toObjectId(conversationId) },
+        {
+          $set: {
+            adminNotificationLastAttemptAt: new Date(),
+            adminNotificationLastError: String(errorMessage || '').slice(0, 500),
+          },
+        },
+      )
+      .exec();
+  }
 }

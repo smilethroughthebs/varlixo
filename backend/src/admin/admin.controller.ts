@@ -21,6 +21,7 @@ import { AdminGuard } from '../common/guards/admin.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { UserStatus } from '../schemas/user.schema';
+import { UpdateAppSettingsDto } from './dto/update-app-settings.dto';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, AdminGuard)
@@ -38,6 +39,23 @@ export class AdminController {
   @Get('dashboard')
   async getDashboardStats() {
     return this.adminService.getDashboardStats();
+  }
+
+  // ==========================================
+  // SETTINGS
+  // ==========================================
+
+  @Get('settings')
+  async getSettings() {
+    return this.adminService.getAppSettings();
+  }
+
+  @Put('settings')
+  async updateSettings(
+    @CurrentUser('sub') adminId: string,
+    @Body() body: UpdateAppSettingsDto,
+  ) {
+    return this.adminService.updateAppSettings(adminId, body);
   }
 
   // ==========================================

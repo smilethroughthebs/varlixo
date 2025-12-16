@@ -171,8 +171,15 @@ export default function SettingsPage() {
   const onProfileSubmit = async (data: ProfileForm) => {
     setIsLoading(true);
     try {
-      // In production, call API to update profile
-      updateUser(data);
+      const res = await authAPI.updateProfile(data);
+      const payload = res?.data;
+      const inner = payload?.data ?? payload;
+      const updatedUser = inner?.user;
+      if (updatedUser) {
+        updateUser(updatedUser);
+      } else {
+        updateUser(data);
+      }
       toast.success('Profile updated successfully!');
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to update profile');
@@ -1032,7 +1039,15 @@ export default function SettingsPage() {
                 {languages.map((lang) => (
                   <button
                     key={lang.code}
-                    onClick={() => setLanguage(lang.code)}
+                    onClick={async () => {
+                      setLanguage(lang.code);
+                      try {
+                        await authAPI.updateProfile({ preferredLanguage: lang.code });
+                        updateUser({ preferredLanguage: lang.code });
+                      } catch {
+                        // ignore
+                      }
+                    }}
                     className={`flex items-center gap-3 p-4 rounded-xl border transition-all ${
                       language === lang.code
                         ? 'bg-primary-500/10 border-primary-500 text-white'
@@ -1091,8 +1106,17 @@ export default function SettingsPage() {
                 ].map((currency) => (
                   <button
                     key={currency.code}
+                    onClick={async () => {
+                      try {
+                        await authAPI.updateProfile({ preferredCurrency: currency.code });
+                        updateUser({ preferredCurrency: currency.code });
+                        toast.success('Currency updated');
+                      } catch (error: any) {
+                        toast.error(error?.response?.data?.message || 'Failed to update currency');
+                      }
+                    }}
                     className={`flex items-center gap-3 p-4 rounded-xl border transition-all ${
-                      currency.code === 'USD'
+                      currency.code === (user?.preferredCurrency || 'USD')
                         ? 'bg-primary-500/10 border-primary-500 text-white'
                         : 'bg-dark-800 border-dark-700 text-gray-400 hover:border-dark-600 hover:text-white'
                     }`}

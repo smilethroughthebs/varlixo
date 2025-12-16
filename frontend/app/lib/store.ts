@@ -29,6 +29,7 @@ interface User {
   avatar?: string;
   theme: string;
   preferredLanguage: string;
+  preferredCurrency?: string;
   referralCode?: string;
 }
 

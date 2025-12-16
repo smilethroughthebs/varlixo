@@ -128,6 +128,7 @@ export const authAPI = {
   login: (data: any) => api.post('/auth/login', data),
   logout: () => api.post('/auth/logout'),
   getProfile: () => api.get('/auth/profile'),
+  updateProfile: (data: any) => api.put('/auth/profile', data),
   verifyEmail: (token: string) => api.post('/auth/verify-email', { token }),
   resendVerification: (email: string) => api.post('/auth/resend-verification', { email }),
   resendOtp: (email: string, type: 'verification' | 'reset' | 'withdrawal' | 'login') =>
@@ -207,6 +208,8 @@ export const marketAPI = {
 
 export const adminAPI = {
   getDashboard: () => api.get('/admin/dashboard'),
+  getSettings: () => api.get('/admin/settings'),
+  updateSettings: (data: any) => api.put('/admin/settings', data),
   getUsers: (params?: any) => api.get('/admin/users', { params }),
   getUserDetails: (id: string) => api.get(`/admin/users/${id}`),
   updateUserStatus: (id: string, status: string) => api.put(`/admin/users/${id}/status`, { status }),

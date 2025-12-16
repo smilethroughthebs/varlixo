@@ -22,6 +22,18 @@ export class SupportChatConversation {
   @Prop({ type: Date, default: Date.now, index: true })
   lastMessageAt: Date;
 
+  @Prop({ default: false })
+  adminNotified: boolean;
+
+  @Prop({ type: Date })
+  adminNotifiedAt?: Date;
+
+  @Prop({ type: Date })
+  adminNotificationLastAttemptAt?: Date;
+
+  @Prop({ type: String })
+  adminNotificationLastError?: string;
+
   createdAt: Date;
   updatedAt: Date;
 }

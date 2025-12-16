@@ -765,12 +765,52 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
 
+    if (dto.firstName) {
+      user.firstName = String(dto.firstName).trim();
+    }
+
+    if (dto.lastName) {
+      user.lastName = String(dto.lastName).trim();
+    }
+
+    if (dto.phone !== undefined) {
+      user.phone = dto.phone ? String(dto.phone).trim() : '';
+    }
+
+    if (dto.dateOfBirth !== undefined) {
+      user.dateOfBirth = dto.dateOfBirth ? new Date(dto.dateOfBirth) : undefined;
+    }
+
+    if (dto.country !== undefined) {
+      user.country = dto.country ? String(dto.country).trim() : '';
+    }
+
+    if (dto.occupation !== undefined) {
+      user.occupation = dto.occupation ? String(dto.occupation).trim() : '';
+    }
+
+    if (dto.annualIncomeRange !== undefined) {
+      user.annualIncomeRange = dto.annualIncomeRange ? String(dto.annualIncomeRange).trim() : '';
+    }
+
+    if (dto.sourceOfFunds !== undefined) {
+      user.sourceOfFunds = dto.sourceOfFunds ? String(dto.sourceOfFunds).trim() : '';
+    }
+
+    if (dto.investmentExperience !== undefined) {
+      user.investmentExperience = dto.investmentExperience ? String(dto.investmentExperience).trim() : '';
+    }
+
     if (dto.preferredLanguage) {
       user.preferredLanguage = String(dto.preferredLanguage).trim().toLowerCase();
     }
 
     if (dto.preferredCurrency) {
       user.preferredCurrency = String(dto.preferredCurrency).trim().toUpperCase();
+    }
+
+    if (dto.theme) {
+      user.theme = String(dto.theme).trim().toLowerCase();
     }
 
     await user.save();

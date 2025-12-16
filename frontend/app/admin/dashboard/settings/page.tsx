@@ -7,12 +7,13 @@
  * Admin panel settings and configuration
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Settings, Save, Shield, Bell, Mail, Globe } from 'lucide-react';
 import { Card, CardHeader, CardTitle } from '@/app/components/ui/Card';
 import Button from '@/app/components/ui/Button';
 import toast from 'react-hot-toast';
+import { adminAPI } from '@/app/lib/api';
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 20 },
@@ -22,7 +23,7 @@ const fadeInUp = {
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState({
     siteName: 'Varlixo',
-    siteEmail: 'admin@varlixo.com',
+    adminEmail: 'admin@varlixo.com',
     maintenanceMode: false,
     emailNotifications: true,
     smsNotifications: false,
@@ -32,8 +33,47 @@ export default function AdminSettingsPage() {
     withdrawalFee: 2,
   });
 
-  const handleSave = () => {
-    toast.success('Settings saved successfully');
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await adminAPI.getSettings();
+        const payload = res?.data;
+        const data = payload?.data ?? payload;
+
+        setSettings((prev) => ({
+          ...prev,
+          ...(data || {}),
+        }));
+      } catch (error: any) {
+        toast.error(error?.response?.data?.message || 'Failed to load settings');
+      }
+    };
+
+    load();
+  }, []);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await adminAPI.updateSettings({
+        siteName: settings.siteName,
+        adminEmail: settings.adminEmail,
+        maintenanceMode: settings.maintenanceMode,
+        emailNotifications: settings.emailNotifications,
+        smsNotifications: settings.smsNotifications,
+        twoFactorRequired: settings.twoFactorRequired,
+        minDeposit: settings.minDeposit,
+        minWithdrawal: settings.minWithdrawal,
+        withdrawalFee: settings.withdrawalFee,
+      });
+      toast.success('Settings saved successfully');
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to save settings');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -47,7 +87,7 @@ export default function AdminSettingsPage() {
           </h1>
           <p className="text-gray-400 mt-1">Configure platform settings and preferences</p>
         </div>
-        <Button onClick={handleSave} leftIcon={<Save size={18} />}>
+        <Button onClick={handleSave} leftIcon={<Save size={18} />} disabled={isSaving}>
           Save Changes
         </Button>
       </div>
@@ -75,8 +115,8 @@ export default function AdminSettingsPage() {
               <label className="block text-sm font-medium text-gray-300 mb-2">Admin Email</label>
               <input
                 type="email"
-                value={settings.siteEmail}
-                onChange={(e) => setSettings({ ...settings, siteEmail: e.target.value })}
+                value={settings.adminEmail}
+                onChange={(e) => setSettings({ ...settings, adminEmail: e.target.value })}
                 className="w-full px-4 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:outline-none focus:border-primary-500"
               />
             </div>
@@ -199,7 +239,12 @@ export default function AdminSettingsPage() {
               <input
                 type="number"
                 value={settings.minDeposit}
-                onChange={(e) => setSettings({ ...settings, minDeposit: parseFloat(e.target.value) })}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    minDeposit: Number.isFinite(Number(e.target.value)) ? Number(e.target.value) : 0,
+                  })
+                }
                 className="w-full px-4 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:outline-none focus:border-primary-500"
               />
             </div>
@@ -208,7 +253,12 @@ export default function AdminSettingsPage() {
               <input
                 type="number"
                 value={settings.minWithdrawal}
-                onChange={(e) => setSettings({ ...settings, minWithdrawal: parseFloat(e.target.value) })}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    minWithdrawal: Number.isFinite(Number(e.target.value)) ? Number(e.target.value) : 0,
+                  })
+                }
                 className="w-full px-4 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:outline-none focus:border-primary-500"
               />
             </div>
@@ -217,7 +267,12 @@ export default function AdminSettingsPage() {
               <input
                 type="number"
                 value={settings.withdrawalFee}
-                onChange={(e) => setSettings({ ...settings, withdrawalFee: parseFloat(e.target.value) })}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    withdrawalFee: Number.isFinite(Number(e.target.value)) ? Number(e.target.value) : 0,
+                  })
+                }
                 className="w-full px-4 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:outline-none focus:border-primary-500"
               />
             </div>

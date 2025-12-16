@@ -6,6 +6,9 @@ import {
   WebSocketServer,
   WsException,
 } from '@nestjs/websockets';
+import { Logger } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Server, Socket } from 'socket.io';
@@ -14,6 +17,7 @@ import { JwtPayload } from '../auth/auth.service';
 import { UserRole } from '../schemas/user.schema';
 import { SupportChatSenderKind } from '../schemas/support-chat-message.schema';
 import { EmailService } from '../email/email.service';
+import { AppSettings, AppSettingsDocument } from '../schemas/app-settings.schema';
 
 type AuthedSocket = Socket & {
   data: {
@@ -32,11 +36,15 @@ export class SupportChatGateway {
   @WebSocketServer()
   server: Server;
 
+  private readonly logger = new Logger(SupportChatGateway.name);
+
   constructor(
     private readonly chatService: SupportChatService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly emailService: EmailService,
+    @InjectModel(AppSettings.name)
+    private readonly appSettingsModel: Model<AppSettingsDocument>,
   ) {}
 
   private extractToken(socket: Socket): string | undefined {
@@ -131,29 +139,62 @@ export class SupportChatGateway {
       });
     }
 
-    if (created) {
+    if (!conversation.adminNotified) {
       try {
-        const firstMsg = body?.message?.trim();
-        const subject = '🟢 New Live Chat Started - Varlixo';
-        const adminBody = firstMsg
-          ? `A user started a new live chat.
+        const appSettings = await this.appSettingsModel
+          .findOne({ key: 'global' })
+          .select('adminEmail emailNotifications')
+          .exec();
+
+        const emailNotificationsEnabled = appSettings?.emailNotifications !== false;
+        if (!emailNotificationsEnabled) {
+          await this.chatService.markAdminNotificationFailed(conversationId, 'Email notifications disabled');
+        } else {
+          const adminEmail =
+            appSettings?.adminEmail ||
+            this.configService.get<string>('email.adminEmail') ||
+            'admin@varlixo.com';
+
+          const firstMsg = body?.message?.trim();
+          const subject = '🟢 New Live Chat Started - Varlixo';
+          const adminBody = firstMsg
+            ? `A user started a new live chat.
+
+Conversation ID: ${conversationId}
 
 User: ${user.email}
 
 First message:
 ${firstMsg}`
-          : `A user started a new live chat.
+            : `A user started a new live chat.
+
+Conversation ID: ${conversationId}
 
 User: ${user.email}`;
 
-        await this.emailService.sendAdminCustomUserEmail(
-          this.configService.get<string>('email.adminEmail') || 'admin@varlixo.com',
-          'Admin',
-          subject,
-          adminBody,
+          const sent = await this.emailService.sendAdminCustomUserEmail(
+            adminEmail,
+            'Admin',
+            subject,
+            adminBody,
+          );
+
+          if (sent) {
+            await this.chatService.markAdminNotified(conversationId);
+            this.logger.log(`Live chat admin notification sent to ${adminEmail} for conversation ${conversationId}`);
+          } else {
+            await this.chatService.markAdminNotificationFailed(conversationId, 'Email send returned false');
+            this.logger.warn(`Live chat admin notification failed (send returned false) for conversation ${conversationId}`);
+          }
+        }
+      } catch (error: any) {
+        await this.chatService.markAdminNotificationFailed(
+          conversationId,
+          error?.message || 'Unknown error',
         );
-      } catch {
-        // ignore notification failures
+        this.logger.error(
+          `Live chat admin notification exception for conversation ${conversationId}: ${error?.message || error}`,
+        );
       }
     }
 

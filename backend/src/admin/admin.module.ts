@@ -19,6 +19,7 @@ import { Withdrawal, WithdrawalSchema } from '../schemas/withdrawal.schema';
 import { Transaction, TransactionSchema } from '../schemas/transaction.schema';
 import { Investment, InvestmentSchema } from '../schemas/investment.schema';
 import { AdminLog, AdminLogSchema } from '../schemas/admin-log.schema';
+import { AppSettings, AppSettingsSchema } from '../schemas/app-settings.schema';
 import { EmailModule } from '../email/email.module';
 import { CurrencyModule } from '../currency/currency.module';
 
@@ -33,6 +34,7 @@ import { CurrencyModule } from '../currency/currency.module';
       { name: Transaction.name, schema: TransactionSchema },
       { name: Investment.name, schema: InvestmentSchema },
       { name: AdminLog.name, schema: AdminLogSchema },
+      { name: AppSettings.name, schema: AppSettingsSchema },
     ]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -52,6 +54,3 @@ import { CurrencyModule } from '../currency/currency.module';
   exports: [AdminService],
 })
 export class AdminModule {}
-
-
-
