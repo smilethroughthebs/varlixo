@@ -79,15 +79,30 @@ export class SupportChatService {
     conversationId: string;
     senderId: string;
     senderKind: SupportChatSenderKind;
-    text: string;
+    text?: string;
+    imageUrl?: string;
+    messageType?: 'text' | 'image';
   }) {
     const now = new Date();
+
+    const rawText = (params.text ?? '').trim();
+    const imageUrl = (params.imageUrl ?? '').trim();
+    const messageType = params.messageType ?? (imageUrl ? 'image' : 'text');
+
+    if (messageType === 'text' && !rawText) {
+      throw new NotFoundException('Message text is required');
+    }
+    if (messageType === 'image' && !imageUrl) {
+      throw new NotFoundException('imageUrl is required');
+    }
 
     const message = await this.messageModel.create({
       conversationId: this.toObjectId(params.conversationId),
       senderId: this.toObjectId(params.senderId),
       senderKind: params.senderKind,
-      text: params.text.trim(),
+      messageType,
+      text: rawText || undefined,
+      imageUrl: imageUrl || undefined,
     });
 
     await this.conversationModel
@@ -138,26 +153,31 @@ export class SupportChatService {
   }
 
   async assignConversation(conversationId: string, adminId: string) {
-    const conv = await this.getConversationById(conversationId);
+    const adminObjectId = this.toObjectId(adminId);
 
-    // If already assigned to someone else, do not override.
-    if (conv.assignedAdminId && conv.assignedAdminId.toString() !== adminId) {
-      return conv;
-    }
-
-    await this.conversationModel
-      .updateOne(
-        { _id: this.toObjectId(conversationId) },
+    const updated = await this.conversationModel
+      .findOneAndUpdate(
+        {
+          _id: this.toObjectId(conversationId),
+          $or: [{ assignedAdminId: { $exists: false } }, { assignedAdminId: adminObjectId }],
+        },
         {
           $set: {
-            assignedAdminId: this.toObjectId(adminId),
+            assignedAdminId: adminObjectId,
             assignedAt: new Date(),
           },
         },
+        { new: true },
       )
+      .populate('userId', 'firstName lastName email')
       .exec();
 
-    return this.getConversationById(conversationId);
+    // If update didn't match, someone else has it.
+    if (!updated) {
+      return this.getConversationById(conversationId);
+    }
+
+    return updated;
   }
 
   async unassignConversation(conversationId: string) {

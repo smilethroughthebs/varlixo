@@ -7,7 +7,7 @@
  * Floating chat bubble with expandable chat window
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, type ChangeEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   MessageCircle,
@@ -29,6 +29,8 @@ interface Message {
   sender: 'user' | 'bot' | 'agent';
   timestamp: Date;
   typing?: boolean;
+  messageType?: 'text' | 'image';
+  imageUrl?: string;
 }
 
 type SupportSocketMessage = {
@@ -36,7 +38,9 @@ type SupportSocketMessage = {
   conversationId: string;
   senderId: string;
   senderKind: 'user' | 'admin';
-  text: string;
+  messageType?: 'text' | 'image';
+  text?: string;
+  imageUrl?: string;
   createdAt: string | Date;
 };
 
@@ -123,6 +127,8 @@ export default function LiveChat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const sendRef = useRef<(text?: string) => void>(() => undefined);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const socketRef = useRef<ReturnType<typeof createSupportChatSocket> | null>(null);
   const conversationIdRef = useRef<string | null>(null);
@@ -141,6 +147,107 @@ export default function LiveChat() {
 
   const getResponse = (userMessage: string): string => {
     return getBotResponse(userMessage);
+  };
+
+  const normalizeMediaUrl = (url: string) => {
+    if (!url) return url;
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+    try {
+      const origin = new URL(apiUrl).origin;
+      return `${origin}${url.startsWith('/') ? '' : '/'}${url}`;
+    } catch {
+      return url;
+    }
+  };
+
+  const uploadSupportChatImage = async (file: File): Promise<string> => {
+    const token = getAccessToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+    const form = new FormData();
+    form.append('file', file);
+
+    const res = await fetch(`${apiUrl}/support-chat/upload`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: form,
+    });
+
+    if (!res.ok) {
+      throw new Error('Upload failed');
+    }
+
+    const json = await res.json();
+    const url = json?.url as string | undefined;
+    if (!url) throw new Error('Upload failed');
+    return normalizeMediaUrl(url);
+  };
+
+  const ensureConversationId = async (): Promise<string> => {
+    if (conversationIdRef.current) return conversationIdRef.current;
+    const socket = socketRef.current;
+    if (!socket) throw new Error('Not connected');
+
+    return new Promise((resolve, reject) => {
+      let done = false;
+      const timeout = window.setTimeout(() => {
+        if (done) return;
+        done = true;
+        reject(new Error('Conversation init timeout'));
+      }, 8000);
+
+      socket.emit('support:client_start', {}, (resp: any) => {
+        const id = resp?.conversationId;
+        if (done) return;
+        if (!id) {
+          done = true;
+          window.clearTimeout(timeout);
+          reject(new Error('Conversation init failed'));
+          return;
+        }
+        done = true;
+        window.clearTimeout(timeout);
+        conversationIdRef.current = id;
+        resolve(id);
+      });
+    });
+  };
+
+  const handlePickImage = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImageSelected = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    try {
+      if (!shouldUseSupportChat || !socketRef.current) {
+        return;
+      }
+
+      const url = await uploadSupportChatImage(file);
+      const conversationId = await ensureConversationId();
+
+      socketRef.current.emit('support:message', {
+        conversationId,
+        messageType: 'image',
+        imageUrl: url,
+      });
+    } catch {
+      // ignore
+    }
+  };
+
+  const insertEmoji = (emoji: string) => {
+    setInput((prev) => `${prev}${emoji}`);
+    setShowEmojiPicker(false);
+    inputRef.current?.focus();
   };
 
   const shouldUseSupportChat =
@@ -237,9 +344,11 @@ export default function LiveChat() {
           .filter((m) => !existingIds.has(m.id))
           .map((m) => ({
             id: m.id,
-            text: m.text,
+            text: m.text || '',
             sender: m.senderKind === 'admin' ? 'agent' : 'user',
             timestamp: new Date(m.createdAt),
+            messageType: m.messageType,
+            imageUrl: m.imageUrl ? normalizeMediaUrl(m.imageUrl) : undefined,
           }));
 
         return [...prev, ...mapped].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
@@ -255,9 +364,11 @@ export default function LiveChat() {
 
         const msg: Message = {
           id: m.id,
-          text: m.text,
+          text: m.text || '',
           sender: m.senderKind === 'admin' ? 'agent' : 'user',
           timestamp: new Date(m.createdAt),
+          messageType: m.messageType,
+          imageUrl: m.imageUrl ? normalizeMediaUrl(m.imageUrl) : undefined,
         };
 
         return [...prev, msg].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
@@ -410,7 +521,17 @@ export default function LiveChat() {
                                 : 'bg-dark-700 text-gray-200 rounded-bl-md'
                           }`}
                         >
-                          <p className="text-sm whitespace-pre-line">{message.text}</p>
+                          {message.messageType === 'image' && message.imageUrl ? (
+                            <a href={message.imageUrl} target="_blank" rel="noreferrer" className="block">
+                              <img
+                                src={message.imageUrl}
+                                alt="Support chat attachment"
+                                className="max-w-full rounded-lg border border-white/10"
+                              />
+                            </a>
+                          ) : (
+                            <p className="text-sm whitespace-pre-line">{message.text}</p>
+                          )}
                           <p className={`text-xs mt-1 ${
                             message.sender === 'user' ? 'text-white/60' : 'text-gray-500'
                           }`}>
@@ -465,7 +586,17 @@ export default function LiveChat() {
                 {/* Input */}
                 <div className="p-4 border-t border-dark-700 bg-dark-800">
                   <div className="flex items-center gap-2">
-                    <button className="p-2 text-gray-500 hover:text-gray-300 transition-colors">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageSelected}
+                      className="hidden"
+                    />
+                    <button
+                      onClick={() => handlePickImage()}
+                      className="p-2 text-gray-500 hover:text-gray-300 transition-colors"
+                    >
                       <Paperclip size={20} />
                     </button>
                     <input
@@ -477,9 +608,29 @@ export default function LiveChat() {
                       placeholder="Type your message..."
                       className="flex-1 bg-dark-700 border border-dark-600 rounded-xl px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-primary-500 transition-colors"
                     />
-                    <button className="p-2 text-gray-500 hover:text-gray-300 transition-colors">
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowEmojiPicker((v) => !v)}
+                        className="p-2 text-gray-500 hover:text-gray-300 transition-colors"
+                      >
                       <Smile size={20} />
-                    </button>
+                      </button>
+                      {showEmojiPicker && (
+                        <div className="absolute bottom-12 right-0 bg-dark-800 border border-dark-700 rounded-xl p-2 shadow-xl z-50">
+                          <div className="grid grid-cols-8 gap-1">
+                            {['😀','😁','😂','🤣','😊','😍','😎','😢','😡','👍','👎','🙏','🔥','✨','💯','✅'].map((e) => (
+                              <button
+                                key={e}
+                                onClick={() => insertEmoji(e)}
+                                className="w-8 h-8 hover:bg-dark-700 rounded"
+                              >
+                                {e}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                     <button
                       onClick={() => handleSend()}
                       disabled={!input.trim()}

@@ -31,7 +31,9 @@ type SupportMessage = {
   conversationId: string;
   senderId: string;
   senderKind: 'user' | 'admin';
-  text: string;
+  messageType?: 'text' | 'image';
+  text?: string;
+  imageUrl?: string;
   createdAt: string | Date;
 };
 
@@ -43,6 +45,18 @@ export default function AdminLiveChatPage() {
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [input, setInput] = useState('');
   const [inboxFilter, setInboxFilter] = useState<'all' | 'unassigned' | 'mine'>('unassigned');
+
+  const normalizeMediaUrl = (url?: string) => {
+    if (!url) return url;
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+    try {
+      const origin = new URL(apiUrl).origin;
+      return `${origin}${url.startsWith('/') ? '' : '/'}${url}`;
+    } catch {
+      return url;
+    }
+  };
 
   const socketRef = useRef<ReturnType<typeof createSupportChatSocket> | null>(null);
   const activeConversationIdRef = useRef<string | null>(null);
@@ -173,6 +187,7 @@ export default function AdminLiveChatPage() {
       setMessages(
         data.map((m) => ({
           ...m,
+          imageUrl: m.imageUrl ? normalizeMediaUrl(m.imageUrl) : m.imageUrl,
           createdAt: new Date(m.createdAt),
         })),
       );
@@ -200,7 +215,7 @@ export default function AdminLiveChatPage() {
       setMessages((prev) => {
         const exists = prev.some((x) => x.id === m.id);
         if (exists) return prev;
-        return [...prev, { ...m, createdAt: new Date(m.createdAt) }];
+        return [...prev, { ...m, imageUrl: m.imageUrl ? normalizeMediaUrl(m.imageUrl) : m.imageUrl, createdAt: new Date(m.createdAt) }];
       });
     };
 
@@ -449,7 +464,17 @@ export default function AdminLiveChatPage() {
                             : 'max-w-[80%] bg-dark-700 text-gray-200 rounded-2xl rounded-bl-md px-4 py-3'
                         }
                       >
-                        <p className="text-sm whitespace-pre-line">{m.text}</p>
+                        {m.messageType === 'image' && m.imageUrl ? (
+                          <a href={m.imageUrl} target="_blank" rel="noreferrer" className="block">
+                            <img
+                              src={m.imageUrl}
+                              alt="Support chat attachment"
+                              className="max-w-full rounded-lg border border-white/10"
+                            />
+                          </a>
+                        ) : (
+                          <p className="text-sm whitespace-pre-line">{m.text}</p>
+                        )}
                         <p className={m.senderKind === 'admin' ? 'text-xs mt-1 text-white/70' : 'text-xs mt-1 text-gray-500'}>
                           {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </p>

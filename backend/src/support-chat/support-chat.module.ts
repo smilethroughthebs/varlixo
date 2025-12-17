@@ -14,6 +14,7 @@ import {
 } from '../schemas/support-chat-message.schema';
 import { SupportChatService } from './support-chat.service';
 import { SupportChatGateway } from './support-chat.gateway';
+import { SupportChatController } from './support-chat.controller';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { SupportChatGateway } from './support-chat.gateway';
       }),
     }),
   ],
+  controllers: [SupportChatController],
   providers: [SupportChatService, SupportChatGateway],
   exports: [SupportChatService],
 })

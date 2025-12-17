@@ -151,6 +151,12 @@ export class SupportChatGateway {
       lastMessageAt: conversation.lastMessageAt,
     });
 
+    // Ensure admins see newly created conversations without needing to refresh.
+    if (created) {
+      const createdConversation = await this.chatService.getConversationById(conversationId);
+      this.emitConversationUpdated(createdConversation);
+    }
+
     if (body?.message && body.message.trim()) {
       const message = await this.chatService.addMessage({
         conversationId,
@@ -164,9 +170,14 @@ export class SupportChatGateway {
         conversationId,
         senderId: user.sub,
         senderKind: message.senderKind,
+        messageType: (message as any).messageType,
         text: message.text,
+        imageUrl: (message as any).imageUrl,
         createdAt: message.createdAt,
       });
+
+      const updatedConversation = await this.chatService.getConversationById(conversationId);
+      this.emitConversationUpdated(updatedConversation);
     }
 
     if (!conversation.adminNotified) {
@@ -236,7 +247,9 @@ User: ${user.email}`;
         conversationId: m.conversationId.toString(),
         senderId: m.senderId.toString(),
         senderKind: m.senderKind,
+        messageType: (m as any).messageType,
         text: m.text,
+        imageUrl: (m as any).imageUrl,
         createdAt: m.createdAt,
       })),
     );
@@ -247,13 +260,15 @@ User: ${user.email}`;
   @SubscribeMessage('support:message')
   async sendMessage(
     @ConnectedSocket() client: AuthedSocket,
-    @MessageBody() body: { conversationId: string; text: string },
+    @MessageBody()
+    body: { conversationId: string; text?: string; imageUrl?: string; messageType?: 'text' | 'image' },
   ) {
     const user = await this.requireAuth(client);
 
     const text = body?.text?.trim();
-    if (!body?.conversationId || !text) {
-      throw new WsException('conversationId and text are required');
+    const imageUrl = body?.imageUrl?.trim();
+    if (!body?.conversationId || (!text && !imageUrl)) {
+      throw new WsException('conversationId and text or imageUrl are required');
     }
 
     const conversation = await this.chatService.getConversationById(body.conversationId);
@@ -284,6 +299,8 @@ User: ${user.email}`;
       senderId: user.sub,
       senderKind: isAdmin ? SupportChatSenderKind.ADMIN : SupportChatSenderKind.USER,
       text,
+      imageUrl,
+      messageType: body?.messageType,
     });
 
     this.server.to(this.roomForConversation(body.conversationId)).emit('support:message', {
@@ -291,7 +308,9 @@ User: ${user.email}`;
       conversationId: body.conversationId,
       senderId: user.sub,
       senderKind: message.senderKind,
+      messageType: (message as any).messageType,
       text: message.text,
+      imageUrl: (message as any).imageUrl,
       createdAt: message.createdAt,
     });
 
@@ -340,6 +359,15 @@ User: ${user.email}`;
 
     const updated = await this.chatService.assignConversation(body.conversationId, user.sub);
     this.emitConversationUpdated(updated);
+
+    if (updated.assignedAdminId?.toString?.() && updated.assignedAdminId.toString() !== user.sub) {
+      return {
+        ok: false,
+        message: 'Conversation is assigned to another admin',
+        conversationId: body.conversationId,
+        assignedAdminId: updated.assignedAdminId?.toString?.(),
+      };
+    }
 
     return {
       ok: true,
@@ -391,7 +419,9 @@ User: ${user.email}`;
         conversationId: m.conversationId.toString(),
         senderId: m.senderId.toString(),
         senderKind: m.senderKind,
+        messageType: (m as any).messageType,
         text: m.text,
+        imageUrl: (m as any).imageUrl,
         createdAt: m.createdAt,
       })),
     );

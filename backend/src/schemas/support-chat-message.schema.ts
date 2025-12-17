@@ -6,6 +6,11 @@ export enum SupportChatSenderKind {
   ADMIN = 'admin',
 }
 
+export enum SupportChatMessageType {
+  TEXT = 'text',
+  IMAGE = 'image',
+}
+
 export type SupportChatMessageDocument = SupportChatMessage & Document;
 
 @Schema({ timestamps: { createdAt: true, updatedAt: false } })
@@ -19,8 +24,14 @@ export class SupportChatMessage {
   @Prop({ type: String, enum: SupportChatSenderKind, required: true, index: true })
   senderKind: SupportChatSenderKind;
 
-  @Prop({ required: true, trim: true })
-  text: string;
+  @Prop({ type: String, enum: SupportChatMessageType, default: SupportChatMessageType.TEXT, index: true })
+  messageType: SupportChatMessageType;
+
+  @Prop({ trim: true })
+  text?: string;
+
+  @Prop({ trim: true })
+  imageUrl?: string;
 
   createdAt: Date;
 }

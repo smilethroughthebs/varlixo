@@ -15,4 +15,15 @@ export class UploadsController {
 
     return res.sendFile(filePath);
   }
+
+  @Get('support-chat/:filename')
+  async getSupportChatUpload(@Param('filename') filename: string, @Res() res: Response) {
+    const filePath = join(process.cwd(), 'uploads', 'support-chat', filename);
+
+    if (!existsSync(filePath)) {
+      throw new NotFoundException('File not found');
+    }
+
+    return res.sendFile(filePath);
+  }
 }
