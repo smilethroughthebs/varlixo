@@ -10,6 +10,9 @@
 import { useEffect, useState } from 'react';
 import { useLanguageStore } from '@/app/lib/store';
 import { Language, languages } from '@/app/lib/i18n';
+import { useCurrencyStore } from '@/app/lib/currency-store';
+import { useAuthStore } from '@/app/lib/store';
+import { authAPI } from '@/app/lib/api';
 
 interface LanguageProviderProps {
   children: React.ReactNode;
@@ -17,25 +20,88 @@ interface LanguageProviderProps {
 
 export default function LanguageProvider({ children }: LanguageProviderProps) {
   const { language, setLanguage } = useLanguageStore();
+  const { country, locale } = useCurrencyStore();
+  const { isAuthenticated, user, updateUser } = useAuthStore();
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    // Check if this is first visit (no language saved yet)
     const savedLanguage = localStorage.getItem('varlixo-language');
-    
-    if (!savedLanguage) {
-      // Auto-detect browser language
-      const browserLang = navigator.language || (navigator as any).userLanguage || 'en';
-      const langCode = browserLang.split('-')[0].toLowerCase(); // Get 'en' from 'en-US'
-      
-      // Check if we support this language
-      const supportedLang = languages.find(l => l.code === langCode);
-      
-      if (supportedLang) {
-        setLanguage(supportedLang.code);
-        console.log(`🌐 Auto-detected language: ${supportedLang.name} (${supportedLang.nativeName})`);
+
+    const normalizeLang = (value?: string): Language | undefined => {
+      const code = String(value || '').split('-')[0].trim().toLowerCase();
+      const supported = languages.find((l) => l.code === code);
+      return supported?.code;
+    };
+
+    const inferFromCountry = (cc?: string): Language => {
+      const upper = String(cc || '').trim().toUpperCase();
+
+      const map: Record<string, Language> = {
+        US: 'en',
+        CA: 'en',
+        GB: 'en',
+        AU: 'en',
+        NZ: 'en',
+
+        ES: 'es',
+        MX: 'es',
+
+        FR: 'fr',
+
+        DE: 'de',
+
+        CN: 'zh',
+
+        SA: 'ar',
+        AE: 'ar',
+        EG: 'ar',
+
+        BR: 'pt',
+        PT: 'pt',
+
+        RU: 'ru',
+      };
+
+      return map[upper] || 'en';
+    };
+
+    const applyAndPersist = async (lang: Language) => {
+      setLanguage(lang);
+
+      if (isAuthenticated) {
+        try {
+          await authAPI.updateProfile({ preferredLanguage: lang });
+          updateUser({ preferredLanguage: lang });
+        } catch {
+          // ignore
+        }
       }
-    }
+    };
+
+    const init = async () => {
+      // If user is logged in and has a preferredLanguage, prefer it.
+      if (user?.preferredLanguage) {
+        const fromProfile = normalizeLang(user.preferredLanguage);
+        if (fromProfile && fromProfile !== language) {
+          await applyAndPersist(fromProfile);
+        }
+        return;
+      }
+
+      // First visit only: auto-detect based on currency detector locale/country.
+      if (!savedLanguage) {
+        const fromLocale = normalizeLang(locale);
+        if (fromLocale) {
+          await applyAndPersist(fromLocale);
+          return;
+        }
+
+        const fromCountry = inferFromCountry(country);
+        await applyAndPersist(fromCountry);
+      }
+    };
+
+    init();
     
     // Apply current language settings to document
     const currentLang = languages.find(l => l.code === language);
@@ -45,7 +111,7 @@ export default function LanguageProvider({ children }: LanguageProviderProps) {
     }
     
     setInitialized(true);
-  }, [language, setLanguage]);
+  }, [country, locale, isAuthenticated, language, setLanguage, updateUser, user?.preferredLanguage]);
 
   // Show nothing until language is initialized to prevent flash
   if (!initialized) {

@@ -31,12 +31,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
-        <LanguageProvider>
-          <CurrencyProvider>
+        <CurrencyProvider>
+          <LanguageProvider>
             {children}
             <LiveChat />
-          </CurrencyProvider>
-        </LanguageProvider>
+          </LanguageProvider>
+        </CurrencyProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

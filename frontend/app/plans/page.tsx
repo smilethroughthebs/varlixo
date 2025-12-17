@@ -179,9 +179,10 @@ export default function PlansPage() {
 
   useEffect(() => {
     fetchPlans();
-  }, []);
+  }, [detectedCountry, user?.country]);
 
   const fetchPlans = async () => {
+    setIsLoading(true);
     try {
       // Get user country for country-specific plans
       const userCountry = user?.country;

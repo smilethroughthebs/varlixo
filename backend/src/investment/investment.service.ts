@@ -120,25 +120,45 @@ export class InvestmentService {
     // Apply country-specific limits if country is provided/detected
     const plansWithCountryLimits = plans.map(plan => {
       const planObj = plan.toObject();
-      
-      if (countryCode && planObj.countryLimits && planObj.countryLimits.length > 0) {
-        const countryLimit = planObj.countryLimits.find(
-          (limit: any) => String(limit.country).toUpperCase() === countryCode
-        );
-        
-        if (countryLimit) {
-          planObj.minInvestment = countryLimit.minInvestment;
-          planObj.maxInvestment = countryLimit.maxInvestment;
+
+      if (countryCode) {
+        const limits = Array.isArray(planObj.countryLimits) ? planObj.countryLimits : [];
+        if (limits.length > 0) {
+          const countryLimit = limits.find(
+            (limit: any) => String(limit.country).toUpperCase() === countryCode,
+          );
+
+          if (countryLimit) {
+            planObj.minInvestment = countryLimit.minInvestment;
+            planObj.maxInvestment = countryLimit.maxInvestment;
+            (planObj as any).__countryAllowed = true;
+          } else {
+            (planObj as any).__countryAllowed = false;
+          }
+        } else {
+          (planObj as any).__countryAllowed = true;
         }
       }
       
       return planObj;
     });
 
-    const filteredPlans = plansWithCountryLimits.filter((plan: any) => {
+    const filteredPlans = plansWithCountryLimits
+      .filter((plan: any) => {
+        if (countryCode) {
+          return plan.__countryAllowed !== false;
+        }
+        return true;
+      })
+      .filter((plan: any) => {
       const slug = String(plan?.slug || '').toLowerCase();
       return !BLOCKED_PUBLIC_PLAN_SLUGS.has(slug);
-    });
+      })
+      .map((plan: any) => {
+        const copy = { ...plan };
+        delete copy.__countryAllowed;
+        return copy;
+      });
 
     return {
       success: true,
