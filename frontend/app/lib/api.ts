@@ -193,6 +193,16 @@ export const kycAPI = {
   }),
 };
 
+export const notificationsAPI = {
+  list: (params?: { unreadOnly?: boolean; limit?: number; skip?: number }) =>
+    api.get('/notifications', { params }),
+  unreadCount: () => api.get('/notifications/unread-count'),
+  markRead: (id: string) => api.put(`/notifications/${id}/read`),
+  markAllRead: () => api.put('/notifications/read-all'),
+  delete: (id: string) => api.delete(`/notifications/${id}`),
+  clearAll: () => api.delete('/notifications'),
+};
+
 export const referralAPI = {
   getStats: () => api.get('/referrals/stats'),
   getReferrals: (params?: any) => api.get('/referrals', { params }),

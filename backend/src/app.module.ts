@@ -31,6 +31,7 @@ import { UploadsModule } from './uploads/uploads.module';
 import { OnchainModule } from './onchain/onchain.module';
 import { RedisModule } from './redis/redis.module';
 import { SupportChatModule } from './support-chat/support-chat.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 // Middleware
 import { LoggerMiddleware } from './common/middleware/logger.middleware';
@@ -88,6 +89,7 @@ import { SecurityMiddleware } from './common/middleware/security.middleware';
     UploadsModule,
     OnchainModule,
     SupportChatModule,
+    NotificationsModule,
   ],
   providers: [
     {

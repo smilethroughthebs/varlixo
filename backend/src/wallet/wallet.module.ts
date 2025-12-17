@@ -20,6 +20,7 @@ import { Withdrawal, WithdrawalSchema } from '../schemas/withdrawal.schema';
 import { Transaction, TransactionSchema } from '../schemas/transaction.schema';
 import { EmailModule } from '../email/email.module';
 import { CurrencyModule } from '../currency/currency.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { CurrencyModule } from '../currency/currency.module';
     }),
     forwardRef(() => EmailModule),
     CurrencyModule,
+    NotificationsModule,
   ],
   controllers: [WalletController],
   providers: [WalletService],

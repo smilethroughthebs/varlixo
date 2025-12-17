@@ -7,7 +7,7 @@
  * View and manage admin notifications
  */
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Bell,
@@ -22,6 +22,7 @@ import {
 import { Card } from '@/app/components/ui/Card';
 import Button from '@/app/components/ui/Button';
 import toast from 'react-hot-toast';
+import { notificationsAPI } from '@/app/lib/api';
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 20 },
@@ -32,30 +33,60 @@ export default function AdminNotificationsPage() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [filter, setFilter] = useState<'all' | 'unread' | 'urgent'>('all');
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
-  const urgentCount = notifications.filter((n) => n.type === 'urgent' && !n.read).length;
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const res = await notificationsAPI.list();
+        const list = res.data?.data?.notifications || [];
+        setNotifications(Array.isArray(list) ? list : []);
+      } catch {
+        // ignore
+      }
+    };
+
+    fetchNotifications();
+  }, []);
+
+  const unreadCount = useMemo(() => notifications.filter((n) => !n.isRead).length, [notifications]);
+  const urgentCount = useMemo(
+    () => notifications.filter((n) => n.priority === 'urgent' && !n.isRead).length,
+    [notifications],
+  );
 
   const filteredNotifications = notifications.filter((n) => {
-    if (filter === 'unread') return !n.read;
-    if (filter === 'urgent') return n.type === 'urgent';
+    if (filter === 'unread') return !n.isRead;
+    if (filter === 'urgent') return n.priority === 'urgent';
     return true;
   });
 
-  const markAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
-    toast.success('Marked as read');
+  const markAsRead = async (id: string) => {
+    try {
+      await notificationsAPI.markRead(id);
+      setNotifications((prev) => prev.map((n) => (n._id === id ? { ...n, isRead: true } : n)));
+      toast.success('Marked as read');
+    } catch {
+      toast.error('Failed to mark as read');
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    toast.success('All notifications marked as read');
+  const markAllAsRead = async () => {
+    try {
+      await notificationsAPI.markAllRead();
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      toast.success('All notifications marked as read');
+    } catch {
+      toast.error('Failed to mark all as read');
+    }
   };
 
-  const deleteNotification = (id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-    toast.success('Notification deleted');
+  const deleteNotification = async (id: string) => {
+    try {
+      await notificationsAPI.delete(id);
+      setNotifications((prev) => prev.filter((n) => n._id !== id));
+      toast.success('Notification deleted');
+    } catch {
+      toast.error('Failed to delete notification');
+    }
   };
 
   const getTypeColor = (type: string) => {
@@ -150,12 +181,12 @@ export default function AdminNotificationsPage() {
           </Card>
         ) : (
           filteredNotifications.map((notification) => {
-            const Icon = notification.icon;
+            const Icon = Bell;
             return (
               <Card
-                key={notification.id}
+                key={notification._id}
                 className={`p-4 transition-all hover:border-primary-500/50 ${
-                  !notification.read ? 'bg-dark-800/80' : ''
+                  !notification.isRead ? 'bg-dark-800/80' : ''
                 } ${getTypeColor(notification.type)}`}
               >
                 <div className="flex items-start gap-4">
@@ -167,7 +198,7 @@ export default function AdminNotificationsPage() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="text-white font-semibold">{notification.title}</h3>
-                          {notification.type === 'urgent' && (
+                          {notification.priority === 'urgent' && (
                             <span className="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs font-semibold rounded">
                               URGENT
                             </span>
@@ -175,10 +206,10 @@ export default function AdminNotificationsPage() {
                         </div>
                         <p className="text-gray-400 text-sm mb-2">{notification.message}</p>
                         <div className="flex items-center gap-4">
-                          <p className="text-gray-600 text-xs">{formatTime(notification.timestamp)}</p>
-                          {notification.action && (
+                          <p className="text-gray-600 text-xs">{formatTime(new Date(notification.createdAt))}</p>
+                          {notification.actionUrl && (
                             <a
-                              href={notification.action}
+                              href={notification.actionUrl}
                               className="text-primary-400 text-xs hover:text-primary-300 font-medium"
                             >
                               View Details →
@@ -187,9 +218,9 @@ export default function AdminNotificationsPage() {
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        {!notification.read && (
+                        {!notification.isRead && (
                           <button
-                            onClick={() => markAsRead(notification.id)}
+                            onClick={() => markAsRead(notification._id)}
                             className="p-2 text-gray-400 hover:text-primary-500 transition-colors"
                             title="Mark as read"
                           >
@@ -197,7 +228,7 @@ export default function AdminNotificationsPage() {
                           </button>
                         )}
                         <button
-                          onClick={() => deleteNotification(notification.id)}
+                          onClick={() => deleteNotification(notification._id)}
                           className="p-2 text-gray-400 hover:text-red-500 transition-colors"
                           title="Delete"
                         >

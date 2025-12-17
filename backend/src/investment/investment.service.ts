@@ -117,6 +117,236 @@ export class InvestmentService {
       .find({ status: PlanStatus.ACTIVE })
       .sort({ sortOrder: 1, minInvestment: 1 });
 
+    let fxRate = 1;
+    if (countryCode) {
+      try {
+        const rules = await this.currencyService.getCountryRulesOrDefault(countryCode);
+        const currencyCode = String(rules?.currency || 'USD').toUpperCase();
+        const fx = await this.currencyService.getExchangeRate('USD', currencyCode);
+        if (Number.isFinite(Number(fx?.rate)) && Number(fx.rate) > 0) {
+          fxRate = Number(fx.rate);
+        }
+      } catch {
+        fxRate = 1;
+      }
+    }
+
+    const stepFor = (value: number) => {
+      const abs = Math.abs(value);
+      if (abs < 100) return 1;
+      if (abs < 1000) return 5;
+      if (abs < 5000) return 10;
+      if (abs < 20000) return 50;
+      if (abs < 100000) return 100;
+      if (abs < 500000) return 500;
+      if (abs < 2000000) return 1000;
+      if (abs < 10000000) return 5000;
+      return 10000;
+    };
+
+    const roundUp = (value: number, step: number) => {
+      if (!step) return value;
+      return Math.ceil(value / step) * step;
+    };
+
+    const roundDown = (value: number, step: number) => {
+      if (!step) return value;
+      return Math.floor(value / step) * step;
+    };
+
+    const roundTo2 = (value: number) => Math.round(value * 100) / 100;
+
+    type PlanTier = 'starter' | 'prime' | 'elite' | 'ultra' | 'infinity' | 'flash';
+
+    const tierBySlug: Record<string, PlanTier> = {
+      'starter-yield': 'starter',
+      'prime-growth': 'prime',
+      'elite-advance': 'elite',
+      'ultra-max': 'ultra',
+      'infinity-pro': 'infinity',
+      'flash-promo': 'flash',
+    };
+
+    const usBaseLocal: Record<PlanTier, { min: number; max: number }> = {
+      starter: { min: 100, max: 1999 },
+      prime: { min: 2000, max: 4999 },
+      elite: { min: 5000, max: 9999 },
+      ultra: { min: 10000, max: 15000 },
+      infinity: { min: 15001, max: 25000 },
+      flash: { min: 5000, max: 25000 },
+    };
+
+    // Authoritative per-country table from product requirements (LOCAL currency amounts).
+    // DE/FR/IT/ES share the same EUR table.
+    const explicitLocalByCountry: Record<string, Partial<Record<PlanTier, { min: number; max: number }>>> = {
+      US: {
+        starter: { min: 100, max: 1999 },
+        prime: { min: 2000, max: 4999 },
+        elite: { min: 5000, max: 9999 },
+        ultra: { min: 10000, max: 15000 },
+        infinity: { min: 15001, max: 25000 },
+        flash: { min: 5000, max: 25000 },
+      },
+      CA: {
+        starter: { min: 150, max: 2500 },
+        prime: { min: 2600, max: 6000 },
+        elite: { min: 6500, max: 12000 },
+        ultra: { min: 13000, max: 20000 },
+        infinity: { min: 20001, max: 35000 },
+        flash: { min: 7000, max: 35000 },
+      },
+      GB: {
+        starter: { min: 80, max: 1600 },
+        prime: { min: 1700, max: 3600 },
+        elite: { min: 3700, max: 7500 },
+        ultra: { min: 8000, max: 12000 },
+        infinity: { min: 12001, max: 20000 },
+        flash: { min: 4000, max: 20000 },
+      },
+      DE: {
+        starter: { min: 90, max: 1800 },
+        prime: { min: 2000, max: 4000 },
+        elite: { min: 4500, max: 9000 },
+        ultra: { min: 10000, max: 15000 },
+        infinity: { min: 15001, max: 25000 },
+        flash: { min: 5000, max: 25000 },
+      },
+      FR: {
+        starter: { min: 90, max: 1800 },
+        prime: { min: 2000, max: 4000 },
+        elite: { min: 4500, max: 9000 },
+        ultra: { min: 10000, max: 15000 },
+        infinity: { min: 15001, max: 25000 },
+        flash: { min: 5000, max: 25000 },
+      },
+      IT: {
+        starter: { min: 90, max: 1800 },
+        prime: { min: 2000, max: 4000 },
+        elite: { min: 4500, max: 9000 },
+        ultra: { min: 10000, max: 15000 },
+        infinity: { min: 15001, max: 25000 },
+        flash: { min: 5000, max: 25000 },
+      },
+      ES: {
+        starter: { min: 90, max: 1800 },
+        prime: { min: 2000, max: 4000 },
+        elite: { min: 4500, max: 9000 },
+        ultra: { min: 10000, max: 15000 },
+        infinity: { min: 15001, max: 25000 },
+        flash: { min: 5000, max: 25000 },
+      },
+      BE: {
+        starter: { min: 90, max: 1800 },
+        prime: { min: 2000, max: 4000 },
+        elite: { min: 4500, max: 9000 },
+        ultra: { min: 10000, max: 15000 },
+        infinity: { min: 15001, max: 25000 },
+        flash: { min: 5000, max: 25000 },
+      },
+      NL: {
+        starter: { min: 90, max: 1800 },
+        prime: { min: 2000, max: 4000 },
+        elite: { min: 4500, max: 9000 },
+        ultra: { min: 10000, max: 15000 },
+        infinity: { min: 15001, max: 25000 },
+        flash: { min: 5000, max: 25000 },
+      },
+      BR: {
+        starter: { min: 200, max: 10000 },
+        prime: { min: 11000, max: 25000 },
+        elite: { min: 26000, max: 50000 },
+        ultra: { min: 55000, max: 80000 },
+        infinity: { min: 81000, max: 120000 },
+        flash: { min: 20000, max: 120000 },
+      },
+      MX: {
+        starter: { min: 2000, max: 30000 },
+        prime: { min: 31000, max: 70000 },
+        elite: { min: 71000, max: 130000 },
+        ultra: { min: 140000, max: 200000 },
+        infinity: { min: 200001, max: 350000 },
+        flash: { min: 75000, max: 350000 },
+      },
+      ZA: {
+        starter: { min: 1800, max: 40000 },
+        prime: { min: 45000, max: 90000 },
+        elite: { min: 100000, max: 180000 },
+        ultra: { min: 200000, max: 300000 },
+        infinity: { min: 320000, max: 450000 },
+        flash: { min: 80000, max: 450000 },
+      },
+      IN: {
+        starter: { min: 8000, max: 150000 },
+        prime: { min: 160000, max: 350000 },
+        elite: { min: 360000, max: 700000 },
+        ultra: { min: 710000, max: 1100000 },
+        infinity: { min: 1200000, max: 2000000 },
+        flash: { min: 300000, max: 2000000 },
+      },
+    };
+
+    // Affordability multipliers for countries without explicit ranges.
+    // This scales the US tier ranges (USD-equivalent) before converting to local via FX.
+    // Lower multiplier = more affordable entry points; higher multiplier = higher-tier markets.
+    const affordabilityMultiplierByCountry: Record<string, number> = {
+      // Middle East high-tier
+      SA: 1.25,
+      AE: 1.35,
+      QA: 1.4,
+
+      // Europe / developed
+      CH: 1.35,
+      SE: 1.05,
+      NO: 1.2,
+
+      // Asia developed
+      SG: 1.15,
+      AU: 1.05,
+      NZ: 1.0,
+
+      // Emerging / mid
+      TR: 0.6,
+      MY: 0.65,
+      ID: 0.4,
+      PH: 0.4,
+      VN: 0.35,
+
+      // Africa / lower-income
+      EG: 0.35,
+      KE: 0.3,
+      GH: 0.3,
+    };
+
+    const getLocalTableForTier = (planSlug: string, cc?: string) => {
+      if (!cc) return null;
+      const tier = tierBySlug[String(planSlug || '').toLowerCase()];
+      if (!tier) return null;
+
+      const explicit = explicitLocalByCountry[cc]?.[tier];
+      if (explicit) return { ...explicit, tier };
+
+      // Auto-generate for any other country based on US ranges scaled by FX rate.
+      if (fxRate && fxRate > 0) {
+        const base = usBaseLocal[tier];
+        const affordability = affordabilityMultiplierByCountry[cc] ?? 1;
+        const scaledMin = base.min * affordability;
+        const scaledMax = base.max * affordability;
+
+        const localMinRaw = scaledMin * fxRate;
+        const localMaxRaw = scaledMax * fxRate;
+        const localMinNice = roundUp(localMinRaw, stepFor(localMinRaw));
+        const localMaxNice = roundDown(localMaxRaw, stepFor(localMaxRaw));
+        const localMaxFinal = localMaxNice >= localMinNice ? localMaxNice : localMinNice;
+        return { min: localMinNice, max: localMaxFinal, tier };
+      }
+
+      return null;
+    };
+
+    const minLocalFloorByCountry: Record<string, number> = {
+      BR: 200,
+    };
+
     // Apply country availability + country-specific limits if country is provided/detected
     const plansWithCountryLimits = plans.map((plan) => {
       const planObj: any = plan.toObject();
@@ -139,6 +369,56 @@ export class InvestmentService {
           if (countryLimit) {
             planObj.minInvestment = countryLimit.minInvestment;
             planObj.maxInvestment = countryLimit.maxInvestment;
+          } else if (fxRate && fxRate > 0) {
+            const local = getLocalTableForTier(planObj.slug, countryCode);
+            if (local) {
+              planObj.minInvestment = roundTo(local.min / fxRate, 6);
+              planObj.maxInvestment = roundTo(local.max / fxRate, 6);
+            } else {
+              const minUsdBase = Number(planObj.minInvestment || 0);
+              const maxUsdBase = Number(planObj.maxInvestment || 0);
+
+              const localMinRaw = minUsdBase * fxRate;
+              const localMaxRaw = maxUsdBase * fxRate;
+
+              const localMinNice = roundUp(localMinRaw, stepFor(localMinRaw));
+              const localMaxNice = roundDown(localMaxRaw, stepFor(localMaxRaw));
+              const localMaxFinal = localMaxNice >= localMinNice ? localMaxNice : localMinNice;
+
+              const floorLocal = minLocalFloorByCountry[countryCode] ?? 0;
+              const minLocalFinal = floorLocal > 0 ? Math.max(localMinNice, floorLocal) : localMinNice;
+
+              const derivedMinUsd = roundTo2(minLocalFinal / fxRate);
+              const derivedMaxUsd = roundTo2(localMaxFinal / fxRate);
+
+              planObj.minInvestment = Math.max(0, derivedMinUsd);
+              planObj.maxInvestment = Math.max(planObj.minInvestment, derivedMaxUsd);
+            }
+          }
+        } else if (fxRate && fxRate > 0) {
+          const local = getLocalTableForTier(planObj.slug, countryCode);
+          if (local) {
+            planObj.minInvestment = roundTo(local.min / fxRate, 6);
+            planObj.maxInvestment = roundTo(local.max / fxRate, 6);
+          } else {
+            const minUsdBase = Number(planObj.minInvestment || 0);
+            const maxUsdBase = Number(planObj.maxInvestment || 0);
+
+            const localMinRaw = minUsdBase * fxRate;
+            const localMaxRaw = maxUsdBase * fxRate;
+
+            const localMinNice = roundUp(localMinRaw, stepFor(localMinRaw));
+            const localMaxNice = roundDown(localMaxRaw, stepFor(localMaxRaw));
+            const localMaxFinal = localMaxNice >= localMinNice ? localMaxNice : localMinNice;
+
+            const floorLocal = minLocalFloorByCountry[countryCode] ?? 0;
+            const minLocalFinal = floorLocal > 0 ? Math.max(localMinNice, floorLocal) : localMinNice;
+
+            const derivedMinUsd = roundTo2(minLocalFinal / fxRate);
+            const derivedMaxUsd = roundTo2(localMaxFinal / fxRate);
+
+            planObj.minInvestment = Math.max(0, derivedMinUsd);
+            planObj.maxInvestment = Math.max(planObj.minInvestment, derivedMaxUsd);
           }
         }
       }

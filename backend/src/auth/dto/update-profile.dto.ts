@@ -1,4 +1,4 @@
-import { IsDateString, IsOptional, IsString, Length, Matches } from 'class-validator';
+import { IsBoolean, IsDateString, IsOptional, IsString, Length, Matches } from 'class-validator';
 
 export class UpdateProfileDto {
   @IsOptional()
@@ -52,4 +52,24 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsString()
   theme?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  emailNotifications?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  depositNotifications?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  withdrawalNotifications?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  investmentNotifications?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  securityAlerts?: boolean;
 }

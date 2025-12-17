@@ -130,6 +130,7 @@ export default function SettingsPage() {
   const { language, setLanguage } = useLanguageStore();
   const [activeTab, setActiveTab] = useState('profile');
   const [isLoading, setIsLoading] = useState(false);
+  const [prefsBusy, setPrefsBusy] = useState(false);
   const [is2faBusy, setIs2faBusy] = useState(false);
   const [show2faPanel, setShow2faPanel] = useState(false);
   const [twoFaQr, setTwoFaQr] = useState<string | null>(null);
@@ -1023,6 +1024,80 @@ export default function SettingsPage() {
           animate={{ opacity: 1, y: 0 }}
           className="space-y-6"
         >
+          <Card>
+            <CardHeader>
+              <CardTitle>Notifications</CardTitle>
+            </CardHeader>
+            <div className="p-6 pt-0 space-y-4">
+              {[
+                {
+                  key: 'securityAlerts',
+                  title: 'Security Alerts',
+                  desc: 'Login alerts and important security updates',
+                },
+                {
+                  key: 'depositNotifications',
+                  title: 'Deposit Updates',
+                  desc: 'Updates about deposits and confirmations',
+                },
+                {
+                  key: 'withdrawalNotifications',
+                  title: 'Withdrawal Updates',
+                  desc: 'Updates about withdrawals and processing',
+                },
+                {
+                  key: 'investmentNotifications',
+                  title: 'Investment Updates',
+                  desc: 'Plan updates, earnings, and investment activity',
+                },
+                {
+                  key: 'emailNotifications',
+                  title: 'Email Notifications',
+                  desc: 'Allow the platform to send you emails for key events',
+                },
+              ].map((item) => {
+                const enabled = Boolean((user as any)?.[item.key] ?? true);
+                return (
+                  <div key={item.key} className="flex items-center justify-between">
+                    <div>
+                      <p className="text-white font-medium flex items-center gap-2">
+                        <Bell size={16} className="text-primary-500" />
+                        {item.title}
+                      </p>
+                      <p className="text-sm text-gray-400">{item.desc}</p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        if (!user?.id || prefsBusy) return;
+                        const next = !enabled;
+                        setPrefsBusy(true);
+                        try {
+                          await authAPI.updateProfile({ [item.key]: next });
+                          updateUser({ [item.key]: next } as any);
+                          toast.success('Notification preferences updated');
+                        } catch (error: any) {
+                          toast.error(error?.response?.data?.message || 'Failed to update preference');
+                        } finally {
+                          setPrefsBusy(false);
+                        }
+                      }}
+                      className={`relative w-12 h-6 rounded-full transition-colors ${
+                        enabled ? 'bg-primary-500' : 'bg-dark-600'
+                      } ${prefsBusy ? 'opacity-60 cursor-not-allowed' : ''}`}
+                      disabled={prefsBusy}
+                    >
+                      <span
+                        className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                          enabled ? 'translate-x-6' : ''
+                        }`}
+                      />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+
           {/* Language Selection */}
           <Card>
             <CardHeader>

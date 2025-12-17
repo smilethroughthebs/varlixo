@@ -30,6 +30,11 @@ interface User {
   theme: string;
   preferredLanguage: string;
   preferredCurrency?: string;
+  emailNotifications?: boolean;
+  depositNotifications?: boolean;
+  withdrawalNotifications?: boolean;
+  investmentNotifications?: boolean;
+  securityAlerts?: boolean;
   referralCode?: string;
 }
 

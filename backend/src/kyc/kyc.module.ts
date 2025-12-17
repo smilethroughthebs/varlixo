@@ -15,6 +15,7 @@ import { KycService } from './kyc.service';
 import { Kyc, KycSchema } from '../schemas/kyc.schema';
 import { User, UserSchema } from '../schemas/user.schema';
 import { EmailModule } from '../email/email.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { EmailModule } from '../email/email.module';
       }),
     }),
     forwardRef(() => EmailModule),
+    NotificationsModule,
   ],
   controllers: [KycController],
   providers: [KycService],

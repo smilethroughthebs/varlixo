@@ -18,6 +18,8 @@ import { User, UserDocument, KycStatus } from '../schemas/user.schema';
 import { SubmitKycDto, AdminReviewKycDto } from './dto/kyc.dto';
 import { EmailService } from '../email/email.service';
 import { PaginationDto, createPaginatedResponse } from '../common/dto/pagination.dto';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationPriority, NotificationType } from '../schemas/notification.schema';
 
 @Injectable()
 export class KycService {
@@ -25,6 +27,7 @@ export class KycService {
     @InjectModel(Kyc.name) private kycModel: Model<KycDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     private emailService: EmailService,
+    private notificationsService: NotificationsService,
   ) {}
 
   /**
@@ -93,6 +96,22 @@ export class KycService {
       `${user.firstName} ${user.lastName}`,
       submitKycDto.documentType,
     );
+
+    if (user.securityAlerts) {
+      this.notificationsService
+        .create({
+          userId,
+          type: NotificationType.KYC,
+          priority: NotificationPriority.MEDIUM,
+          title: 'KYC submitted',
+          message: 'Your KYC documents were submitted and are awaiting review.',
+          actionUrl: '/dashboard/kyc',
+          actionText: 'View KYC',
+          relatedEntity: 'kyc',
+          relatedId: kyc._id.toString(),
+        })
+        .catch(() => undefined);
+    }
 
     return {
       success: true,
@@ -210,6 +229,25 @@ export class KycService {
         user.firstName,
         rejectionReason || 'Documents could not be verified',
       );
+    }
+
+    if (user.securityAlerts) {
+      this.notificationsService
+        .create({
+          userId: user._id.toString(),
+          type: NotificationType.KYC,
+          priority: decision === 'approved' ? NotificationPriority.MEDIUM : NotificationPriority.HIGH,
+          title: decision === 'approved' ? 'KYC approved' : 'KYC rejected',
+          message:
+            decision === 'approved'
+              ? 'Your identity verification was approved.'
+              : `Your identity verification was rejected${rejectionReason ? `: ${rejectionReason}` : '.'}`,
+          actionUrl: '/dashboard/kyc',
+          actionText: 'View details',
+          relatedEntity: 'kyc',
+          relatedId: kyc._id.toString(),
+        })
+        .catch(() => undefined);
     }
 
     return {

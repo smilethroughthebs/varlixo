@@ -17,6 +17,7 @@ import { Wallet, WalletSchema } from '../schemas/wallet.schema';
 import { Referral, ReferralSchema } from '../schemas/referral.schema';
 import { Otp, OtpSchema } from '../schemas/otp.schema';
 import { EmailModule } from '../email/email.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { EmailModule } from '../email/email.module';
       }),
     }),
     forwardRef(() => EmailModule), // Use forwardRef to handle circular dependency
+    NotificationsModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, OtpService],

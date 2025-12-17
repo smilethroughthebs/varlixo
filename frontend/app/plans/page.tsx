@@ -166,7 +166,7 @@ const faqs = [
 export default function PlansPage() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
-  const { country: detectedCountry, currencySymbol } = useCurrencyStore();
+  const { country: detectedCountry, currencySymbol, conversionRate } = useCurrencyStore();
   const [plans, setPlans] = useState<any[]>(defaultPlans);
   const [isLoading, setIsLoading] = useState(true);
   const [showCalculator, setShowCalculator] = useState(false);
@@ -281,16 +281,22 @@ export default function PlansPage() {
 
   // Calculator results
   const clampedCalcAmount = useMemo(() => {
-    const raw = parseFloat(calcAmount);
-    const amount = Number.isFinite(raw) ? raw : 0;
-    const min = Number(selectedPlan?.minAmount || 0);
-    const max = Number(selectedPlan?.maxAmount || 0);
-    if (!max || max <= 0) return Math.max(0, amount);
-    return Math.min(Math.max(amount, min), max);
-  }, [calcAmount, selectedPlan?.maxAmount, selectedPlan?.minAmount]);
+    const rawLocal = parseFloat(calcAmount);
+    const localAmount = Number.isFinite(rawLocal) ? rawLocal : 0;
+
+    const rate = Number.isFinite(Number(conversionRate)) && Number(conversionRate) > 0 ? Number(conversionRate) : 1;
+    const amountUsd = localAmount / rate;
+
+    const minUsd = Number(selectedPlan?.minAmount || 0);
+    const maxUsd = Number(selectedPlan?.maxAmount || 0);
+
+    const clampedUsd = !maxUsd || maxUsd <= 0 ? Math.max(0, amountUsd) : Math.min(Math.max(amountUsd, minUsd), maxUsd);
+    const clampedLocal = clampedUsd * rate;
+    return { usd: clampedUsd, local: clampedLocal };
+  }, [calcAmount, conversionRate, selectedPlan?.maxAmount, selectedPlan?.minAmount]);
 
   const calcResults = useMemo(() => {
-    const amount = clampedCalcAmount;
+    const amount = clampedCalcAmount.usd;
     const dailyProfit = (amount * selectedPlan.dailyROI) / 100;
     const weeklyProfit = dailyProfit * 7;
     const totalProfit = dailyProfit * selectedPlan.duration;
@@ -721,9 +727,12 @@ export default function PlansPage() {
                       type="number"
                       value={calcAmount}
                       onChange={(e) => setCalcAmount(e.target.value)}
-                      min={selectedPlan?.minAmount}
-                      max={selectedPlan?.maxAmount}
-                      onBlur={() => setCalcAmount(String(clampedCalcAmount))}
+                      min={(Number(selectedPlan?.minAmount || 0) * (Number(conversionRate) || 1)) || 0}
+                      max={(Number(selectedPlan?.maxAmount || 0) * (Number(conversionRate) || 1)) || undefined}
+                      onBlur={() => {
+                        const normalized = Math.round((clampedCalcAmount.local || 0) * 100) / 100;
+                        setCalcAmount(String(normalized));
+                      }}
                       className="w-full pl-10 pr-4 py-4 bg-dark-700 border border-dark-600 rounded-xl text-white text-xl font-semibold placeholder-gray-500 focus:outline-none focus:border-primary-500 transition-colors"
                     />
                   </div>
@@ -740,10 +749,12 @@ export default function PlansPage() {
                     <button
                       key={amount}
                       onClick={() => {
-                        const min = Number(selectedPlan?.minAmount || 0);
-                        const max = Number(selectedPlan?.maxAmount || 0);
-                        const bounded = max > 0 ? Math.min(Math.max(amount, min), max) : Math.max(amount, min);
-                        setCalcAmount(String(bounded));
+                        const minUsd = Number(selectedPlan?.minAmount || 0);
+                        const maxUsd = Number(selectedPlan?.maxAmount || 0);
+                        const boundedUsd = maxUsd > 0 ? Math.min(Math.max(amount, minUsd), maxUsd) : Math.max(amount, minUsd);
+                        const rate = Number.isFinite(Number(conversionRate)) && Number(conversionRate) > 0 ? Number(conversionRate) : 1;
+                        const local = Math.round(boundedUsd * rate * 100) / 100;
+                        setCalcAmount(String(local));
                       }}
                       className="px-4 py-2 rounded-lg bg-dark-700 text-gray-400 hover:bg-dark-600 hover:text-white text-sm transition-colors"
                     >

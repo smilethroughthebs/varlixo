@@ -32,6 +32,7 @@ import {
 import { clsx } from 'clsx';
 import { useAuthStore } from '@/app/lib/store';
 import toast from 'react-hot-toast';
+import { notificationsAPI } from '@/app/lib/api';
 
 const adminLinks = [
   { href: '/admin/dashboard', icon: LayoutDashboard, label: 'Overview' },
@@ -53,6 +54,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     // Check admin authentication - allow both 'admin' and 'super_admin' roles
@@ -64,6 +66,22 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
     }
     setIsLoading(false);
   }, [isAuthenticated, user?.role]); // Only depend on role, not entire user object
+
+  useEffect(() => {
+    const loadUnread = async () => {
+      try {
+        const res = await notificationsAPI.unreadCount();
+        const count = res?.data?.data?.unreadCount;
+        setUnreadCount(Number.isFinite(Number(count)) ? Number(count) : 0);
+      } catch {
+        setUnreadCount(0);
+      }
+    };
+
+    if (isAuthenticated && (user?.role === 'admin' || user?.role === 'super_admin')) {
+      loadUnread();
+    }
+  }, [isAuthenticated, user?.role]);
 
   const handleLogout = () => {
     logout();
@@ -167,7 +185,11 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
               {/* Notifications */}
               <Link href="/admin/dashboard/notifications" className="relative p-2 text-gray-400 hover:text-white">
                 <Bell size={20} />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
               </Link>
 
               {/* Profile */}

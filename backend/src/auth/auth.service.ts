@@ -813,6 +813,22 @@ export class AuthService {
       user.theme = String(dto.theme).trim().toLowerCase();
     }
 
+    if (dto.emailNotifications !== undefined) {
+      user.emailNotifications = Boolean(dto.emailNotifications);
+    }
+    if (dto.depositNotifications !== undefined) {
+      user.depositNotifications = Boolean(dto.depositNotifications);
+    }
+    if (dto.withdrawalNotifications !== undefined) {
+      user.withdrawalNotifications = Boolean(dto.withdrawalNotifications);
+    }
+    if (dto.investmentNotifications !== undefined) {
+      user.investmentNotifications = Boolean(dto.investmentNotifications);
+    }
+    if (dto.securityAlerts !== undefined) {
+      user.securityAlerts = Boolean(dto.securityAlerts);
+    }
+
     await user.save();
 
     return this.getProfile(userId);

@@ -42,6 +42,8 @@ import { EmailService } from '../email/email.service';
 import { ConfigService } from '@nestjs/config';
 import { CurrencyService } from '../currency/currency.service';
 import { GetTransactionsDto } from './dto/wallet.dto';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationPriority, NotificationType } from '../schemas/notification.schema';
 
 @Injectable()
 export class WalletService {
@@ -55,6 +57,7 @@ export class WalletService {
     private emailService: EmailService,
     private configService: ConfigService,
     private currencyService: CurrencyService,
+    private notificationsService: NotificationsService,
   ) {}
 
   /**
@@ -200,6 +203,22 @@ export class WalletService {
     );
 
     // Return deposit instructions
+    if (user.depositNotifications) {
+      this.notificationsService
+        .create({
+          userId,
+          type: NotificationType.DEPOSIT,
+          priority: NotificationPriority.MEDIUM,
+          title: 'Deposit created',
+          message: `Your deposit of $${amount} has been created and is pending.`,
+          actionUrl: '/dashboard/wallet',
+          actionText: 'View wallet',
+          relatedEntity: 'deposit',
+          relatedId: deposit._id.toString(),
+        })
+        .catch(() => undefined);
+    }
+
     return {
       success: true,
       deposit: {
@@ -765,6 +784,22 @@ export class WalletService {
       paymentMethod,
       withdrawalRef,
     );
+
+    if (user.withdrawalNotifications) {
+      this.notificationsService
+        .create({
+          userId,
+          type: NotificationType.WITHDRAWAL,
+          priority: NotificationPriority.HIGH,
+          title: 'Withdrawal requested',
+          message: `Your withdrawal request of $${amount} has been submitted.`,
+          actionUrl: '/dashboard/wallet',
+          actionText: 'View status',
+          relatedEntity: 'withdrawal',
+          relatedId: withdrawal._id.toString(),
+        })
+        .catch(() => undefined);
+    }
 
     return {
       success: true,
