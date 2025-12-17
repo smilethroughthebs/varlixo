@@ -95,7 +95,7 @@ export class InvestmentService {
   /**
    * Get all active investment plans with country-specific limits
    */
-  async getActivePlans(country?: string, ipAddress?: string) {
+  async getActivePlans(country?: string, ipAddress?: string, includeUnavailable = false) {
     let countryCode = country ? country.toUpperCase() : undefined;
 
     if (!countryCode && ipAddress) {
@@ -106,7 +106,7 @@ export class InvestmentService {
       }
     }
 
-    if (countryCode === 'NG') {
+    if (countryCode === 'NG' && !includeUnavailable) {
       return {
         success: true,
         plans: [],
@@ -146,16 +146,40 @@ export class InvestmentService {
       return planObj;
     });
 
-    const filteredPlans = plansWithCountryLimits
+    const blockedFiltered = plansWithCountryLimits.filter((plan: any) => {
+      const slug = String(plan?.slug || '').toLowerCase();
+      return !BLOCKED_PUBLIC_PLAN_SLUGS.has(slug);
+    });
+
+    if (includeUnavailable) {
+      const expanded = blockedFiltered.map((plan: any) => {
+        const copy = { ...plan };
+        const allowed = countryCode === 'NG' ? false : (countryCode ? copy.__countryAllowed !== false : true);
+        copy.isAvailable = allowed;
+        if (!allowed) {
+          if (countryCode === 'NG') {
+            copy.unavailableReason = 'Not available in your region';
+          } else {
+            copy.unavailableReason = 'Not available in your region';
+          }
+        }
+        delete copy.__countryAllowed;
+        return copy;
+      });
+
+      return {
+        success: true,
+        countryCode,
+        plans: expanded,
+      };
+    }
+
+    const filteredPlans = blockedFiltered
       .filter((plan: any) => {
         if (countryCode) {
           return plan.__countryAllowed !== false;
         }
         return true;
-      })
-      .filter((plan: any) => {
-        const slug = String(plan?.slug || '').toLowerCase();
-        return !BLOCKED_PUBLIC_PLAN_SLUGS.has(slug);
       })
       .map((plan: any) => {
         const copy = { ...plan };
@@ -165,6 +189,7 @@ export class InvestmentService {
 
     return {
       success: true,
+      countryCode,
       plans: filteredPlans,
     };
   }

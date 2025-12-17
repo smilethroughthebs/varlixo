@@ -49,9 +49,14 @@ export class InvestmentController {
    */
   @Public()
   @Get('plans')
-  async getActivePlans(@Query('country') country: string | undefined, @Req() req: Request) {
+  async getActivePlans(
+    @Query('country') country: string | undefined,
+    @Query('includeUnavailable') includeUnavailable: string | undefined,
+    @Req() req: Request,
+  ) {
     const ipAddress = getClientIp(req);
-    return this.investmentService.getActivePlans(country, ipAddress);
+    const include = includeUnavailable === 'true' || includeUnavailable === '1';
+    return this.investmentService.getActivePlans(country, ipAddress, include);
   }
 
   /**

@@ -121,7 +121,7 @@ export default function InvestmentsPage() {
 
   const fetchPlans = async () => {
     try {
-      const response = await investmentAPI.getPlans(country);
+      const response = await investmentAPI.getPlans(country, true);
       const apiPlans = response.data.data?.plans || response.data.plans || [];
       
       if (Array.isArray(apiPlans) && apiPlans.length > 0) {
@@ -139,9 +139,11 @@ export default function InvestmentsPage() {
           color: plan.color || 'from-primary-500 to-primary-600',
           features: plan.features || [],
           popular: plan.isPopular || plan.isFeatured || false,
+          isAvailable: plan.isAvailable !== false,
+          unavailableReason: plan.unavailableReason,
         }));
         setPlans(mappedPlans);
-        setCalcPlan(mappedPlans[0]);
+        setCalcPlan(mappedPlans.find((p: any) => p.isAvailable !== false) || mappedPlans[0]);
       }
     } catch (error) {
       console.error('Failed to fetch plans:', error);
@@ -360,13 +362,14 @@ export default function InvestmentsPage() {
           {plans.map((plan) => {
             const PlanIcon = plan.icon;
             const { dailyProfit, totalProfit, totalReturn } = calculateProfit(plan.minAmount, plan);
+            const isUnavailable = plan.isAvailable === false;
 
             return (
               <Card
                 key={plan.id}
                 className={`relative overflow-hidden transition-all duration-300 hover:scale-105 ${
                   plan.popular ? 'border-primary-500' : ''
-                }`}
+                } ${isUnavailable ? 'opacity-70' : ''}`}
               >
                 {plan.popular && (
                   <div className="absolute top-0 right-0 bg-primary-500 text-white text-xs font-bold px-3 py-1 rounded-bl-lg">
@@ -379,6 +382,21 @@ export default function InvestmentsPage() {
                 </div>
 
                 <h3 className="text-xl font-bold text-white mb-2">{plan.name}</h3>
+
+                <div className="mb-4 flex flex-wrap gap-2">
+                  {isUnavailable ? (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-500/10 text-yellow-300 border border-yellow-500/20">
+                      Not available in your region
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-300 border border-green-500/20">
+                      Available in your region
+                    </span>
+                  )}
+                  {isUnavailable && plan.unavailableReason ? (
+                    <span className="text-xs text-gray-500">{plan.unavailableReason}</span>
+                  ) : null}
+                </div>
                 
                 <div className="space-y-3 mb-6">
                   <div className="flex justify-between text-sm">
@@ -413,10 +431,14 @@ export default function InvestmentsPage() {
 
                 <Button
                   className="w-full"
-                  onClick={() => setSelectedPlan(plan)}
+                  onClick={() => {
+                    if (isUnavailable) return;
+                    setSelectedPlan(plan);
+                  }}
                   variant={plan.popular ? 'primary' : 'secondary'}
+                  disabled={isUnavailable}
                 >
-                  Invest Now
+                  {isUnavailable ? 'Unavailable' : 'Invest Now'}
                 </Button>
               </Card>
             );

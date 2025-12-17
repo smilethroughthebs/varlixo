@@ -189,9 +189,10 @@ export default function PlansPage() {
     }
 
     setComparePlanIds((prev) => {
-      const existing = (prev || []).filter((id) => plans.some((p: any) => p._id === id));
+      const selectablePlans = plans.filter((p: any) => p.isAvailable !== false);
+      const existing = (prev || []).filter((id) => selectablePlans.some((p: any) => p._id === id));
       if (existing.length > 0) return existing.slice(0, 3);
-      return plans.slice(0, 3).map((p: any) => p._id);
+      return selectablePlans.slice(0, 3).map((p: any) => p._id);
     });
   }, [plans]);
 
@@ -202,7 +203,7 @@ export default function PlansPage() {
       const userCountry = user?.country;
       
       // Add cache-busting parameter and pass country if available
-      const response = await investmentAPI.getPlans(userCountry || detectedCountry);
+      const response = await investmentAPI.getPlans(userCountry || detectedCountry, true);
       console.log('API Response:', response.data);
       const apiPlans = response.data.data?.plans || response.data.plans || [];
       console.log('Parsed plans:', apiPlans);
@@ -221,6 +222,8 @@ export default function PlansPage() {
           totalROI: plan.totalReturnRate,
           features: plan.features || [],
           isPopular: plan.isPopular || plan.isFeatured || false,
+          isAvailable: plan.isAvailable !== false,
+          unavailableReason: plan.unavailableReason,
           icon: plan.icon || 'Star',
           color: plan.color || 'from-primary-500 to-primary-600',
           bgColor: `bg-${plan.color || 'primary'}-500/10`,
@@ -228,7 +231,7 @@ export default function PlansPage() {
         }));
         
         setPlans(mappedPlans);
-        setSelectedPlan(mappedPlans[0]); // Set first plan as default
+        setSelectedPlan(mappedPlans.find((p: any) => p.isAvailable !== false) || mappedPlans[0]);
       }
     } catch (error) {
       console.error('Failed to fetch plans:', error);
@@ -378,6 +381,7 @@ export default function PlansPage() {
             ) : (
             plans.map((plan, index) => {
               const Icon = getIcon(plan.icon || 'Star');
+              const isUnavailable = plan.isAvailable === false;
               return (
                 <motion.div
                   key={plan._id || index}
@@ -398,7 +402,7 @@ export default function PlansPage() {
                       plan.isPopular
                         ? 'border-primary-500/50 bg-gradient-to-b from-primary-500/10 via-dark-800/50 to-dark-800/50 shadow-xl shadow-primary-500/10'
                         : 'border-dark-700 bg-dark-800/50 hover:border-dark-600'
-                    }`}
+                    } ${isUnavailable ? 'opacity-70' : ''}`}
                   >
                     <div className="p-8">
                       {/* Plan Header */}
@@ -408,6 +412,21 @@ export default function PlansPage() {
 
                       <h3 className="text-2xl font-bold text-white mb-2">{plan.name}</h3>
                       <p className="text-gray-400 text-sm mb-6 min-h-[40px]">{plan.description}</p>
+
+                      <div className="mb-4 flex flex-wrap gap-2">
+                        {isUnavailable ? (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-500/10 text-yellow-300 border border-yellow-500/20">
+                            Not available in your region
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-300 border border-green-500/20">
+                            Available in your region
+                          </span>
+                        )}
+                        {isUnavailable && plan.unavailableReason ? (
+                          <span className="text-xs text-gray-500">{plan.unavailableReason}</span>
+                        ) : null}
+                      </div>
 
                       {/* ROI Display */}
                       <div className="mb-6 p-4 rounded-2xl bg-dark-700/50">
@@ -467,20 +486,26 @@ export default function PlansPage() {
                       </div>
 
                       {/* CTA Button */}
-                      <Link href="/auth/register">
-                        <Button
-                          className={`w-full group ${
-                            plan.isPopular
-                              ? 'bg-gradient-to-r from-primary-500 to-emerald-500 hover:from-primary-400 hover:to-emerald-400'
-                              : ''
-                          }`}
-                          variant={plan.isPopular ? 'primary' : 'secondary'}
-                          size="lg"
-                        >
-                          Get Started
-                          <ArrowRight size={18} className="ml-2 group-hover:translate-x-1 transition-transform" />
+                      {isUnavailable ? (
+                        <Button className="w-full" variant="secondary" size="lg" disabled>
+                          Unavailable
                         </Button>
-                      </Link>
+                      ) : (
+                        <Link href="/auth/register">
+                          <Button
+                            className={`w-full group ${
+                              plan.isPopular
+                                ? 'bg-gradient-to-r from-primary-500 to-emerald-500 hover:from-primary-400 hover:to-emerald-400'
+                                : ''
+                            }`}
+                            variant={plan.isPopular ? 'primary' : 'secondary'}
+                            size="lg"
+                          >
+                            Get Started
+                            <ArrowRight size={18} className="ml-2 group-hover:translate-x-1 transition-transform" />
+                          </Button>
+                        </Link>
+                      )}
                     </div>
                   </motion.div>
                 </motion.div>
@@ -668,11 +693,17 @@ export default function PlansPage() {
                     {plans.map((plan) => (
                       <button
                         key={plan._id}
-                        onClick={() => setSelectedPlan(plan)}
+                        disabled={plan.isAvailable === false}
+                        onClick={() => {
+                          if (plan.isAvailable === false) return;
+                          setSelectedPlan(plan);
+                        }}
                         className={`p-3 rounded-xl text-center transition-all ${
                           selectedPlan?._id === plan._id
                             ? 'bg-primary-500/20 border-primary-500 text-primary-400'
-                            : 'bg-dark-700/50 border-dark-600 text-gray-400 hover:border-dark-500'
+                            : plan.isAvailable === false
+                              ? 'bg-dark-700/30 border-dark-700 text-gray-600 cursor-not-allowed'
+                              : 'bg-dark-700/50 border-dark-600 text-gray-400 hover:border-dark-500'
                         } border`}
                       >
                         <p className="font-semibold text-sm">{plan.name}</p>
@@ -818,12 +849,14 @@ export default function PlansPage() {
               {plans.map((plan: any) => {
                 const checked = comparePlanIds.includes(plan._id);
                 const disabled = !checked && comparePlanIds.length >= 3;
+                const unavailable = plan.isAvailable === false;
                 return (
                   <button
                     key={plan._id}
                     type="button"
-                    disabled={disabled}
+                    disabled={disabled || unavailable}
                     onClick={() => {
+                      if (unavailable) return;
                       setComparePlanIds((prev) => {
                         const next = new Set(prev);
                         if (next.has(plan._id)) {
@@ -838,7 +871,7 @@ export default function PlansPage() {
                       checked
                         ? 'bg-primary-500/20 border-primary-500 text-primary-300'
                         : 'bg-dark-800/40 border-dark-700 text-gray-400 hover:text-white'
-                    } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    } ${(disabled || unavailable) ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     {plan.name}
                   </button>
