@@ -97,6 +97,10 @@ export class CreatePlanDto {
   countryLimits?: CountryLimitDto[];
 
   @IsOptional()
+  @IsString({ each: true })
+  availableCountries?: string[];
+
+  @IsOptional()
   @IsBoolean()
   marketLinked?: boolean;
 
@@ -263,6 +267,10 @@ export class UpdatePlanDto {
   @ValidateNested({ each: true })
   @Type(() => CountryLimitDto)
   countryLimits?: CountryLimitDto[];
+
+  @IsOptional()
+  @IsString({ each: true })
+  availableCountries?: string[];
 
   @IsOptional()
   @IsBoolean()

@@ -172,6 +172,7 @@ export default function PlansPage() {
   const [showCalculator, setShowCalculator] = useState(false);
   const [calcAmount, setCalcAmount] = useState('5000');
   const [selectedPlan, setSelectedPlan] = useState(defaultPlans[1]);
+  const [comparePlanIds, setComparePlanIds] = useState<string[]>([]);
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
   const [recurringAmount6, setRecurringAmount6] = useState('500');
   const [recurringAmount12, setRecurringAmount12] = useState('1000');
@@ -180,6 +181,19 @@ export default function PlansPage() {
   useEffect(() => {
     fetchPlans();
   }, [detectedCountry, user?.country]);
+
+  useEffect(() => {
+    if (!plans || plans.length === 0) {
+      setComparePlanIds([]);
+      return;
+    }
+
+    setComparePlanIds((prev) => {
+      const existing = (prev || []).filter((id) => plans.some((p: any) => p._id === id));
+      if (existing.length > 0) return existing.slice(0, 3);
+      return plans.slice(0, 3).map((p: any) => p._id);
+    });
+  }, [plans]);
 
   const fetchPlans = async () => {
     setIsLoading(true);
@@ -263,14 +277,23 @@ export default function PlansPage() {
   };
 
   // Calculator results
+  const clampedCalcAmount = useMemo(() => {
+    const raw = parseFloat(calcAmount);
+    const amount = Number.isFinite(raw) ? raw : 0;
+    const min = Number(selectedPlan?.minAmount || 0);
+    const max = Number(selectedPlan?.maxAmount || 0);
+    if (!max || max <= 0) return Math.max(0, amount);
+    return Math.min(Math.max(amount, min), max);
+  }, [calcAmount, selectedPlan?.maxAmount, selectedPlan?.minAmount]);
+
   const calcResults = useMemo(() => {
-    const amount = parseFloat(calcAmount) || 0;
+    const amount = clampedCalcAmount;
     const dailyProfit = (amount * selectedPlan.dailyROI) / 100;
     const weeklyProfit = dailyProfit * 7;
     const totalProfit = dailyProfit * selectedPlan.duration;
     const totalReturn = amount + totalProfit;
     return { dailyProfit, weeklyProfit, totalProfit, totalReturn };
-  }, [calcAmount, selectedPlan]);
+  }, [clampedCalcAmount, selectedPlan]);
 
   return (
     <div className="min-h-screen bg-dark-900">
@@ -669,6 +692,7 @@ export default function PlansPage() {
                       onChange={(e) => setCalcAmount(e.target.value)}
                       min={selectedPlan?.minAmount}
                       max={selectedPlan?.maxAmount}
+                      onBlur={() => setCalcAmount(String(clampedCalcAmount))}
                       className="w-full pl-10 pr-4 py-4 bg-dark-700 border border-dark-600 rounded-xl text-white text-xl font-semibold placeholder-gray-500 focus:outline-none focus:border-primary-500 transition-colors"
                     />
                   </div>
@@ -684,7 +708,12 @@ export default function PlansPage() {
                   {[1000, 5000, 10000, 25000, 50000].map((amount) => (
                     <button
                       key={amount}
-                      onClick={() => setCalcAmount(amount.toString())}
+                      onClick={() => {
+                        const min = Number(selectedPlan?.minAmount || 0);
+                        const max = Number(selectedPlan?.maxAmount || 0);
+                        const bounded = max > 0 ? Math.min(Math.max(amount, min), max) : Math.max(amount, min);
+                        setCalcAmount(String(bounded));
+                      }}
                       className="px-4 py-2 rounded-lg bg-dark-700 text-gray-400 hover:bg-dark-600 hover:text-white text-sm transition-colors"
                     >
                       <Money valueUsd={amount} className="" showUsdEquivalent={false} />
@@ -783,13 +812,45 @@ export default function PlansPage() {
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
-            className="overflow-x-auto"
+            className="overflow-x-auto -mx-4 px-4"
           >
-            <table className="w-full">
+            <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
+              {plans.map((plan: any) => {
+                const checked = comparePlanIds.includes(plan._id);
+                const disabled = !checked && comparePlanIds.length >= 3;
+                return (
+                  <button
+                    key={plan._id}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => {
+                      setComparePlanIds((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(plan._id)) {
+                          next.delete(plan._id);
+                        } else {
+                          next.add(plan._id);
+                        }
+                        return Array.from(next).slice(0, 3);
+                      });
+                    }}
+                    className={`px-3 py-2 rounded-full text-sm border transition-colors ${
+                      checked
+                        ? 'bg-primary-500/20 border-primary-500 text-primary-300'
+                        : 'bg-dark-800/40 border-dark-700 text-gray-400 hover:text-white'
+                    } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {plan.name}
+                  </button>
+                );
+              })}
+            </div>
+
+            <table className="w-full min-w-[720px]">
               <thead>
                 <tr className="border-b border-dark-700">
                   <th className="text-left py-4 px-6 text-gray-400 font-medium">Feature</th>
-                  {plans.map((plan) => (
+                  {plans.filter((p: any) => comparePlanIds.includes(p._id)).map((plan: any) => (
                     <th key={plan._id} className="text-center py-4 px-6">
                       <span className={`text-lg font-bold ${plan.isPopular ? 'text-primary-400' : 'text-white'}`}>
                         {plan.name}
@@ -804,7 +865,7 @@ export default function PlansPage() {
               <tbody className="divide-y divide-dark-700">
                 <tr className="hover:bg-dark-800/30">
                   <td className="py-4 px-6 text-gray-400">Daily ROI</td>
-                  {plans.map((plan) => (
+                  {plans.filter((p: any) => comparePlanIds.includes(p._id)).map((plan: any) => (
                     <td key={plan._id} className="py-4 px-6 text-center text-white font-semibold">
                       {plan.dailyROI}%
                     </td>
@@ -812,7 +873,7 @@ export default function PlansPage() {
                 </tr>
                 <tr className="hover:bg-dark-800/30">
                   <td className="py-4 px-6 text-gray-400">Total ROI</td>
-                  {plans.map((plan) => (
+                  {plans.filter((p: any) => comparePlanIds.includes(p._id)).map((plan: any) => (
                     <td key={plan._id} className="py-4 px-6 text-center text-green-400 font-semibold">
                       {plan.totalROI}%
                     </td>
@@ -820,7 +881,7 @@ export default function PlansPage() {
                 </tr>
                 <tr className="hover:bg-dark-800/30">
                   <td className="py-4 px-6 text-gray-400">Duration</td>
-                  {plans.map((plan) => (
+                  {plans.filter((p: any) => comparePlanIds.includes(p._id)).map((plan: any) => (
                     <td key={plan._id} className="py-4 px-6 text-center text-white">
                       {plan.duration} days
                     </td>
@@ -828,7 +889,7 @@ export default function PlansPage() {
                 </tr>
                 <tr className="hover:bg-dark-800/30">
                   <td className="py-4 px-6 text-gray-400">Min Investment</td>
-                  {plans.map((plan) => (
+                  {plans.filter((p: any) => comparePlanIds.includes(p._id)).map((plan: any) => (
                     <td key={plan._id} className="py-4 px-6 text-center text-white">
                       <Money valueUsd={plan.minAmount} className="text-white" showUsdEquivalent={false} />
                     </td>
@@ -836,7 +897,7 @@ export default function PlansPage() {
                 </tr>
                 <tr className="hover:bg-dark-800/30">
                   <td className="py-4 px-6 text-gray-400">Max Investment</td>
-                  {plans.map((plan) => (
+                  {plans.filter((p: any) => comparePlanIds.includes(p._id)).map((plan: any) => (
                     <td key={plan._id} className="py-4 px-6 text-center text-white">
                       <Money valueUsd={plan.maxAmount} className="text-white" showUsdEquivalent={false} />
                     </td>
@@ -844,7 +905,7 @@ export default function PlansPage() {
                 </tr>
                 <tr className="hover:bg-dark-800/30">
                   <td className="py-4 px-6 text-gray-400">Principal Returned</td>
-                  {plans.map((plan) => (
+                  {plans.filter((p: any) => comparePlanIds.includes(p._id)).map((plan: any) => (
                     <td key={plan._id} className="py-4 px-6 text-center">
                       <Check size={20} className="text-green-400 mx-auto" />
                     </td>
@@ -852,7 +913,7 @@ export default function PlansPage() {
                 </tr>
                 <tr className="hover:bg-dark-800/30">
                   <td className="py-4 px-6 text-gray-400">Priority Support</td>
-                  {plans.map((plan, i) => (
+                  {plans.filter((p: any) => comparePlanIds.includes(p._id)).map((plan: any, i: number) => (
                     <td key={plan._id} className="py-4 px-6 text-center">
                       {i > 0 ? (
                         <Check size={20} className="text-green-400 mx-auto" />
@@ -864,7 +925,7 @@ export default function PlansPage() {
                 </tr>
                 <tr className="hover:bg-dark-800/30">
                   <td className="py-4 px-6 text-gray-400">Personal Advisor</td>
-                  {plans.map((plan, i) => (
+                  {plans.filter((p: any) => comparePlanIds.includes(p._id)).map((plan: any, i: number) => (
                     <td key={plan._id} className="py-4 px-6 text-center">
                       {i === 2 ? (
                         <Check size={20} className="text-green-400 mx-auto" />
@@ -876,7 +937,7 @@ export default function PlansPage() {
                 </tr>
                 <tr className="hover:bg-dark-800/30">
                   <td className="py-4 px-6 text-gray-400">Early Withdrawal</td>
-                  {plans.map((plan, i) => (
+                  {plans.filter((p: any) => comparePlanIds.includes(p._id)).map((plan: any, i: number) => (
                     <td key={plan._id} className="py-4 px-6 text-center">
                       {i === 2 ? (
                         <Check size={20} className="text-green-400 mx-auto" />
@@ -888,7 +949,7 @@ export default function PlansPage() {
                 </tr>
                 <tr>
                   <td className="py-6 px-6"></td>
-                  {plans.map((plan) => (
+                  {plans.filter((p: any) => comparePlanIds.includes(p._id)).map((plan: any) => (
                     <td key={plan._id} className="py-6 px-6 text-center">
                       <Link href="/auth/register">
                         <Button variant={plan.isPopular ? 'primary' : 'secondary'} size="sm">

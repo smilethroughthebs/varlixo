@@ -56,6 +56,10 @@ export class InvestmentPlan {
   @Prop({ default: 'USD' })
   currency: string;
 
+  // Country availability (optional). Empty = globally available.
+  @Prop({ type: [String], default: [] })
+  availableCountries: string[];
+
   // Country-specific limits (optional)
   @Prop({ type: [{
     country: { type: String, required: true },

@@ -95,6 +95,7 @@ interface InvestmentPlan {
     minInvestment: number;
     maxInvestment: number;
   }>;
+  availableCountries?: string[];
 }
 
 interface CountryLimit {
@@ -110,6 +111,7 @@ export default function AdminPlansPage() {
   const [editingPlan, setEditingPlan] = useState<InvestmentPlan | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [countryLimits, setCountryLimits] = useState<CountryLimit[]>([]);
+  const [availableCountries, setAvailableCountries] = useState<string[]>([]);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -168,6 +170,7 @@ export default function AdminPlansPage() {
       marketMaxDailyRate: '',
     });
     setCountryLimits([]);
+    setAvailableCountries([]);
     setEditingPlan(null);
   };
 
@@ -193,6 +196,7 @@ export default function AdminPlansPage() {
           minInvestment: parseFloat(limit.minInvestment),
           maxInvestment: parseFloat(limit.maxInvestment),
         })).filter(limit => !isNaN(limit.minInvestment) && !isNaN(limit.maxInvestment)),
+        availableCountries: availableCountries.length > 0 ? availableCountries : [],
       };
 
       if (editingPlan) {
@@ -240,6 +244,8 @@ export default function AdminPlansPage() {
         maxInvestment: limit.maxInvestment.toString(),
       })));
     }
+
+    setAvailableCountries(Array.isArray(plan.availableCountries) ? plan.availableCountries : []);
     
     setShowCreateModal(true);
   };
@@ -528,6 +534,56 @@ export default function AdminPlansPage() {
                   <option value="inactive">Inactive</option>
                   <option value="coming_soon">Coming Soon</option>
                 </select>
+              </div>
+
+              <div className="p-4 bg-dark-700 rounded-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <p className="text-white font-medium">Country availability</p>
+                    <p className="text-gray-400 text-sm">
+                      If none are selected, the plan is available globally.
+                    </p>
+                  </div>
+                  {availableCountries.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setAvailableCountries([])}
+                      className="text-xs text-gray-300 hover:text-white underline"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-40 overflow-y-auto pr-1">
+                  {countries.map((c) => {
+                    const checked = availableCountries.includes(c.code);
+                    return (
+                      <label
+                        key={c.code}
+                        className="flex items-center gap-2 text-sm text-gray-300 bg-dark-800/60 border border-dark-600 rounded-lg px-3 py-2"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setAvailableCountries((prev) => Array.from(new Set([...prev, c.code])));
+                            } else {
+                              setAvailableCountries((prev) => prev.filter((x) => x !== c.code));
+                            }
+                          }}
+                          className="h-4 w-4 rounded border-dark-500 bg-dark-600 text-primary-500 focus:ring-primary-500"
+                        />
+                        <span className="truncate">{c.name}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+
+                <p className="text-xs text-gray-500 mt-3">
+                  Selected: {availableCountries.length === 0 ? 'Global' : `${availableCountries.length} countries`}
+                </p>
               </div>
 
               <div className="p-4 bg-dark-700 rounded-lg space-y-4">

@@ -117,11 +117,19 @@ export class InvestmentService {
       .find({ status: PlanStatus.ACTIVE })
       .sort({ sortOrder: 1, minInvestment: 1 });
 
-    // Apply country-specific limits if country is provided/detected
-    const plansWithCountryLimits = plans.map(plan => {
-      const planObj = plan.toObject();
+    // Apply country availability + country-specific limits if country is provided/detected
+    const plansWithCountryLimits = plans.map((plan) => {
+      const planObj: any = plan.toObject();
 
       if (countryCode) {
+        const available = Array.isArray(planObj.availableCountries) ? planObj.availableCountries : [];
+        if (available.length > 0) {
+          const isAllowed = available.some((c: string) => String(c).toUpperCase() === countryCode);
+          planObj.__countryAllowed = isAllowed;
+        } else {
+          planObj.__countryAllowed = true;
+        }
+
         const limits = Array.isArray(planObj.countryLimits) ? planObj.countryLimits : [];
         if (limits.length > 0) {
           const countryLimit = limits.find(
@@ -131,15 +139,10 @@ export class InvestmentService {
           if (countryLimit) {
             planObj.minInvestment = countryLimit.minInvestment;
             planObj.maxInvestment = countryLimit.maxInvestment;
-            (planObj as any).__countryAllowed = true;
-          } else {
-            (planObj as any).__countryAllowed = false;
           }
-        } else {
-          (planObj as any).__countryAllowed = true;
         }
       }
-      
+
       return planObj;
     });
 
@@ -151,8 +154,8 @@ export class InvestmentService {
         return true;
       })
       .filter((plan: any) => {
-      const slug = String(plan?.slug || '').toLowerCase();
-      return !BLOCKED_PUBLIC_PLAN_SLUGS.has(slug);
+        const slug = String(plan?.slug || '').toLowerCase();
+        return !BLOCKED_PUBLIC_PLAN_SLUGS.has(slug);
       })
       .map((plan: any) => {
         const copy = { ...plan };
