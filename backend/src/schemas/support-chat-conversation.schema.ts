@@ -19,6 +19,21 @@ export class SupportChatConversation {
   @Prop({ type: Types.ObjectId, ref: 'User' })
   assignedAdminId: Types.ObjectId;
 
+  @Prop({ type: Date })
+  assignedAt?: Date;
+
+  @Prop({ type: Date })
+  firstUserMessageAt?: Date;
+
+  @Prop({ type: Date })
+  lastUserMessageAt?: Date;
+
+  @Prop({ type: Date })
+  firstAdminReplyAt?: Date;
+
+  @Prop({ type: Date })
+  lastAdminReplyAt?: Date;
+
   @Prop({ type: Date, default: Date.now, index: true })
   lastMessageAt: Date;
 

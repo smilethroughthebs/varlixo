@@ -85,6 +85,10 @@ export class SupportChatGateway {
     return `conv:${conversationId}`;
   }
 
+  private roomForAdmins() {
+    return 'admins';
+  }
+
   private roomForUser(userId: string) {
     return `user:${userId}`;
   }
@@ -93,9 +97,35 @@ export class SupportChatGateway {
     const user = await this.requireAuth(client);
     client.join(this.roomForUser(user.sub));
 
+    if (this.isAdmin(user)) {
+      client.join(this.roomForAdmins());
+    }
+
     client.emit('support:connected', {
       userId: user.sub,
       role: user.role,
+    });
+  }
+
+  private emitConversationUpdated(conversation: any) {
+    this.server.to(this.roomForAdmins()).emit('support:conversation_updated', {
+      id: conversation._id.toString(),
+      user: conversation.userId
+        ? {
+            id: conversation.userId._id?.toString?.() ?? conversation.userId.toString(),
+            firstName: conversation.userId.firstName,
+            lastName: conversation.userId.lastName,
+            email: conversation.userId.email,
+          }
+        : undefined,
+      status: conversation.status,
+      lastMessageAt: conversation.lastMessageAt,
+      assignedAdminId: conversation.assignedAdminId?.toString?.(),
+      assignedAt: conversation.assignedAt,
+      firstUserMessageAt: conversation.firstUserMessageAt,
+      lastUserMessageAt: conversation.lastUserMessageAt,
+      firstAdminReplyAt: conversation.firstAdminReplyAt,
+      lastAdminReplyAt: conversation.lastAdminReplyAt,
     });
   }
 
@@ -233,6 +263,20 @@ User: ${user.email}`;
       if (conversation.userId.toString() !== user.sub) {
         throw new WsException('Forbidden');
       }
+    } else {
+      // If an admin replies to an unassigned conversation, claim it automatically.
+      if (!conversation.assignedAdminId) {
+        await this.chatService.assignConversation(body.conversationId, user.sub);
+      }
+
+      const isSuperAdmin = user.role === UserRole.SUPER_ADMIN;
+      if (
+        !isSuperAdmin &&
+        conversation.assignedAdminId &&
+        conversation.assignedAdminId.toString() !== user.sub
+      ) {
+        throw new WsException('Conversation is assigned to another admin');
+      }
     }
 
     const message = await this.chatService.addMessage({
@@ -250,6 +294,9 @@ User: ${user.email}`;
       text: message.text,
       createdAt: message.createdAt,
     });
+
+    const updated = await this.chatService.getConversationById(body.conversationId);
+    this.emitConversationUpdated(updated);
 
     return { ok: true };
   }
@@ -274,7 +321,52 @@ User: ${user.email}`;
       status: c.status,
       lastMessageAt: c.lastMessageAt,
       assignedAdminId: c.assignedAdminId?.toString?.(),
+      assignedAt: c.assignedAt,
+      firstUserMessageAt: c.firstUserMessageAt,
+      lastUserMessageAt: c.lastUserMessageAt,
+      firstAdminReplyAt: c.firstAdminReplyAt,
+      lastAdminReplyAt: c.lastAdminReplyAt,
     }));
+  }
+
+  @SubscribeMessage('support:admin_assign')
+  async adminAssign(
+    @ConnectedSocket() client: AuthedSocket,
+    @MessageBody() body: { conversationId: string },
+  ) {
+    const user = await this.requireAuth(client);
+    if (!this.isAdmin(user)) throw new WsException('Forbidden');
+    if (!body?.conversationId) throw new WsException('conversationId is required');
+
+    const updated = await this.chatService.assignConversation(body.conversationId, user.sub);
+    this.emitConversationUpdated(updated);
+
+    return {
+      ok: true,
+      conversationId: body.conversationId,
+      assignedAdminId: updated.assignedAdminId?.toString?.(),
+    };
+  }
+
+  @SubscribeMessage('support:admin_unassign')
+  async adminUnassign(
+    @ConnectedSocket() client: AuthedSocket,
+    @MessageBody() body: { conversationId: string },
+  ) {
+    const user = await this.requireAuth(client);
+    if (!this.isAdmin(user)) throw new WsException('Forbidden');
+    if (!body?.conversationId) throw new WsException('conversationId is required');
+
+    const conversation = await this.chatService.getConversationById(body.conversationId);
+    const isSuperAdmin = user.role === UserRole.SUPER_ADMIN;
+    if (!isSuperAdmin && conversation.assignedAdminId?.toString?.() !== user.sub) {
+      throw new WsException('Only the assigned admin can unassign');
+    }
+
+    const updated = await this.chatService.unassignConversation(body.conversationId);
+    this.emitConversationUpdated(updated);
+
+    return { ok: true };
   }
 
   @SubscribeMessage('support:admin_join')

@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { Card } from '@/app/components/ui/Card';
 import Button from '@/app/components/ui/Button';
 import { createSupportChatSocket } from '@/app/lib/supportChatSocket';
+import { useAuthStore } from '@/app/lib/store';
 
 type ConversationSummary = {
   id: string;
@@ -18,6 +19,11 @@ type ConversationSummary = {
   status: string;
   lastMessageAt?: string | Date;
   assignedAdminId?: string;
+  assignedAt?: string | Date;
+  firstUserMessageAt?: string | Date;
+  lastUserMessageAt?: string | Date;
+  firstAdminReplyAt?: string | Date;
+  lastAdminReplyAt?: string | Date;
 };
 
 type SupportMessage = {
@@ -30,11 +36,13 @@ type SupportMessage = {
 };
 
 export default function AdminLiveChatPage() {
+  const { user } = useAuthStore();
   const [isConnected, setIsConnected] = useState(false);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [input, setInput] = useState('');
+  const [inboxFilter, setInboxFilter] = useState<'all' | 'unassigned' | 'mine'>('unassigned');
 
   const socketRef = useRef<ReturnType<typeof createSupportChatSocket> | null>(null);
   const activeConversationIdRef = useRef<string | null>(null);
@@ -44,12 +52,79 @@ export default function AdminLiveChatPage() {
     [conversations, activeConversationId],
   );
 
+  const currentAdminId = user?.id;
+
+  const visibleConversations = useMemo(() => {
+    const base = conversations;
+    if (inboxFilter === 'unassigned') {
+      return base.filter((c) => !c.assignedAdminId);
+    }
+    if (inboxFilter === 'mine') {
+      return base.filter((c) => !!currentAdminId && c.assignedAdminId === currentAdminId);
+    }
+    return base;
+  }, [conversations, inboxFilter, currentAdminId]);
+
+  const unassignedCount = useMemo(
+    () => conversations.filter((c) => !c.assignedAdminId).length,
+    [conversations],
+  );
+
+  const myCount = useMemo(
+    () => conversations.filter((c) => !!currentAdminId && c.assignedAdminId === currentAdminId).length,
+    [conversations, currentAdminId],
+  );
+
+  const formatDuration = (ms: number) => {
+    if (!Number.isFinite(ms) || ms <= 0) return '—';
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    if (minutes <= 0) return `${seconds}s`;
+    if (minutes < 60) return `${minutes}m ${seconds}s`;
+    const hours = Math.floor(minutes / 60);
+    const remMinutes = minutes % 60;
+    return `${hours}h ${remMinutes}m`;
+  };
+
   const fetchConversations = () => {
     const socket = socketRef.current;
     if (!socket) return;
 
     socket.emit('support:admin_list', (data: ConversationSummary[]) => {
-      setConversations(Array.isArray(data) ? data : []);
+      const normalized = (Array.isArray(data) ? data : []).map((c) => ({
+        ...c,
+        lastMessageAt: c.lastMessageAt ? new Date(c.lastMessageAt) : c.lastMessageAt,
+        assignedAt: c.assignedAt ? new Date(c.assignedAt) : c.assignedAt,
+        firstUserMessageAt: c.firstUserMessageAt ? new Date(c.firstUserMessageAt) : c.firstUserMessageAt,
+        lastUserMessageAt: c.lastUserMessageAt ? new Date(c.lastUserMessageAt) : c.lastUserMessageAt,
+        firstAdminReplyAt: c.firstAdminReplyAt ? new Date(c.firstAdminReplyAt) : c.firstAdminReplyAt,
+        lastAdminReplyAt: c.lastAdminReplyAt ? new Date(c.lastAdminReplyAt) : c.lastAdminReplyAt,
+      }));
+      normalized.sort((a, b) => {
+        const at = new Date(a.lastMessageAt ?? 0).getTime();
+        const bt = new Date(b.lastMessageAt ?? 0).getTime();
+        return bt - at;
+      });
+      setConversations(normalized);
+    });
+  };
+
+  const assignActiveToMe = () => {
+    const socket = socketRef.current;
+    if (!socket || !activeConversationId) return;
+    socket.emit('support:admin_assign', { conversationId: activeConversationId }, (resp: any) => {
+      if (resp?.ok) return;
+      if (resp?.message) toast.error(resp.message);
+    });
+  };
+
+  const unassignActive = () => {
+    const socket = socketRef.current;
+    if (!socket || !activeConversationId) return;
+    socket.emit('support:admin_unassign', { conversationId: activeConversationId }, (resp: any) => {
+      if (resp?.ok) return;
+      if (resp?.message) toast.error(resp.message);
     });
   };
 
@@ -69,7 +144,10 @@ export default function AdminLiveChatPage() {
     if (!text) return;
 
     setInput('');
-    socket.emit('support:message', { conversationId: activeConversationId, text });
+    socket.emit('support:message', { conversationId: activeConversationId, text }, (resp: any) => {
+      if (resp?.ok) return;
+      if (resp?.message) toast.error(resp.message);
+    });
   };
 
   useEffect(() => {
@@ -126,11 +204,37 @@ export default function AdminLiveChatPage() {
       });
     };
 
+    const onConversationUpdated = (c: ConversationSummary) => {
+      if (!c?.id) return;
+
+      const normalized: ConversationSummary = {
+        ...c,
+        lastMessageAt: c.lastMessageAt ? new Date(c.lastMessageAt) : c.lastMessageAt,
+        assignedAt: c.assignedAt ? new Date(c.assignedAt) : c.assignedAt,
+        firstUserMessageAt: c.firstUserMessageAt ? new Date(c.firstUserMessageAt) : c.firstUserMessageAt,
+        lastUserMessageAt: c.lastUserMessageAt ? new Date(c.lastUserMessageAt) : c.lastUserMessageAt,
+        firstAdminReplyAt: c.firstAdminReplyAt ? new Date(c.firstAdminReplyAt) : c.firstAdminReplyAt,
+        lastAdminReplyAt: c.lastAdminReplyAt ? new Date(c.lastAdminReplyAt) : c.lastAdminReplyAt,
+      };
+
+      setConversations((prev) => {
+        const idx = prev.findIndex((x) => x.id === normalized.id);
+        const next = idx === -1 ? [normalized, ...prev] : prev.map((x) => (x.id === normalized.id ? { ...x, ...normalized } : x));
+        next.sort((a, b) => {
+          const at = new Date(a.lastMessageAt ?? 0).getTime();
+          const bt = new Date(b.lastMessageAt ?? 0).getTime();
+          return bt - at;
+        });
+        return next;
+      });
+    };
+
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
     socket.on('connect_error', onConnectError);
     socket.on('support:messages', onMessages);
     socket.on('support:message', onMessage);
+    socket.on('support:conversation_updated', onConversationUpdated);
 
     return () => {
       socket.off('connect', onConnect);
@@ -138,6 +242,7 @@ export default function AdminLiveChatPage() {
       socket.off('connect_error', onConnectError);
       socket.off('support:messages', onMessages);
       socket.off('support:message', onMessage);
+      socket.off('support:conversation_updated', onConversationUpdated);
       socket.disconnect();
       socketRef.current = null;
     };
@@ -180,15 +285,49 @@ export default function AdminLiveChatPage() {
         <Card className="lg:col-span-1 p-0 overflow-hidden">
           <div className="p-4 border-b border-dark-700">
             <p className="text-sm font-semibold text-white">Conversations</p>
-            <p className="text-xs text-gray-500">Open chats</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                onClick={() => setInboxFilter('unassigned')}
+                className={
+                  inboxFilter === 'unassigned'
+                    ? 'px-3 py-1.5 bg-red-500/10 rounded-lg text-xs text-red-300 border border-red-500/20'
+                    : 'px-3 py-1.5 bg-dark-700/40 rounded-lg text-xs text-gray-300 border border-dark-600'
+                }
+              >
+                Unassigned ({unassignedCount})
+              </button>
+              <button
+                onClick={() => setInboxFilter('mine')}
+                className={
+                  inboxFilter === 'mine'
+                    ? 'px-3 py-1.5 bg-red-500/10 rounded-lg text-xs text-red-300 border border-red-500/20'
+                    : 'px-3 py-1.5 bg-dark-700/40 rounded-lg text-xs text-gray-300 border border-dark-600'
+                }
+              >
+                Mine ({myCount})
+              </button>
+              <button
+                onClick={() => setInboxFilter('all')}
+                className={
+                  inboxFilter === 'all'
+                    ? 'px-3 py-1.5 bg-red-500/10 rounded-lg text-xs text-red-300 border border-red-500/20'
+                    : 'px-3 py-1.5 bg-dark-700/40 rounded-lg text-xs text-gray-300 border border-dark-600'
+                }
+              >
+                All ({conversations.length})
+              </button>
+            </div>
           </div>
           <div className="max-h-[600px] overflow-y-auto">
-            {conversations.length === 0 ? (
+            {visibleConversations.length === 0 ? (
               <div className="p-4 text-sm text-gray-500">No active conversations</div>
             ) : (
-              conversations.map((c) => {
+              visibleConversations.map((c) => {
                 const isActive = c.id === activeConversationId;
                 const name = `${c.user?.firstName ?? ''} ${c.user?.lastName ?? ''}`.trim();
+                const isMine = !!currentAdminId && c.assignedAdminId === currentAdminId;
+                const waitingSince = (c.lastUserMessageAt ?? c.firstUserMessageAt) as any;
+                const waitingMs = waitingSince ? Date.now() - new Date(waitingSince).getTime() : 0;
                 return (
                   <button
                     key={c.id}
@@ -207,6 +346,22 @@ export default function AdminLiveChatPage() {
                         {c.user?.email && (
                           <p className="text-xs text-gray-500">{c.user.email}</p>
                         )}
+                        <div className="mt-1 flex items-center gap-2">
+                          {!c.assignedAdminId ? (
+                            <span className="text-[11px] px-2 py-0.5 rounded bg-yellow-500/10 text-yellow-300 border border-yellow-500/20">
+                              Unassigned
+                            </span>
+                          ) : isMine ? (
+                            <span className="text-[11px] px-2 py-0.5 rounded bg-green-500/10 text-green-300 border border-green-500/20">
+                              Mine
+                            </span>
+                          ) : (
+                            <span className="text-[11px] px-2 py-0.5 rounded bg-dark-700/60 text-gray-300 border border-dark-600">
+                              Assigned
+                            </span>
+                          )}
+                          <span className="text-[11px] text-gray-500">Wait: {formatDuration(waitingMs)}</span>
+                        </div>
                       </div>
                       <span className="text-xs text-gray-500">{new Date(c.lastMessageAt ?? 0).toLocaleTimeString()}</span>
                     </div>
@@ -219,17 +374,60 @@ export default function AdminLiveChatPage() {
 
         <Card className="lg:col-span-2 p-0 overflow-hidden">
           <div className="p-4 border-b border-dark-700">
-            <p className="text-sm font-semibold text-white">
-              {activeConversation ? (
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-white">
+                {activeConversation ? (
+                  <span>
+                    {`${activeConversation.user?.firstName ?? ''} ${activeConversation.user?.lastName ?? ''}`.trim() ||
+                      activeConversation.user?.email ||
+                      'Conversation'}
+                  </span>
+                ) : (
+                  <span>Select a conversation</span>
+                )}
+              </p>
+
+              {activeConversationId && activeConversation ? (
+                <div className="flex items-center gap-2">
+                  {!activeConversation.assignedAdminId ? (
+                    <Button size="sm" variant="secondary" onClick={() => assignActiveToMe()}>
+                      Assign to me
+                    </Button>
+                  ) : activeConversation.assignedAdminId === currentAdminId ? (
+                    <Button size="sm" variant="secondary" onClick={() => unassignActive()}>
+                      Unassign
+                    </Button>
+                  ) : (
+                    <span className="text-xs text-gray-500">Assigned</span>
+                  )}
+                </div>
+              ) : null}
+            </div>
+
+            {activeConversation ? (
+              <div className="mt-2 flex flex-wrap gap-3 text-xs text-gray-400">
                 <span>
-                  {`${activeConversation.user?.firstName ?? ''} ${activeConversation.user?.lastName ?? ''}`.trim() ||
-                    activeConversation.user?.email ||
-                    'Conversation'}
+                  First response:{' '}
+                  {activeConversation.firstAdminReplyAt && activeConversation.firstUserMessageAt
+                    ? formatDuration(
+                        new Date(activeConversation.firstAdminReplyAt).getTime() -
+                          new Date(activeConversation.firstUserMessageAt).getTime(),
+                      )
+                    : '—'}
                 </span>
-              ) : (
-                <span>Select a conversation</span>
-              )}
-            </p>
+                <span>
+                  Waiting:{' '}
+                  {activeConversation.lastUserMessageAt || activeConversation.firstUserMessageAt
+                    ? formatDuration(
+                        Date.now() -
+                          new Date(
+                            (activeConversation.lastUserMessageAt ?? activeConversation.firstUserMessageAt) as any,
+                          ).getTime(),
+                      )
+                    : '—'}
+                </span>
+              </div>
+            ) : null}
           </div>
 
           <div className="h-[520px] overflow-y-auto p-4 space-y-3 bg-dark-900/30">
@@ -266,25 +464,43 @@ export default function AdminLiveChatPage() {
 
           <div className="p-4 border-t border-dark-700 bg-dark-800">
             <div className="flex items-center gap-3">
-              <input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') sendMessage();
-                }}
-                disabled={!activeConversationId}
-                placeholder={activeConversationId ? 'Type a reply...' : 'Select a conversation first'}
-                className="flex-1 bg-dark-700 border border-dark-600 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-red-500 transition-colors"
-              />
-              <Button
-                variant="danger"
-                size="md"
-                onClick={() => sendMessage()}
-                disabled={!activeConversationId || !input.trim()}
-                rightIcon={<Send size={16} />}
-              >
-                Send
-              </Button>
+              {(() => {
+                const isAssignedToOther =
+                  !!activeConversationId &&
+                  !!activeConversation?.assignedAdminId &&
+                  !!currentAdminId &&
+                  activeConversation.assignedAdminId !== currentAdminId;
+                const disabled = !activeConversationId || isAssignedToOther;
+                const placeholder = !activeConversationId
+                  ? 'Select a conversation first'
+                  : isAssignedToOther
+                    ? 'This conversation is assigned to another admin'
+                    : 'Type a reply...';
+
+                return (
+                  <>
+                    <input
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') sendMessage();
+                      }}
+                      disabled={disabled}
+                      placeholder={placeholder}
+                      className="flex-1 bg-dark-700 border border-dark-600 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-red-500 transition-colors"
+                    />
+                    <Button
+                      variant="danger"
+                      size="md"
+                      onClick={() => sendMessage()}
+                      disabled={disabled || !input.trim()}
+                      rightIcon={<Send size={16} />}
+                    >
+                      Send
+                    </Button>
+                  </>
+                );
+              })()}
             </div>
           </div>
         </Card>

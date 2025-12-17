@@ -69,6 +69,7 @@ export class SupportChatService {
   async getConversationById(conversationId: string) {
     const conversation = await this.conversationModel
       .findById(this.toObjectId(conversationId))
+      .populate('userId', 'firstName lastName email')
       .exec();
     if (!conversation) throw new NotFoundException('Conversation not found');
     return conversation;
@@ -80,6 +81,8 @@ export class SupportChatService {
     senderKind: SupportChatSenderKind;
     text: string;
   }) {
+    const now = new Date();
+
     const message = await this.messageModel.create({
       conversationId: this.toObjectId(params.conversationId),
       senderId: this.toObjectId(params.senderId),
@@ -90,11 +93,89 @@ export class SupportChatService {
     await this.conversationModel
       .updateOne(
         { _id: this.toObjectId(params.conversationId) },
-        { $set: { lastMessageAt: new Date() } },
+        params.senderKind === SupportChatSenderKind.USER
+          ? {
+              $set: {
+                lastMessageAt: now,
+                lastUserMessageAt: now,
+              },
+              $setOnInsert: {
+                firstUserMessageAt: now,
+              },
+            }
+          : {
+              $set: {
+                lastMessageAt: now,
+                lastAdminReplyAt: now,
+              },
+              $setOnInsert: {
+                firstAdminReplyAt: now,
+              },
+            },
       )
       .exec();
 
+    // Ensure first* fields are set the first time they occur.
+    // $setOnInsert only applies on upsert; we aren't using upsert above.
+    // So we do a small follow-up set-if-null update.
+    if (params.senderKind === SupportChatSenderKind.USER) {
+      await this.conversationModel
+        .updateOne(
+          { _id: this.toObjectId(params.conversationId), firstUserMessageAt: { $exists: false } },
+          { $set: { firstUserMessageAt: now } },
+        )
+        .exec();
+    } else {
+      await this.conversationModel
+        .updateOne(
+          { _id: this.toObjectId(params.conversationId), firstAdminReplyAt: { $exists: false } },
+          { $set: { firstAdminReplyAt: now } },
+        )
+        .exec();
+    }
+
     return message;
+  }
+
+  async assignConversation(conversationId: string, adminId: string) {
+    const conv = await this.getConversationById(conversationId);
+
+    // If already assigned to someone else, do not override.
+    if (conv.assignedAdminId && conv.assignedAdminId.toString() !== adminId) {
+      return conv;
+    }
+
+    await this.conversationModel
+      .updateOne(
+        { _id: this.toObjectId(conversationId) },
+        {
+          $set: {
+            assignedAdminId: this.toObjectId(adminId),
+            assignedAt: new Date(),
+          },
+        },
+      )
+      .exec();
+
+    return this.getConversationById(conversationId);
+  }
+
+  async unassignConversation(conversationId: string) {
+    await this.getConversationById(conversationId);
+
+    await this.conversationModel
+      .updateOne(
+        { _id: this.toObjectId(conversationId) },
+        {
+          $unset: {
+            assignedAdminId: 1,
+            assignedAt: 1,
+          },
+        },
+      )
+      .exec();
+
+    return this.getConversationById(conversationId);
   }
 
   async listOpenConversations(limit = 50) {
