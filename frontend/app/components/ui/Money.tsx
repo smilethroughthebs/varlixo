@@ -23,13 +23,26 @@ interface MoneyProps {
 export const Money: React.FC<MoneyProps> = ({
   valueUsd,
   showSymbol = true,
-  decimals = 2,
+  decimals,
   className = '',
   title,
   showUsdEquivalent = true,
 }) => {
   const { currencyCode, currencySymbol, locale, conversionRate, isFallbackRate } =
     useCurrencyStore();
+
+  const resolvedLocalDecimals = (() => {
+    try {
+      return new Intl.NumberFormat(locale, {
+        style: 'currency',
+        currency: currencyCode,
+      }).resolvedOptions().maximumFractionDigits;
+    } catch {
+      return 2;
+    }
+  })();
+
+  const decimalsToUse = typeof decimals === 'number' ? decimals : resolvedLocalDecimals;
 
   const numValue = typeof valueUsd === 'string' ? parseFloat(valueUsd) : valueUsd;
 
@@ -44,8 +57,8 @@ export const Money: React.FC<MoneyProps> = ({
   const formatter = new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: currencyCode,
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
+    minimumFractionDigits: decimalsToUse,
+    maximumFractionDigits: decimalsToUse,
   });
 
   const formatted = formatter
@@ -64,8 +77,8 @@ export const Money: React.FC<MoneyProps> = ({
   const usdFormatter = new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   });
   const formattedUsd = usdFormatter.format(numValue);
 

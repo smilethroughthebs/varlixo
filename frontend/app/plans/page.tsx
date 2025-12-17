@@ -166,7 +166,7 @@ const faqs = [
 export default function PlansPage() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
-  const { country: detectedCountry, currencySymbol, conversionRate } = useCurrencyStore();
+  const { country: detectedCountry, currencySymbol, conversionRate, currencyCode, locale } = useCurrencyStore();
   const [plans, setPlans] = useState<any[]>(defaultPlans);
   const [isLoading, setIsLoading] = useState(true);
   const [showCalculator, setShowCalculator] = useState(false);
@@ -204,9 +204,7 @@ export default function PlansPage() {
       
       // Add cache-busting parameter and pass country if available
       const response = await investmentAPI.getPlans(userCountry || detectedCountry, true);
-      console.log('API Response:', response.data);
       const apiPlans = response.data.data?.plans || response.data.plans || [];
-      console.log('Parsed plans:', apiPlans);
       
       if (Array.isArray(apiPlans) && apiPlans.length > 0) {
         // Map API response to frontend format
@@ -231,7 +229,8 @@ export default function PlansPage() {
         }));
         
         setPlans(mappedPlans);
-        setSelectedPlan(mappedPlans.find((p: any) => p.isAvailable !== false) || mappedPlans[0]);
+        const nextSelected = mappedPlans.find((p: any) => p.isAvailable !== false) || mappedPlans[0];
+        setSelectedPlan(nextSelected);
       }
     } catch (error) {
       console.error('Failed to fetch plans:', error);
@@ -240,6 +239,45 @@ export default function PlansPage() {
       setIsLoading(false);
     }
   };
+
+  const currencyFractionDigits = useMemo(() => {
+    try {
+      return new Intl.NumberFormat(locale || 'en-US', {
+        style: 'currency',
+        currency: currencyCode || 'USD',
+      }).resolvedOptions().maximumFractionDigits;
+    } catch {
+      return 2;
+    }
+  }, [currencyCode, locale]);
+
+  const roundLocal = (value: number) => {
+    const factor = Math.pow(10, currencyFractionDigits);
+    return Math.round(value * factor) / factor;
+  };
+
+  useEffect(() => {
+    if (!selectedPlan) return;
+
+    const rate = Number.isFinite(Number(conversionRate)) && Number(conversionRate) > 0 ? Number(conversionRate) : 1;
+    const minUsd = Number(selectedPlan?.minAmount || 0);
+    const maxUsd = Number(selectedPlan?.maxAmount || 0);
+
+    const minLocal = minUsd * rate;
+    const maxLocal = maxUsd * rate;
+
+    const rawLocal = parseFloat(calcAmount);
+    const localAmount = Number.isFinite(rawLocal) ? rawLocal : minLocal;
+
+    const clampedLocal = !maxUsd || maxUsd <= 0
+      ? Math.max(0, localAmount)
+      : Math.min(Math.max(localAmount, minLocal), maxLocal);
+
+    const normalized = roundLocal(clampedLocal);
+    if (String(normalized) !== calcAmount) {
+      setCalcAmount(String(normalized));
+    }
+  }, [selectedPlan?._id, conversionRate, currencyFractionDigits, calcAmount]);
 
   const getIcon = (iconName: string) => {
     const Icon = iconMap[iconName] || Star;
@@ -730,7 +768,7 @@ export default function PlansPage() {
                       min={(Number(selectedPlan?.minAmount || 0) * (Number(conversionRate) || 1)) || 0}
                       max={(Number(selectedPlan?.maxAmount || 0) * (Number(conversionRate) || 1)) || undefined}
                       onBlur={() => {
-                        const normalized = Math.round((clampedCalcAmount.local || 0) * 100) / 100;
+                        const normalized = roundLocal(clampedCalcAmount.local || 0);
                         setCalcAmount(String(normalized));
                       }}
                       className="w-full pl-10 pr-4 py-4 bg-dark-700 border border-dark-600 rounded-xl text-white text-xl font-semibold placeholder-gray-500 focus:outline-none focus:border-primary-500 transition-colors"
@@ -1173,6 +1211,12 @@ export default function PlansPage() {
                       type="number"
                       value={calcAmount}
                       onChange={(e) => setCalcAmount(e.target.value)}
+                      min={(Number(selectedPlan?.minAmount || 0) * (Number(conversionRate) || 1)) || 0}
+                      max={(Number(selectedPlan?.maxAmount || 0) * (Number(conversionRate) || 1)) || undefined}
+                      onBlur={() => {
+                        const normalized = roundLocal(clampedCalcAmount.local || 0);
+                        setCalcAmount(String(normalized));
+                      }}
                       className="w-full pl-8 pr-4 py-3 bg-dark-700 border border-dark-600 rounded-xl text-white focus:outline-none focus:border-primary-500"
                     />
                   </div>
