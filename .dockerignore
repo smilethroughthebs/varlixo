@@ -1,0 +1,12 @@
+**/node_modules
+**/.next
+**/dist
+.git
+.gitignore
+.vscode
+frontend
+backend/backend.log
+backend/backend-dev.log
+backend/logs
+uploads
+*.log
