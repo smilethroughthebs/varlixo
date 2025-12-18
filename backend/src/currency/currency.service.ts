@@ -73,7 +73,7 @@ export class CurrencyService {
     try {
       const response = await axios.get(`${this.primaryProvider}/latest`, {
         params: { base: 'USD' },
-        timeout: 5000,
+        timeout: 2500,
       });
       const rates: Record<string, number> = response.data?.rates || {};
       const result = {
@@ -92,7 +92,7 @@ export class CurrencyService {
 
     try {
       // open.er-api.com/v6/latest/USD
-      const response = await axios.get(`${this.fallbackProvider}/latest/USD`, { timeout: 5000 });
+      const response = await axios.get(`${this.fallbackProvider}/latest/USD`, { timeout: 2500 });
       const rates: Record<string, number> = response.data?.rates || {};
       const result = {
         rates: { ...rates, USD: 1 },
@@ -228,7 +228,7 @@ export class CurrencyService {
           base: from,
           symbols: to,
         },
-        timeout: 5000,
+        timeout: 2500,
       });
 
       const rate = response.data.rates?.[to];
@@ -245,7 +245,7 @@ export class CurrencyService {
   private async fetchFromFallback(from: string, to: string): Promise<number> {
     try {
       const response = await axios.get(`${this.fallbackProvider}/latest/${from}`, {
-        timeout: 5000,
+        timeout: 2500,
       });
 
       const rate = response.data.rates?.[to];
@@ -294,6 +294,10 @@ export class CurrencyService {
    * Get country rules
    */
   async getCountryRules(countryCode: string): Promise<CountryRulesDocument | null> {
+    const readyState = (this.countryRulesModel as any)?.db?.readyState;
+    if (readyState !== 1) {
+      return null;
+    }
     return this.countryRulesModel.findOne({
       country_code: countryCode.toUpperCase(),
     });
@@ -400,13 +404,13 @@ export class CurrencyService {
       // Try ipapi.co first
       try {
         const response = await axios.get(`https://ipapi.co/${ipAddress}/json/`, {
-          timeout: 3000,
+          timeout: 1200,
         });
         return response.data.country_code || 'US';
       } catch {
         // Fallback to ipwho.is
         const response = await axios.get(`https://ipwho.is?ip=${ipAddress}`, {
-          timeout: 3000,
+          timeout: 1200,
         });
         return response.data.country_code || 'US';
       }

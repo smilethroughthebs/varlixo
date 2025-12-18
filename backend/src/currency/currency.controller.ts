@@ -40,10 +40,49 @@ export class CurrencyController {
   @Header('Expires', '0')
   async detectCurrency(@Req() req: Request) {
     const ipAddress = getClientIp(req);
-    const countryCode = await this.currencyService.detectCountryFromIp(ipAddress);
-    const countryRules = await this.currencyService.getCountryRulesOrDefault(countryCode);
+    const withTimeout = async <T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> => {
+      let timer: NodeJS.Timeout | undefined;
+      try {
+        return await Promise.race([
+          promise,
+          new Promise<T>((resolve) => {
+            timer = setTimeout(() => resolve(fallback), ms);
+          }),
+        ]);
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
+    };
 
-    const fxRate = await this.currencyService.getExchangeRate('USD', countryRules.currency);
+    const countryCode = await withTimeout(
+      this.currencyService.detectCountryFromIp(ipAddress),
+      1500,
+      'US',
+    );
+
+    const defaultRules = {
+      country_code: String(countryCode).toUpperCase(),
+      currency: 'USD',
+      currency_symbol: '$',
+      currency_locale: 'en-US',
+      kyc_level: 'basic',
+      payment_hints: [],
+      is_blocked: false,
+      tax_enabled: false,
+      tax_rate_percent: 0,
+    };
+
+    const countryRules = await withTimeout(
+      this.currencyService.getCountryRulesOrDefault(countryCode),
+      1500,
+      defaultRules,
+    );
+
+    const fxRate = await withTimeout(
+      this.currencyService.getExchangeRate('USD', countryRules.currency),
+      3000,
+      { rate: 1, timestamp: Date.now(), provider: 'fallback', isFallback: true },
+    );
 
     return {
       success: true,
