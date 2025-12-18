@@ -266,6 +266,7 @@ export class AuthService {
     }
 
     const requiresApp2fa = Boolean(user.twoFactorEnabled && user.twoFactorSecret);
+    const requiresEmail2fa = Boolean(user.twoFactorEnabled && !user.twoFactorSecret);
 
     // App-based 2FA (Authenticator)
     if (requiresApp2fa) {
@@ -289,8 +290,8 @@ export class AuthService {
       }
     }
 
-    // Email login OTP should only be required when app-based 2FA is NOT enabled.
-    if (!requiresApp2fa) {
+    // Email login OTP should only be required when email-based 2FA is enabled.
+    if (requiresEmail2fa) {
       if (!emailOtp) {
         const otp = await this.otpService.generateOtp(
           user.email,
