@@ -15,7 +15,12 @@ export default () => ({
 
   // Database configuration
   database: {
-    uri: process.env.MONGODB_URI || 'mongodb://localhost:27017/varlixo',
+    uri:
+      process.env.MONGODB_URI ||
+      process.env.MONGO_URL ||
+      process.env.MONGO_URI ||
+      process.env.DATABASE_URL ||
+      'mongodb://localhost:27017/varlixo',
   },
 
   // JWT Authentication settings
