@@ -52,6 +52,9 @@ import { SecurityMiddleware } from './common/middleware/security.middleware';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         uri: configService.get<string>('database.uri'),
+        serverSelectionTimeoutMS: 4000,
+        connectTimeoutMS: 4000,
+        socketTimeoutMS: 8000,
         retryWrites: true,
         w: 'majority',
       }),
