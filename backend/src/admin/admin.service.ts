@@ -94,7 +94,6 @@ export class AdminService {
       activeUsers,
       pendingKyc,
       approvedKyc,
-      verifiedKyc,
       pendingDeposits,
       pendingWithdrawals,
       totalDeposits,
@@ -107,7 +106,6 @@ export class AdminService {
       this.userModel.countDocuments({ status: UserStatus.ACTIVE }),
       this.userModel.countDocuments({ kycStatus: KycStatus.PENDING }),
       this.userModel.countDocuments({ kycStatus: KycStatus.APPROVED }),
-      this.userModel.countDocuments({ kycStatus: KycStatus.VERIFIED }),
       this.depositModel.countDocuments({ status: TransactionStatus.PENDING }),
       this.withdrawalModel.countDocuments({ status: TransactionStatus.PENDING }),
       this.depositModel.aggregate([
@@ -162,7 +160,6 @@ export class AdminService {
           active: activeUsers,
           pendingKyc,
           approvedKyc,
-          verifiedKyc,
         },
         transactions: {
           pendingDeposits,

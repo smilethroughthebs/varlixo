@@ -182,7 +182,7 @@ export default function AdminKYCPage() {
             <div>
               <p className="text-sm text-gray-400">Verified</p>
               <p className="text-xl font-bold text-white">
-                {(dashboardStats?.users?.approvedKyc || 0) + (dashboardStats?.users?.verifiedKyc || 0)}
+                {dashboardStats?.users?.approvedKyc || 0}
               </p>
             </div>
           </div>
