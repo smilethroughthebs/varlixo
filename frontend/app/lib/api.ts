@@ -241,8 +241,8 @@ export const adminAPI = {
   rejectWithdrawal: (id: string, data: any) => api.post(`/admin/withdrawals/${id}/reject`, data),
   // KYC admin routes live under /kyc/admin on the backend
   getPendingKyc: (params?: any) => api.get('/kyc/admin/pending', { params }),
-  approveKyc: (id: string, data?: any) => api.post(`/admin/kyc/${id}/approve`, data),
-  rejectKyc: (id: string, data: any) => api.post(`/admin/kyc/${id}/reject`, data),
+  approveKyc: (id: string, data?: any) => api.post('/kyc/admin/review', { kycId: id, decision: 'approved', ...data }),
+  rejectKyc: (id: string, data: any) => api.post('/kyc/admin/review', { kycId: id, decision: 'rejected', rejectionReason: data.reason, adminNote: data.adminNote }),
   getPlans: (params?: any) => api.get('/investments/admin/plans', { params }),
   createPlan: (data: any) => api.post('/investments/admin/plans', data),
   updatePlan: (id: string, data: any) => api.put(`/investments/admin/plans/${id}`, data),

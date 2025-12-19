@@ -101,7 +101,7 @@ export default function AdminKYCPage() {
       return;
     }
     try {
-      await adminAPI.rejectKyc(kycId, { reason: rejectReason });
+      await adminAPI.rejectKyc(kycId, { reason: rejectReason, adminNote: '' });
       toast.success('KYC rejected');
       setShowModal(false);
       setRejectReason('');
@@ -336,11 +336,11 @@ export default function AdminKYCPage() {
               {/* User Info */}
               <div className="flex items-center gap-4 mb-6 p-4 bg-dark-700 rounded-xl">
                 <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white text-xl font-bold">
-                  {selectedKYC.user.firstName[0]}{selectedKYC.user.lastName[0]}
+                  {(selectedKYC.userId?.firstName || selectedKYC.user?.firstName || 'U')[0]}{(selectedKYC.userId?.lastName || selectedKYC.user?.lastName || '')[0]}
                 </div>
                 <div>
-                  <h4 className="text-lg font-semibold text-white">{selectedKYC.user.firstName} {selectedKYC.user.lastName}</h4>
-                  <p className="text-gray-400">{selectedKYC.user.email}</p>
+                  <h4 className="text-lg font-semibold text-white">{selectedKYC.userId?.firstName || selectedKYC.user?.firstName || 'User'} {selectedKYC.userId?.lastName || selectedKYC.user?.lastName || ''}</h4>
+                  <p className="text-gray-400">{selectedKYC.userId?.email || selectedKYC.user?.email || 'N/A'}</p>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-sm text-gray-500">{getDocumentTypeLabel(selectedKYC.documentType)}</span>
                     {getStatusBadge(selectedKYC.status)}
