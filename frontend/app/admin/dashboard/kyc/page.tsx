@@ -42,6 +42,7 @@ export default function AdminKYCPage() {
   const [showModal, setShowModal] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [viewingImage, setViewingImage] = useState<string | null>(null);
+  const [dashboardStats, setDashboardStats] = useState<any>(null);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -56,7 +57,19 @@ export default function AdminKYCPage() {
 
   useEffect(() => {
     fetchKYCRequests();
+    fetchDashboardStats();
   }, [filters, pagination.page]);
+
+  const fetchDashboardStats = async () => {
+    try {
+      const response = await adminAPI.getStats();
+      if (response.data?.success) {
+        setDashboardStats(response.data.stats);
+      }
+    } catch (error) {
+      console.error('Failed to fetch dashboard stats:', error);
+    }
+  };
 
   const fetchKYCRequests = async () => {
     setIsLoading(true);
@@ -156,7 +169,7 @@ export default function AdminKYCPage() {
             <div>
               <p className="text-sm text-gray-400">Pending</p>
               <p className="text-xl font-bold text-white">
-                {kycRequests.filter(k => k.status === 'pending').length}
+                {dashboardStats?.users?.pendingKyc || 0}
               </p>
             </div>
           </div>
@@ -169,7 +182,7 @@ export default function AdminKYCPage() {
             <div>
               <p className="text-sm text-gray-400">Verified</p>
               <p className="text-xl font-bold text-white">
-                {kycRequests.filter(k => k.status === 'verified' || k.status === 'approved').length}
+                {(dashboardStats?.users?.approvedKyc || 0) + (dashboardStats?.users?.verifiedKyc || 0)}
               </p>
             </div>
           </div>
