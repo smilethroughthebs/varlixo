@@ -229,7 +229,13 @@ export default function InvestmentsPage() {
         (inv: any) => String(inv?.status || '').toLowerCase() === 'active',
       );
       setActiveInvestments(oneTimeActive);
-      setInvestmentSummary(summaryRes.data.data?.summary || null);
+      const summaryPayload = summaryRes?.data;
+      const summary =
+        summaryPayload?.data?.summary ||
+        summaryPayload?.data ||
+        summaryPayload?.summary ||
+        summaryPayload;
+      setInvestmentSummary(summary || null);
       const recurringData = recurringRes.data.data?.plans || recurringRes.data.plans || [];
       setRecurringPlans(Array.isArray(recurringData) ? recurringData : []);
     } catch (error) {
@@ -324,7 +330,11 @@ export default function InvestmentsPage() {
           </div>
           <p className="text-sm text-gray-400">Total Profit</p>
           <p className="text-xl font-bold text-green-400">
-            +<Money valueUsd={investmentSummary?.totalProfit || 0} className="text-xl font-bold text-green-400" />
+            +
+            <Money
+              valueUsd={investmentSummary?.totalProfit ?? investmentSummary?.totalEarnings ?? wallet?.totalEarnings ?? 0}
+              className="text-xl font-bold text-green-400"
+            />
           </p>
         </Card>
 
@@ -336,9 +346,10 @@ export default function InvestmentsPage() {
           </div>
           <p className="text-sm text-gray-400">Active Plans</p>
           <p className="text-xl font-bold text-white">
-            {activeInvestments.length + (Array.isArray(recurringPlans)
-              ? recurringPlans.filter((p: any) => p?.status === 'active' || p?.status === 'missed').length
-              : 0)}
+            {(investmentSummary?.activeInvestments ?? activeInvestments.length) +
+              (Array.isArray(recurringPlans)
+                ? recurringPlans.filter((p: any) => p?.status === 'active' || p?.status === 'missed').length
+                : 0)}
           </p>
         </Card>
 
@@ -350,7 +361,10 @@ export default function InvestmentsPage() {
           </div>
           <p className="text-sm text-gray-400">Expected Return</p>
           <p className="text-xl font-bold text-white">
-            <Money valueUsd={investmentSummary?.expectedReturn || 0} className="text-xl font-bold text-white" />
+            <Money
+              valueUsd={investmentSummary?.expectedReturn ?? 0}
+              className="text-xl font-bold text-white"
+            />
           </p>
         </Card>
       </motion.div>

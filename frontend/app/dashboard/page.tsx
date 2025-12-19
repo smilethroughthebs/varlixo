@@ -114,7 +114,13 @@ export default function DashboardPage() {
         setReferralStats(null);
       }
 
-      setInvestmentSummary(summaryRes.data.data?.summary || summaryRes.data.data);
+      const summaryPayload = summaryRes?.data;
+      const summary =
+        summaryPayload?.data?.summary ||
+        summaryPayload?.data ||
+        summaryPayload?.summary ||
+        summaryPayload;
+      setInvestmentSummary(summary || null);
       setRecentTransactions(transactionsRes.data.data?.data || transactionsRes.data.data || []);
       const cryptoData = cryptoRes.data.data?.data || cryptoRes.data.data || [];
       setCryptoPrices(Array.isArray(cryptoData) ? cryptoData : []);
@@ -342,7 +348,10 @@ export default function DashboardPage() {
             <p className="text-gray-400 text-sm mb-1">Total Profit</p>
             <p className="text-2xl font-bold text-white">
               {showBalance ? (
-                <Money valueUsd={wallet?.totalEarnings || 0} className="text-2xl font-bold text-white" />
+                <Money
+                  valueUsd={investmentSummary?.totalProfit ?? investmentSummary?.totalEarnings ?? wallet?.totalEarnings ?? 0}
+                  className="text-2xl font-bold text-white"
+                />
               ) : (
                 '••••••'
               )}

@@ -1404,26 +1404,36 @@ export class InvestmentService {
       totalEarnings: 0,
       pendingEarnings: 0,
       activeInvestmentsList: [] as any[],
+      totalProfit: 0,
+      expectedReturn: 0,
     };
 
     investments.forEach((inv) => {
+      const paidOutProfit = Number(inv.paidOutProfit || 0);
+      const expectedTotalProfit = Number(inv.expectedTotalProfit || 0);
+      const amount = Number(inv.amount || 0);
+
+      summary.totalProfit += paidOutProfit;
+
       if (inv.status === InvestmentStatus.ACTIVE) {
         summary.activeInvestments++;
-        summary.totalInvested += inv.amount;
-        summary.pendingEarnings += inv.expectedTotalProfit - inv.paidOutProfit;
+        summary.totalInvested += amount;
+        summary.pendingEarnings += Math.max(0, expectedTotalProfit - paidOutProfit);
+        summary.expectedReturn += (inv.principalReturn ? amount : 0) + expectedTotalProfit;
         summary.activeInvestmentsList.push({
           id: inv._id,
           planName: inv.planName,
-          amount: inv.amount,
+          amount,
           dailyProfit: inv.dailyProfitAmount,
           progress: Math.round((inv.daysCompleted / inv.durationDays) * 100),
           maturityDate: inv.maturityDate,
         });
       } else if (inv.status === InvestmentStatus.COMPLETED || inv.status === InvestmentStatus.MATURED) {
         summary.completedInvestments++;
-        summary.totalEarnings += inv.paidOutProfit;
       }
     });
+
+    summary.totalEarnings = summary.totalProfit;
 
     return {
       success: true,
