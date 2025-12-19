@@ -29,6 +29,7 @@ import {
 import { Card, CardHeader, CardTitle } from '@/app/components/ui/Card';
 import Button from '@/app/components/ui/Button';
 import { useAuthStore } from '@/app/lib/store';
+import { kycAPI } from '@/app/lib/api';
 import toast from 'react-hot-toast';
 
 // Animation variants
@@ -247,8 +248,16 @@ export default function KYCPage() {
     addressDoc: null as any,
     selfie: null as any,
   });
-  const [selectedIdType, setSelectedIdType] = useState('passport');
-  const [selectedAddressType, setSelectedAddressType] = useState('utility_bill');
+  const [kycFormData, setKycFormData] = useState({
+    documentType: 'passport',
+    documentNumber: '',
+    issuingCountry: 'US',
+    fullNameOnDocument: '',
+    dateOfBirthOnDocument: '',
+    addressOnDocument: '',
+  });
+  const [addressDocType, setAddressDocType] = useState('utility_bill');
+  const [uploadedFiles, setUploadedFiles] = useState<{[key: string]: File}>({});
   const [isUploading, setIsUploading] = useState(false);
   const [step, setStep] = useState(1);
 
@@ -259,8 +268,17 @@ export default function KYCPage() {
 
   const fetchKYCStatus = async () => {
     try {
-      // const response = await kycAPI.getStatus();
-      // setKycStatus(response.data.data);
+      const response = await kycAPI.getStatus();
+      const data = response.data;
+      
+      if (data.success) {
+        setKycStatus({
+          overall: data.kycStatus || 'not_submitted',
+          identityDoc: data.documents?.find((d: any) => d.documentType.includes('passport') || d.documentType.includes('national_id') || d.documentType.includes('drivers_license')) || null,
+          addressDoc: data.documents?.find((d: any) => d.documentType.includes('utility') || d.documentType.includes('bank') || d.documentType.includes('tax')) || null,
+          selfie: data.documents?.find((d: any) => d.documentType.includes('selfie')) || null,
+        });
+      }
     } catch (error) {
       console.error('Failed to fetch KYC status:', error);
     }
@@ -269,13 +287,8 @@ export default function KYCPage() {
   const handleUpload = async (file: File, documentType: string) => {
     setIsUploading(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('documentType', documentType);
-
-      // const response = await kycAPI.uploadDocument(formData);
+      setUploadedFiles(prev => ({ ...prev, [documentType]: file }));
       toast.success('Document uploaded successfully');
-      fetchKYCStatus();
     } catch (error) {
       toast.error('Failed to upload document');
     } finally {
@@ -285,21 +298,72 @@ export default function KYCPage() {
 
   const handleRemove = async (documentType: string) => {
     try {
-      // await kycAPI.removeDocument(documentType);
+      setUploadedFiles(prev => {
+        const newFiles = { ...prev };
+        delete newFiles[documentType];
+        return newFiles;
+      });
       toast.success('Document removed');
-      fetchKYCStatus();
     } catch (error) {
       toast.error('Failed to remove document');
     }
   };
 
   const handleSubmit = async () => {
+    setIsUploading(true);
     try {
-      // await kycAPI.submit();
-      toast.success('KYC submitted for review');
-      setKycStatus({ ...kycStatus, overall: 'pending' });
-    } catch (error) {
-      toast.error('Failed to submit KYC');
+      const formData = new FormData();
+      
+      // Add form fields
+      formData.append('documentType', kycFormData.documentType);
+      formData.append('issuingCountry', kycFormData.issuingCountry);
+      formData.append('fullNameOnDocument', kycFormData.fullNameOnDocument || `${user?.firstName} ${user?.lastName}`);
+      
+      if (kycFormData.documentNumber) {
+        formData.append('documentNumber', kycFormData.documentNumber);
+      }
+      
+      if (kycFormData.dateOfBirthOnDocument) {
+        formData.append('dateOfBirthOnDocument', kycFormData.dateOfBirthOnDocument);
+      }
+      
+      if (kycFormData.addressOnDocument) {
+        formData.append('addressOnDocument', kycFormData.addressOnDocument);
+      }
+      
+      // Add uploaded files
+      const frontFile = uploadedFiles[`${kycFormData.documentType}_front`];
+      const backFile = uploadedFiles[`${kycFormData.documentType}_back`];
+      const selfieFile = uploadedFiles['selfie'];
+      
+      if (!frontFile) {
+        toast.error('Please upload the front side of your document');
+        setIsUploading(false);
+        return;
+      }
+      
+      formData.append('frontImage', frontFile);
+      
+      if (backFile) {
+        formData.append('backImage', backFile);
+      }
+      
+      if (selfieFile) {
+        formData.append('selfieImage', selfieFile);
+      }
+      
+      const response = await kycAPI.submit(formData);
+      
+      if (response.data.success) {
+        toast.success('KYC submitted for review');
+        setKycStatus({ ...kycStatus, overall: 'pending' });
+        fetchKYCStatus();
+      }
+    } catch (error: any) {
+      console.error('KYC submission error:', error);
+      toast.error(error.response?.data?.message || 'Failed to submit KYC');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -465,16 +529,16 @@ export default function KYCPage() {
                   {documentTypes.map((doc) => (
                     <button
                       key={doc.id}
-                      onClick={() => setSelectedIdType(doc.id)}
+                      onClick={() => setKycFormData(prev => ({ ...prev, documentType: doc.id }))}
                       className={`p-4 rounded-xl border-2 text-left transition-all ${
-                        selectedIdType === doc.id
+                        kycFormData.documentType === doc.id
                           ? 'border-primary-500 bg-primary-500/10'
                           : 'border-dark-600 hover:border-dark-500'
                       }`}
                     >
                       <doc.icon
                         size={24}
-                        className={selectedIdType === doc.id ? 'text-primary-500' : 'text-gray-400'}
+                        className={kycFormData.documentType === doc.id ? 'text-primary-500' : 'text-gray-400'}
                       />
                       <h4 className="text-white font-medium mt-2">{doc.name}</h4>
                       <p className="text-sm text-gray-500">{doc.description}</p>
@@ -483,10 +547,61 @@ export default function KYCPage() {
                 </div>
               </div>
 
+              {/* Document Details Form */}
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Document Number
+                  </label>
+                  <input
+                    type="text"
+                    value={kycFormData.documentNumber}
+                    onChange={(e) => setKycFormData(prev => ({ ...prev, documentNumber: e.target.value }))}
+                    className="w-full px-4 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-primary-500 focus:outline-none"
+                    placeholder="Enter document number"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Issuing Country
+                  </label>
+                  <input
+                    type="text"
+                    value={kycFormData.issuingCountry}
+                    onChange={(e) => setKycFormData(prev => ({ ...prev, issuingCountry: e.target.value }))}
+                    className="w-full px-4 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-primary-500 focus:outline-none"
+                    placeholder="US"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Full Name on Document
+                  </label>
+                  <input
+                    type="text"
+                    value={kycFormData.fullNameOnDocument}
+                    onChange={(e) => setKycFormData(prev => ({ ...prev, fullNameOnDocument: e.target.value }))}
+                    className="w-full px-4 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-primary-500 focus:outline-none"
+                    placeholder={`${user?.firstName} ${user?.lastName}`}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Date of Birth on Document
+                  </label>
+                  <input
+                    type="date"
+                    value={kycFormData.dateOfBirthOnDocument}
+                    onChange={(e) => setKycFormData(prev => ({ ...prev, dateOfBirthOnDocument: e.target.value }))}
+                    className="w-full px-4 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-primary-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
               {/* Front Side Upload */}
               <div className="space-y-6">
                 <DocumentUpload
-                  type={`${selectedIdType}_front`}
+                  type={`${kycFormData.documentType}_front`}
                   title="Front Side"
                   description="Upload a clear photo of the front side of your document"
                   existingDoc={kycStatus.identityDoc?.front}
@@ -497,7 +612,7 @@ export default function KYCPage() {
 
                 {/* Back Side Upload */}
                 <DocumentUpload
-                  type={`${selectedIdType}_back`}
+                  type={`${kycFormData.documentType}_back`}
                   title="Back Side"
                   description="Upload a clear photo of the back side of your document"
                   existingDoc={kycStatus.identityDoc?.back}
@@ -535,16 +650,16 @@ export default function KYCPage() {
                   {addressTypes.map((doc) => (
                     <button
                       key={doc.id}
-                      onClick={() => setSelectedAddressType(doc.id)}
+                      onClick={() => setAddressDocType(doc.id)}
                       className={`p-4 rounded-xl border-2 text-left transition-all ${
-                        selectedAddressType === doc.id
+                        addressDocType === doc.id
                           ? 'border-primary-500 bg-primary-500/10'
                           : 'border-dark-600 hover:border-dark-500'
                       }`}
                     >
                       <Home
                         size={24}
-                        className={selectedAddressType === doc.id ? 'text-primary-500' : 'text-gray-400'}
+                        className={addressDocType === doc.id ? 'text-primary-500' : 'text-gray-400'}
                       />
                       <h4 className="text-white font-medium mt-2">{doc.name}</h4>
                       <p className="text-sm text-gray-500">{doc.description}</p>
@@ -554,7 +669,7 @@ export default function KYCPage() {
               </div>
 
               <DocumentUpload
-                type={selectedAddressType}
+                type={addressDocType}
                 title="Proof of Address Document"
                 description="Upload a document showing your current address (issued within last 3 months)"
                 existingDoc={kycStatus.addressDoc}
