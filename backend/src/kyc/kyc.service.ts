@@ -83,9 +83,11 @@ export class KycService {
     await kyc.save();
 
     // Update user KYC status
+    console.log('Updating user KYC status to PENDING for user:', userId);
     user.kycStatus = KycStatus.PENDING;
     user.kycSubmittedAt = new Date();
     await user.save();
+    console.log('User KYC status updated to:', user.kycStatus);
 
     // Send confirmation email to user
     await this.emailService.sendKycSubmittedEmail(user.email, user.firstName);
@@ -129,17 +131,22 @@ export class KycService {
    * Get user's KYC status
    */
   async getKycStatus(userId: string) {
+    console.log('Getting KYC status for user:', userId);
     const user = await this.userModel.findById(userId).select('kycStatus kycSubmittedAt kycVerifiedAt kycRejectionReason');
     if (!user) {
       throw new NotFoundException('User not found');
     }
+
+    console.log('User KYC status found:', user.kycStatus);
 
     const kycDocuments = await this.kycModel
       .find({ userId: new Types.ObjectId(userId) })
       .sort({ createdAt: -1 })
       .limit(5);
 
-    return {
+    console.log('KYC documents found:', kycDocuments.length);
+
+    const result = {
       success: true,
       kycStatus: user.kycStatus,
       submittedAt: user.kycSubmittedAt,
@@ -154,6 +161,9 @@ export class KycService {
         reviewedAt: doc.reviewedAt,
       })),
     };
+
+    console.log('Returning KYC status:', result);
+    return result;
   }
 
   /**
@@ -211,7 +221,11 @@ export class KycService {
     await kyc.save();
 
     // Update user KYC status
+    console.log('Updating user KYC status for approval. Decision:', decision);
+    const oldStatus = user.kycStatus;
     user.kycStatus = decision === 'approved' ? KycStatus.APPROVED : KycStatus.REJECTED;
+    console.log('User KYC status changed from', oldStatus, 'to', user.kycStatus);
+    
     if (decision === 'approved') {
       user.kycVerifiedAt = new Date();
       user.kycRejectionReason = undefined;
@@ -219,6 +233,7 @@ export class KycService {
       user.kycRejectionReason = rejectionReason;
     }
     await user.save();
+    console.log('User KYC status saved successfully');
 
     // Send email notification
     if (decision === 'approved') {
