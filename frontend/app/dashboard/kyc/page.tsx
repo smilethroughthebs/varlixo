@@ -13,18 +13,22 @@ import { useDropzone } from 'react-dropzone';
 import {
   Shield,
   Upload,
-  CheckCircle,
-  Clock,
-  XCircle,
-  AlertTriangle,
   FileText,
-  Trash2,
+  CheckCircle,
+  XCircle,
+  Clock,
   Eye,
-  Info,
+  X,
+  Download,
+  ZoomIn,
+  Home,
+  RefreshCw,
+  User,
   Camera,
   CreditCard,
-  Home,
-  User,
+  AlertTriangle,
+  Trash2,
+  Info,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle } from '@/app/components/ui/Card';
 import Button from '@/app/components/ui/Button';
@@ -271,9 +275,20 @@ export default function KYCPage() {
       const response = await kycAPI.getStatus();
       const data = response.data;
       
+      console.log('KYC Status Response:', data);
+      console.log('KYC Status from backend:', data.kycStatus);
+      
       if (data.success) {
+        // Handle different KYC status values from backend
+        let kycStatus = data.kycStatus;
+        if (kycStatus === 'approved' || kycStatus === 'verified') {
+          kycStatus = 'verified';
+        }
+        
+        console.log('Mapped KYC Status:', kycStatus);
+        
         setKycStatus({
-          overall: data.kycStatus || 'not_submitted',
+          overall: kycStatus || 'not_submitted',
           identityDoc: data.documents?.find((d: any) => d.documentType.includes('passport') || d.documentType.includes('national_id') || d.documentType.includes('drivers_license')) || null,
           addressDoc: data.documents?.find((d: any) => d.documentType.includes('utility') || d.documentType.includes('bank') || d.documentType.includes('tax')) || null,
           selfie: data.documents?.find((d: any) => d.documentType.includes('selfie')) || null,
@@ -417,7 +432,16 @@ export default function KYCPage() {
                 } />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">Verification Status</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-white">Verification Status</h3>
+                  <button
+                    onClick={fetchKYCStatus}
+                    className="px-3 py-1 text-sm bg-primary-500/20 hover:bg-primary-500/30 text-primary-400 rounded-lg transition-colors flex items-center gap-1"
+                  >
+                    <RefreshCw size={14} />
+                    Refresh
+                  </button>
+                </div>
                 <StatusBadge status={kycStatus.overall} />
               </div>
             </div>
