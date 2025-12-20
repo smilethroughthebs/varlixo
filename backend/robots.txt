@@ -1,0 +1,26 @@
+User-agent: *
+Allow: /
+Allow: /api/v1/
+Allow: /uploads/
+
+# Disallow admin endpoints
+Disallow: /api/v1/admin/
+Disallow: /admin/
+
+# Disallow sensitive endpoints
+Disallow: /api/v1/auth/2fa/
+Disallow: /api/v1/auth/forgot-password
+Disallow: /api/v1/auth/reset-password
+Disallow: /api/v1/kyc/admin/
+
+# Disallow internal files
+Disallow: /uploads/kyc/
+Disallow: /uploads/deposits/
+Disallow: /*.env
+Disallow: /*.log
+
+# Sitemap
+Sitemap: https://varlixo.com/sitemap.xml
+
+# Crawl delay
+Crawl-delay: 1

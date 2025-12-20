@@ -29,8 +29,49 @@ async function bootstrap() {
   const port = configService.get<number>('app.port') || 3001;
   const frontendUrl = configService.get<string>('cors.frontendUrl') || 'http://localhost:3000';
 
-  // Security middleware (Helmet)
-  app.use(helmet.default());
+  // HTTPS redirect middleware (only in production)
+  if (configService.get<string>('app.nodeEnv') === 'production') {
+    app.use((req, res, next) => {
+      if (req.header('x-forwarded-proto') !== 'https') {
+        res.redirect(`https://${req.header('host')}${req.url}`);
+      } else {
+        next();
+      }
+    });
+  }
+
+  // Security middleware (Helmet) with enhanced configuration
+  app.use(helmet.default({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        imgSrc: ["'self'", "data:", "https:"],
+        scriptSrc: ["'self'"],
+        connectSrc: ["'self'", "https://api.varlixo.com"],
+        frameSrc: ["'none'"],
+        objectSrc: ["'none'"],
+        mediaSrc: ["'self'"],
+        manifestSrc: ["'self'"],
+      },
+    },
+    hsts: {
+      maxAge: 31536000, // 1 year
+      includeSubDomains: true,
+      preload: true,
+    },
+    noSniff: true,
+    referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+    permissionsPolicy: {
+      features: {
+        camera: ["'none'"],
+        microphone: ["'none'"],
+        geolocation: ["'none'"],
+        payment: ["'none'"],
+      },
+    },
+  }));
 
   // Enable CORS with configuration
   app.enableCors({
@@ -79,6 +120,11 @@ async function bootstrap() {
   // This exposes URLs like `/uploads/deposits/filename.png`.
   app.useStaticAssets(join(process.cwd(), 'uploads'), {
     prefix: '/uploads/',
+  });
+
+  // Serve security files
+  app.useStaticAssets(join(process.cwd()), {
+    prefix: '/',
   });
 
   // Start server
