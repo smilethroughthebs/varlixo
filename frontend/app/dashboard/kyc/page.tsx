@@ -275,12 +275,17 @@ export default function KYCPage() {
       const response = await kycAPI.getStatus();
       const data = response.data;
       
-      console.log('KYC Status Response:', data);
+      console.log('=== KYC Status Debug ===');
+      console.log('Full Response:', data);
       console.log('KYC Status from backend:', data.kycStatus);
+      console.log('Success flag:', data.success);
+      console.log('Documents found:', data.documents?.length || 0);
       
       if (data.success) {
         // Handle different KYC status values from backend
         let kycStatus = data.kycStatus;
+        console.log('Original KYC Status:', kycStatus);
+        
         if (kycStatus === 'approved' || kycStatus === 'verified') {
           kycStatus = 'verified';
         }
@@ -292,6 +297,11 @@ export default function KYCPage() {
           identityDoc: data.documents?.find((d: any) => d.documentType.includes('passport') || d.documentType.includes('national_id') || d.documentType.includes('drivers_license')) || null,
           addressDoc: data.documents?.find((d: any) => d.documentType.includes('utility') || d.documentType.includes('bank') || d.documentType.includes('tax')) || null,
           selfie: data.documents?.find((d: any) => d.documentType.includes('selfie')) || null,
+        });
+        
+        console.log('Final KYC State Set:', {
+          overall: kycStatus || 'not_submitted',
+          hasDocuments: (data.documents?.length || 0) > 0
         });
       }
     } catch (error) {
