@@ -21,6 +21,12 @@ export default () => ({
       process.env.MONGO_URI ||
       process.env.DATABASE_URL ||
       'mongodb://localhost:27017/varlixo',
+    connectionTimeoutMS: 10000,
+    socketTimeoutMS: 45000,
+    serverSelectionTimeoutMS: 5000,
+    maxPoolSize: 10,
+    minPoolSize: 2,
+    maxIdleTimeMS: 30000,
   },
 
   // JWT Authentication settings
