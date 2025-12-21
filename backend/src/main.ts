@@ -63,14 +63,6 @@ async function bootstrap() {
     },
     noSniff: true,
     referrerPolicy: { policy: "strict-origin-when-cross-origin" },
-    permissionsPolicy: {
-      features: {
-        camera: ["'none'"],
-        microphone: ["'none'"],
-        geolocation: ["'none'"],
-        payment: ["'none'"],
-      },
-    },
   }));
 
   // Enable CORS with configuration
