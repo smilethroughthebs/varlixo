@@ -264,6 +264,10 @@ export default function KYCPage() {
   const [uploadedFiles, setUploadedFiles] = useState<{[key: string]: File}>({});
   const [isUploading, setIsUploading] = useState(false);
   const [step, setStep] = useState(1);
+  const [kycRequests, setKycRequests] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [selectedKYC, setSelectedKYC] = useState<any>(null);
 
   useEffect(() => {
     // Fetch KYC status from API
@@ -271,6 +275,7 @@ export default function KYCPage() {
   }, []);
 
   const fetchKYCStatus = async () => {
+    setIsRefreshing(true);
     try {
       const response = await kycAPI.getStatus();
       const data = response.data;
@@ -306,6 +311,10 @@ export default function KYCPage() {
       }
     } catch (error) {
       console.error('Failed to fetch KYC status:', error);
+      // Fallback: refresh the entire page
+      window.location.reload();
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -446,10 +455,11 @@ export default function KYCPage() {
                   <h3 className="text-lg font-semibold text-white">Verification Status</h3>
                   <button
                     onClick={fetchKYCStatus}
-                    className="px-3 py-1 text-sm bg-primary-500/20 hover:bg-primary-500/30 text-primary-400 rounded-lg transition-colors flex items-center gap-1"
+                    disabled={isRefreshing}
+                    className="px-3 py-1 text-sm bg-primary-500/20 hover:bg-primary-500/30 text-primary-400 rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50"
                   >
-                    <RefreshCw size={14} />
-                    Refresh
+                    <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
+                    {isRefreshing ? 'Refreshing...' : 'Refresh'}
                   </button>
                 </div>
                 <StatusBadge status={kycStatus.overall} />
