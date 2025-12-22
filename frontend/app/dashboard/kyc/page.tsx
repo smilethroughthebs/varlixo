@@ -274,12 +274,15 @@ export default function KYCPage() {
     fetchKYCStatus();
   }, []);
 
-  // Version: 2025-12-22-03-05 - Force deployment for KYC display fix
+  // Version: 2025-12-22-03-46-CACHE-BUST - Force aggressive cache clearing
 const fetchKYCStatus = async () => {
-    setIsRefreshing(true);
-    try {
-      const response = await kycAPI.getStatus();
-      const data = response.data;
+  console.log('=== KYC Status Debug - CACHE BUST VERSION ===');
+  setIsRefreshing(true);
+  try {
+    // Add cache-busting timestamp
+    const timestamp = Date.now();
+    const response = await kycAPI.getStatus(`?t=${timestamp}`);
+    const data = response.data;
       
       console.log('=== KYC Status Debug ===');
       console.log('Full Response:', data);

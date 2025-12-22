@@ -60,10 +60,15 @@ export default function AdminKYCPage() {
     fetchDashboardStats();
   }, [filters, pagination.page]);
 
+  // Version: 2025-12-22-03-46-CACHE-BUST - Force aggressive cache clearing for admin
   const fetchDashboardStats = async () => {
     try {
-      const response = await adminAPI.getStats();
+      // Add cache-busting timestamp
+      const timestamp = Date.now();
+      const response = await adminAPI.getStats(`?t=${timestamp}`);
       if (response.data?.success) {
+        console.log('=== Admin Dashboard Stats - CACHE BUST VERSION ===');
+        console.log('Stats received:', response.data.stats);
         setDashboardStats(response.data.stats);
       }
     } catch (error) {
