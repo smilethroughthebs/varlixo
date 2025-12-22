@@ -274,7 +274,8 @@ export default function KYCPage() {
     fetchKYCStatus();
   }, []);
 
-  const fetchKYCStatus = async () => {
+  // Version: 2025-12-22-03-05 - Force deployment for KYC display fix
+const fetchKYCStatus = async () => {
     setIsRefreshing(true);
     try {
       const response = await kycAPI.getStatus();
