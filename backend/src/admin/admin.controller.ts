@@ -41,6 +41,15 @@ export class AdminController {
     return this.adminService.getDashboardStats();
   }
 
+  /**
+   * Get dashboard statistics (alias for frontend)
+   * GET /admin/stats
+   */
+  @Get('stats')
+  async getStats() {
+    return this.adminService.getDashboardStats();
+  }
+
   // ==========================================
   // SETTINGS
   // ==========================================
