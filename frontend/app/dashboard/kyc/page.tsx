@@ -279,9 +279,8 @@ const fetchKYCStatus = async () => {
   console.log('=== KYC Status Debug - CACHE BUST VERSION ===');
   setIsRefreshing(true);
   try {
-    // Add cache-busting timestamp
-    const timestamp = Date.now();
-    const response = await kycAPI.getStatus(`?t=${timestamp}`);
+    // Add cache-busting timestamp (removed parameter due to API signature)
+    const response = await kycAPI.getStatus();
     const data = response.data;
       
       console.log('=== KYC Status Debug ===');
