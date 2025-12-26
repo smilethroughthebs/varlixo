@@ -28,6 +28,7 @@ export enum EmailType {
   KYC_APPROVED = 'kyc_approved',
   KYC_REJECTED = 'kyc_rejected',
   SECURITY_ALERT = 'security_alert',
+  RECEIPT_GENERATED = 'receipt_generated',
   WELCOME = 'welcome',
   ADMIN_NOTIFICATION = 'admin_notification',
 }
@@ -585,6 +586,51 @@ export class EmailService {
     });
 
     return this.sendEmail(email, '⚠️ KYC Verification Update - Varlixo', html);
+  }
+
+  /**
+   * Send receipt generated email
+   */
+  async sendReceiptEmail(
+    email: string,
+    name: string,
+    receiptNumber: string,
+    transaction: any,
+  ): Promise<boolean> {
+    const html = this.getEmailTemplate({
+      title: 'Transaction Receipt Generated! 🧾',
+      preheader: `Your receipt ${receiptNumber} is ready`,
+      userName: name,
+      content: `
+        <h2 style="color: #333; margin-bottom: 20px;">Transaction Receipt Generated</h2>
+        <p style="font-size: 16px; line-height: 1.5; color: #666; margin-bottom: 20px;">
+          Dear ${name},
+        </p>
+        <p style="font-size: 16px; line-height: 1.5; color: #666; margin-bottom: 20px;">
+          Your transaction receipt has been generated successfully. Here are the details:
+        </p>
+        
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+          <h3 style="color: #333; margin-bottom: 15px;">Receipt Details</h3>
+          <p style="margin: 5px 0;"><strong>Receipt Number:</strong> ${receiptNumber}</p>
+          <p style="margin: 5px 0;"><strong>Transaction Type:</strong> ${transaction.type}</p>
+          <p style="margin: 5px 0;"><strong>Amount:</strong> $${transaction.amount.toFixed(2)} ${transaction.currency}</p>
+          <p style="margin: 5px 0;"><strong>Fee:</strong> $${transaction.fee.toFixed(2)} ${transaction.currency}</p>
+          <p style="margin: 5px 0;"><strong>Net Amount:</strong> $${transaction.netAmount.toFixed(2)} ${transaction.currency}</p>
+          <p style="margin: 5px 0;"><strong>Transaction Reference:</strong> ${transaction.transactionRef}</p>
+          ${transaction.txHash ? `<p style="margin: 5px 0;"><strong>Transaction Hash:</strong> ${transaction.txHash}</p>` : ''}
+          <p style="margin: 5px 0;"><strong>Description:</strong> ${transaction.description}</p>
+        </div>
+        
+        <p style="font-size: 16px; line-height: 1.5; color: #666; margin-bottom: 20px;">
+          You can download your receipt from your dashboard at any time.
+        </p>
+      `,
+      buttonText: 'View Receipts',
+      buttonUrl: `${this.frontendUrl}/dashboard/receipts`,
+    });
+
+    return this.sendEmail(email, `🧾 Receipt Generated - ${receiptNumber}`, html);
   }
 
   // ==========================================
