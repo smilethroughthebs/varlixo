@@ -600,7 +600,7 @@ export class EmailService {
     const html = this.getEmailTemplate({
       title: 'Transaction Receipt Generated! 🧾',
       preheader: `Your receipt ${receiptNumber} is ready`,
-      userName: name,
+      name: name,
       content: `
         <h2 style="color: #333; margin-bottom: 20px;">Transaction Receipt Generated</h2>
         <p style="font-size: 16px; line-height: 1.5; color: #666; margin-bottom: 20px;">
